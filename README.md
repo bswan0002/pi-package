@@ -9,6 +9,7 @@ Personal [pi](https://pi.dev) package for bswan0002 extensions and skills.
 - [`readonly-git-permissions`](./extensions/readonly-git-permissions) — blocks non-readonly git operations from the `bash` tool unless confirmed in the UI.
 - [`sounds`](./extensions/sounds) — plays distinct macOS sounds on agent end and permission prompts.
 - [`post-edit`](./extensions/post-edit) — runs project-configured format/lint/typecheck commands after agent edits.
+- [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API.
 
 ### Skills
 
