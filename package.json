@@ -29,5 +29,8 @@
     "@mariozechner/pi-coding-agent": "*",
     "@types/node": "^24.0.0",
     "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "glob": "^13.0.6"
   }
 }
