@@ -255,16 +255,31 @@ async function runJob(pi: ExtensionAPI, cwd: string, job: PostEditJob, changedFi
 	};
 }
 
+function getFailureOutput(result: JobRunResult) {
+	return [result.stderr.trim(), result.stdout.trim()].filter(Boolean).join("\n\n");
+}
+
 function summarizeFailure(result: JobRunResult) {
-	const output = [result.stderr.trim(), result.stdout.trim()].filter(Boolean).join("\n\n");
+	const output = getFailureOutput(result);
+	const status = result.killed ? "timed out or was killed" : `failed with exit code ${result.code}`;
 	const suffix = output ? `\n\n${output.slice(0, 1500)}` : "";
-	return `Post-edit job '${result.job.name}' failed with exit code ${result.code}.${suffix}`;
+	return `Post-edit job '${result.job.name}' ${status}.${suffix}`;
+}
+
+function buildAgentFailureMessage(result: JobRunResult, attempts: number) {
+	const output = getFailureOutput(result);
+	const status = result.killed ? "timed out or was killed" : `failed with exit code ${result.code}`;
+	const files = result.matchedFiles.length ? `\nMatched files:\n${result.matchedFiles.map((file) => `- ${file}`).join("\n")}` : "";
+	const details = output ? `\n\nValidator output:\n\`\`\`\n${output.slice(0, 6000)}\n\`\`\`` : "";
+
+	return `Post-edit validation failed after ${attempts} attempt${attempts === 1 ? "" : "s"}. The job '${result.job.name}' ${status}.${files}${details}\n\nPlease fix the validation errors.`;
 }
 
 export default function (pi: ExtensionAPI) {
 	let toolTouchedFiles = new Set<string>();
 	let startingGitStatus: GitStatusMap | undefined;
 	let running = false;
+	let fixAttempts = 0;
 
 	pi.on("agent_start", async (_event, ctx) => {
 		toolTouchedFiles = new Set<string>();
@@ -292,79 +307,71 @@ export default function (pi: ExtensionAPI) {
 		running = true;
 		try {
 			const ignorePatterns = [...DEFAULT_IGNORES, ...(config.ignore ?? [])];
+			const latestGitStatus = await getGitStatus(pi, ctx.cwd).catch(() => undefined);
+			const gitTouchedFiles = latestGitStatus ? diffGitStatus(startingGitStatus, latestGitStatus) : [];
+			const changedFiles = uniqueSorted([...toolTouchedFiles, ...gitTouchedFiles].map((filePath) => normalizeRelativePath(filePath, ctx.cwd)));
+
+			if (changedFiles.length === 0) return undefined;
+
+			pi.events.emit(EVENTS.STARTED, {
+				attempt: fixAttempts,
+				changedFiles,
+				cwd: ctx.cwd,
+			});
+
 			let finalFailure: JobRunResult | undefined;
-			let attemptsRun = 0;
 
-			for (let attempt = 0; attempt <= (config.maxRetries ?? DEFAULT_MAX_RETRIES); attempt++) {
-				attemptsRun = attempt + 1;
-				const latestGitStatus = await getGitStatus(pi, ctx.cwd).catch(() => undefined);
-				const gitTouchedFiles = latestGitStatus ? diffGitStatus(startingGitStatus, latestGitStatus) : [];
-				const changedFiles = uniqueSorted([...toolTouchedFiles, ...gitTouchedFiles].map((filePath) => normalizeRelativePath(filePath, ctx.cwd)));
-
-				if (changedFiles.length === 0) break;
-
-				pi.events.emit(EVENTS.STARTED, {
-					attempt,
-					changedFiles,
+			for (const job of config.jobs) {
+				const matchedFiles = filesForJob(job, changedFiles, ignorePatterns);
+				pi.events.emit(EVENTS.JOB_STARTED, {
+					attempt: fixAttempts,
+					jobName: job.name,
+					matchedFiles,
 					cwd: ctx.cwd,
 				});
 
-				finalFailure = undefined;
+				const result = await runJob(pi, ctx.cwd, job, changedFiles, ignorePatterns);
+				pi.events.emit(EVENTS.JOB_FINISHED, {
+					attempt: fixAttempts,
+					jobName: job.name,
+					matchedFiles: result.matchedFiles,
+					code: result.code,
+					killed: result.killed,
+					skipped: result.skipped,
+					cwd: ctx.cwd,
+				});
 
-				for (const job of config.jobs) {
-					const matchedFiles = filesForJob(job, changedFiles, ignorePatterns);
-					pi.events.emit(EVENTS.JOB_STARTED, {
-						attempt,
-						jobName: job.name,
-						matchedFiles,
-						cwd: ctx.cwd,
-					});
-
-					const result = await runJob(pi, ctx.cwd, job, changedFiles, ignorePatterns);
-					pi.events.emit(EVENTS.JOB_FINISHED, {
-						attempt,
-						jobName: job.name,
-						matchedFiles: result.matchedFiles,
-						code: result.code,
-						killed: result.killed,
-						skipped: result.skipped,
-						cwd: ctx.cwd,
-					});
-
-					if (result.code !== 0 || result.killed) {
-						finalFailure = result;
-						break;
-					}
-				}
-
-				if (!finalFailure) {
-					pi.events.emit(EVENTS.COMPLETED, {
-						attempts: attemptsRun,
-						cwd: ctx.cwd,
-					});
-					ctx.ui.notify(`Post-edit checks passed (${attemptsRun} attempt${attemptsRun === 1 ? "" : "s"}).`, "info");
+				if (result.code !== 0 || result.killed) {
+					finalFailure = result;
 					break;
 				}
+			}
 
-				if (attempt < (config.maxRetries ?? DEFAULT_MAX_RETRIES)) {
-					pi.events.emit(EVENTS.RETRY, {
-						attempt,
-						nextAttempt: attempt + 1,
-						jobName: finalFailure.job.name,
-						code: finalFailure.code,
-						cwd: ctx.cwd,
-					});
-					continue;
-				}
-
-				pi.events.emit(EVENTS.FAILED, {
-					attempts: attemptsRun,
-					jobName: finalFailure.job.name,
-					code: finalFailure.code,
-					killed: finalFailure.killed,
+			if (!finalFailure) {
+				fixAttempts = 0;
+				pi.events.emit(EVENTS.COMPLETED, {
+					attempts: 1,
 					cwd: ctx.cwd,
 				});
-				ctx.ui.notify(summarizeFailure(finalFailure), "error");
+				ctx.ui.notify("Post-edit checks passed.", "info");
+				return undefined;
+			}
+
+			fixAttempts += 1;
+			pi.events.emit(EVENTS.FAILED, {
+				attempts: fixAttempts,
+				jobName: finalFailure.job.name,
+				code: finalFailure.code,
+				killed: finalFailure.killed,
+				cwd: ctx.cwd,
+			});
+			ctx.ui.notify(summarizeFailure(finalFailure), "error");
+
+			const maxFixAttempts = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+			if (fixAttempts <= maxFixAttempts) {
+				pi.sendUserMessage(buildAgentFailureMessage(finalFailure, fixAttempts), { deliverAs: "followUp" });
+			} else {
+				ctx.ui.notify(`Post-edit checks still failing after ${maxFixAttempts} fix attempts. Not sending another fix turn.`, "error");
 			}
 		} finally {
 			running = false;
