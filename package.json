@@ -1,0 +1,27 @@
+{
+  "name": "@bswan0002/pi-package",
+  "version": "0.1.0",
+  "description": "Personal pi package for bswan0002 extensions and skills.",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi-skill"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "typescript": "6.0.3"
+  }
+}
