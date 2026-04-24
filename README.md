@@ -19,13 +19,13 @@ Personal [pi](https://pi.dev) package for bswan0002 extensions and skills.
 From another project, install this package into pi settings with:
 
 ```bash
-pi install /Users/benswanson/Dev/pi-setup
+pi install /Users/benswanson/Dev/pi-package
 ```
 
 Or try it for one run without installing:
 
 ```bash
-pi -e /Users/benswanson/Dev/pi-setup
+pi -e /Users/benswanson/Dev/pi-package
 ```
 
 ## Naming convention
