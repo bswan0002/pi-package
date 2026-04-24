@@ -50,7 +50,6 @@ Opens the interactive screenshot picker UI. Browse your recent screenshots with 
 - **s / space** - Stage/unstage current screenshot (✓ indicator appears)
 - **x** - Clear all staged screenshots
 - **o** - Open in Preview.app
-- **d** - Delete screenshot from disk
 - **Enter** - Close picker
 - **Esc** - Cancel
 
@@ -75,7 +74,6 @@ Keyboard shortcut to clear all staged screenshots (same as `/bswan0002-screensho
 - **Multi-select** - Stage multiple screenshots, they all attach when you send
 - **Relative timestamps** - "2 minutes ago", "yesterday", etc.
 - **File sizes** - Know what you're attaching
-- **Delete screenshots** - Press `d` to remove unwanted screenshots from disk
 - **Staged indicator** - Widget shows `📷 N screenshots staged` below the editor
 - **Auto-detection** - Finds your screenshot folder automatically when no config
 

@@ -32,7 +32,6 @@
  *   s / space        - Stage/unstage current screenshot
  *   x                - Clear all staged screenshots
  *   o                - Open in default viewer
- *   d                - Delete screenshot from disk
  *   enter            - Close selector
  *   esc              - Cancel
  *
@@ -73,7 +72,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -151,6 +150,52 @@ function isGlobPattern(pattern: string): boolean {
 /**
  * Get default screenshot directories based on platform.
  */
+function canonicalPathKey(path: string): string {
+	try {
+		const real = realpathSync(path);
+		return isMacOS ? real.toLowerCase() : real;
+	} catch {
+		const expanded = expandPath(path);
+		return isMacOS ? expanded.toLowerCase() : expanded;
+	}
+}
+
+function uniqueExistingPaths(paths: string[]): string[] {
+	const seen = new Set<string>();
+	const unique: string[] = [];
+
+	for (const path of paths) {
+		if (!existsSync(path)) continue;
+
+		const key = canonicalPathKey(path);
+		if (seen.has(key)) continue;
+
+		seen.add(key);
+		unique.push(path);
+	}
+
+	return unique;
+}
+
+function uniqueSources(sources: string[]): string[] {
+	const seen = new Set<string>();
+	const unique: string[] = [];
+
+	for (const source of sources) {
+		const expanded = expandPath(source);
+		const key = isGlobPattern(expanded)
+			? `glob:${isMacOS ? expanded.toLowerCase() : expanded}`
+			: `path:${canonicalPathKey(expanded)}`;
+
+		if (seen.has(key)) continue;
+
+		seen.add(key);
+		unique.push(source);
+	}
+
+	return unique;
+}
+
 function getDefaultScreenshotDirs(): string[] {
 	if (isMacOS) {
 		const dirs: string[] = [];
@@ -174,7 +219,7 @@ function getDefaultScreenshotDirs(): string[] {
 			join(homedir(), "Pictures", "Screenshots"),
 		);
 
-		return [...new Set(dirs)].filter((dir) => existsSync(dir));
+		return uniqueExistingPaths(dirs);
 	}
 
 	if (isLinux) {
@@ -185,7 +230,7 @@ function getDefaultScreenshotDirs(): string[] {
 			join(homedir(), "Screenshots"),
 			join(homedir(), "Desktop"),
 		];
-		return linuxDirs.filter((dir) => existsSync(dir));
+		return uniqueExistingPaths(linuxDirs);
 	}
 
 	// Fallback for any platform
@@ -402,9 +447,11 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 	 * Get source tabs based on configuration.
 	 */
 	function getSourceTabs(): SourceTab[] {
-		const sources = config.sources && config.sources.length > 0
-			? [...config.sources]
-			: (process.env.PI_SCREENSHOTS_DIR ? [process.env.PI_SCREENSHOTS_DIR] : getDefaultScreenshotDirs());
+		const sources = uniqueSources(
+			config.sources && config.sources.length > 0
+				? [...config.sources]
+				: (process.env.PI_SCREENSHOTS_DIR ? [process.env.PI_SCREENSHOTS_DIR] : getDefaultScreenshotDirs())
+		);
 
 		return sources.map((source) => {
 			const screenshots = getScreenshotsFromSource(source);
@@ -588,8 +635,6 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 			let panY = 0;
 			let lastRenderWidth = process.stdout.columns || 120;
 
-			// Track double-n for nuke
-			let nukeWarning = false;
 
 			const imageTheme = {
 				fallbackColor: (s: string) => theme.fg("dim", s),
@@ -1183,10 +1228,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 					const stagedCount = alreadyStaged.size;
 					const zoomSelectionLocked = previewZoom && supportsKittyInspector && zoomLevel > ZOOM_LEVEL_MIN;
 					lines.push("");
-					if (nukeWarning) {
-						lines.push(" " + theme.fg("error", "\u26A0 Press n again to DELETE ALL screenshots in this source!"));
-						lines.push(" " + theme.fg("dim", "Any other key to cancel"));
-					} else if (stagedCount === 0) {
+					if (stagedCount === 0) {
 						lines.push(" " + theme.fg("warning", "\u26A0 Press s/space to stage screenshots before closing"));
 						if (zoomSelectionLocked) {
 							lines.push(" " + theme.fg("warning", "Zoom lock: press 0 to reset before using \u2191\u2193 to select other screenshots"));
@@ -1199,7 +1241,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 										? supportsKittyInspector
 											? "\u2191\u2193\u2190\u2192 pan \u2022 +/- zoom \u2022 [ ] nav \u2022 0 reset \u2022 z split \u2022 s/space toggle \u2022 enter done"
 											: "\u2191\u2193 nav \u2022 +/- zoom \u2022 z split \u2022 s/space toggle \u2022 enter done"
-										: "\u2191\u2193 nav \u2022 z zoom \u2022 s/space toggle \u2022 o open \u2022 d delete \u2022 nn nuke \u2022 enter done"
+										: "\u2191\u2193 nav \u2022 z zoom \u2022 s/space toggle \u2022 o open \u2022 enter done"
 								)
 						);
 					} else {
@@ -1215,7 +1257,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 										? supportsKittyInspector
 											? "\u2191\u2193\u2190\u2192 pan \u2022 +/- zoom \u2022 [ ] nav \u2022 0 reset \u2022 z split \u2022 x clear all \u2022 enter done"
 											: "\u2191\u2193 nav \u2022 +/- zoom \u2022 z split \u2022 x clear all \u2022 enter done"
-										: "z zoom \u2022 s/space toggle \u2022 x clear all \u2022 d delete \u2022 nn nuke \u2022 enter done"
+										: "z zoom \u2022 s/space toggle \u2022 x clear all \u2022 enter done"
 								)
 						);
 					}
@@ -1238,56 +1280,6 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 						}
 					}
 
-					// Handle nuke confirmation
-					if (nukeWarning) {
-						if (data === "n" || data === "N") {
-							// Double-n confirmed - nuke all files in current source
-							const tabScreenshots = tabs[activeTab].screenshots;
-							for (const screenshot of [...tabScreenshots]) {
-								try {
-									unlinkSync(screenshot.path);
-									thumbnails.delete(screenshot.path);
-									imageDimensionsCache.delete(screenshot.path);
-									if (alreadyStaged.has(screenshot.path)) {
-										const pathsArray = [...alreadyStaged];
-										const pathIndex = pathsArray.indexOf(screenshot.path);
-										if (pathIndex !== -1) {
-											stagedImages.splice(pathIndex, 1);
-										}
-										alreadyStaged.delete(screenshot.path);
-										stagedPaths.delete(screenshot.path);
-									}
-								} catch {
-									// Silently fail for individual files
-								}
-							}
-							tabScreenshots.length = 0; // Clear the array
-
-							// Check if there are other non-empty tabs
-							const nonEmptyTabIndex = tabs.findIndex((t, i) => i !== activeTab && t.screenshots.length > 0);
-							if (nonEmptyTabIndex !== -1) {
-								activeTab = nonEmptyTabIndex;
-								cursor = 0;
-								scrollOffset = 0;
-								resetZoomViewport();
-							} else {
-								cleanupImage();
-								done(null); // No more screenshots anywhere
-								return;
-							}
-
-							nukeWarning = false;
-							cursor = 0;
-							scrollOffset = 0;
-							resetZoomViewport();
-							tui.requestRender();
-						} else {
-							// Any other key cancels nuke
-							nukeWarning = false;
-							tui.requestRender();
-						}
-						return;
-					}
 
 					// Ctrl+T to cycle tabs
 					if (matchesKey(data, Key.ctrl("t"))) {
@@ -1301,12 +1293,6 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 						return;
 					}
 
-					// First n press - show warning
-					if (data === "n" || data === "N") {
-						nukeWarning = true;
-						tui.requestRender();
-						return;
-					}
 
 					if (data === "z" || data === "Z") {
 						cleanupImage();
@@ -1433,64 +1419,6 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 						if (alreadyStaged.size > 0) {
 							clearAllStaged();
 							tui.requestRender();
-						}
-					} else if (data === "d" || data === "D") {
-						// Delete the screenshot file from disk
-						if (screenshots.length === 0) return;
-
-						const screenshot = screenshots[cursor];
-						try {
-							unlinkSync(screenshot.path);
-
-							// Remove from thumbnails cache
-							thumbnails.delete(screenshot.path);
-							imageDimensionsCache.delete(screenshot.path);
-
-							// Remove from alreadyStaged if it was staged
-							if (alreadyStaged.has(screenshot.path)) {
-								const pathsArray = [...alreadyStaged];
-								const pathIndex = pathsArray.indexOf(screenshot.path);
-								if (pathIndex !== -1) {
-									stagedImages.splice(pathIndex, 1);
-								}
-								alreadyStaged.delete(screenshot.path);
-								stagedPaths.delete(screenshot.path);
-							}
-
-							// Remove from current tab's screenshots
-							const tabScreenshots = tabs[activeTab].screenshots;
-							const idx = tabScreenshots.findIndex((s) => s.path === screenshot.path);
-							if (idx !== -1) {
-								tabScreenshots.splice(idx, 1);
-							}
-
-							// Adjust cursor if needed
-							if (tabScreenshots.length === 0) {
-								// Check if there are other non-empty tabs
-								const nonEmptyTabIndex = tabs.findIndex((t, i) => i !== activeTab && t.screenshots.length > 0);
-								if (nonEmptyTabIndex !== -1) {
-									activeTab = nonEmptyTabIndex;
-									cursor = 0;
-									scrollOffset = 0;
-									resetZoomViewport();
-								} else {
-									cleanupImage();
-									done(null); // No more screenshots, close
-									return;
-								}
-							} else {
-								if (cursor >= tabScreenshots.length) {
-									cursor = tabScreenshots.length - 1;
-								}
-								if (scrollOffset > 0 && scrollOffset >= tabScreenshots.length - LIST_VISIBLE_ITEMS + 1) {
-									scrollOffset = Math.max(0, tabScreenshots.length - LIST_VISIBLE_ITEMS);
-								}
-								resetZoomViewport();
-							}
-
-							tui.requestRender();
-						} catch {
-							// Silently fail if deletion fails
 						}
 					}
 				},
