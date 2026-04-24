@@ -7,11 +7,12 @@ Personal [pi](https://pi.dev) package for bswan0002 extensions and skills.
 ### Extensions
 
 - [`readonly-git-permissions`](./extensions/readonly-git-permissions) — blocks non-readonly git operations from the `bash` tool unless confirmed in the UI.
-- [`sounds`](./extensions/sounds) — plays distinct macOS sounds on turn end and permission prompts.
+- [`sounds`](./extensions/sounds) — plays distinct macOS sounds on agent end and permission prompts.
+- [`post-edit`](./extensions/post-edit) — runs project-configured format/lint/typecheck commands after agent edits.
 
 ### Skills
 
-- Skills will live under [`skills/`](./skills).
+- [`bswan0002-qq`](./skills/bswan0002-qq) — answers questions using only readonly project inspection.
 
 ## Install locally
 
@@ -27,7 +28,13 @@ Or try it for one run without installing:
 pi -e /Users/benswanson/Dev/pi-setup
 ```
 
-## Event naming convention
+## Naming convention
+
+Skill names use the Agent Skills-compatible namespace prefix:
+
+```text
+bswan0002-<skill-name>
+```
 
 Custom extension bus events are scoped as:
 
