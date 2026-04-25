@@ -54,10 +54,8 @@
  *   }
  *
  *   Sources can be:
- *   - Plain directories: scans for screenshot-named PNGs
+ *   - Plain directories: scans for common image files
  *   - Glob patterns: matches any file matching the pattern
- *
- *   Environment variable PI_SCREENSHOTS_DIR is also supported as fallback.
  *
  * Default screenshot locations (when no config):
  *   macOS: reads from screencapture preferences, then tries ~/screenshots, ~/Screenshots,
@@ -450,7 +448,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 		const sources = uniqueSources(
 			config.sources && config.sources.length > 0
 				? [...config.sources]
-				: (process.env.PI_SCREENSHOTS_DIR ? [process.env.PI_SCREENSHOTS_DIR] : getDefaultScreenshotDirs())
+				: getDefaultScreenshotDirs()
 		);
 
 		return sources.map((source) => {
@@ -1407,6 +1405,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 						cleanupImage();
 						done([]);
 					} else if (matchesKey(data, Key.escape)) {
+						clearAllStaged();
 						cleanupImage();
 						done(null);
 					} else if (data === "o") {
@@ -1463,7 +1462,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 
 	// Register command
 	pi.registerCommand("bswan0002-screenshot-picker", {
-		description: "Show recent screenshots for quick attachment",
+		description: "Pick screenshots to attach to the next message.",
 		handler: async (_args, ctx) => {
 			await showScreenshotSelector(ctx);
 			updateStagedWidget(ctx);
@@ -1488,7 +1487,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 
 	// Register keyboard shortcut
 	pi.registerShortcut(Key.ctrlShift("s"), {
-		description: "Show recent screenshots",
+		description: "Pick screenshots to attach to the next message.",
 		handler: async (ctx) => {
 			await showScreenshotSelector(ctx);
 			updateStagedWidget(ctx);
