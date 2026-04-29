@@ -34,6 +34,9 @@
     "typescript": "6.0.3"
   },
   "dependencies": {
-    "glob": "^13.0.6"
+    "@shikijs/cli": "^4.0.2",
+    "diff": "^9.0.0",
+    "glob": "^13.0.6",
+    "shiki": "^4.0.2"
   }
 }
