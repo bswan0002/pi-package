@@ -56,7 +56,7 @@
     "mdLinkUrl": "muted",
     "mdCode": "syntaxOrange",
     "mdCodeBlock": "fg",
-    "mdCodeBlockBorder": "border",
+    "mdCodeBlockBorder": "muted",
     "mdQuote": "muted",
     "mdQuoteBorder": "border",
     "mdHr": "border",
