@@ -50,12 +50,15 @@ interface DiffPreset {
 	bgDelHighlight?: string;
 	bgGutterAdd?: string;
 	bgGutterDel?: string;
+	bgBase?: string;
 	bgEmpty?: string;
+	bgHunk?: string;
 	fgAdd?: string;
 	fgDel?: string;
 	fgDim?: string;
 	fgLnum?: string;
 	fgRule?: string;
+	fgHunk?: string;
 	fgStripe?: string;
 	fgSafeMuted?: string;
 }
@@ -69,67 +72,79 @@ interface DiffUserConfig {
 const DIFF_PRESETS: Record<string, DiffPreset> = {
 	default: {
 		name: "default",
-		description: "Original pi-diff colors — tuned for dark theme bases (~#1e1e2e)",
-		bgAdd: "#162620",
-		bgDel: "#2d1919",
-		bgAddHighlight: "#234b32",
-		bgDelHighlight: "#502323",
-		bgGutterAdd: "#12201a",
-		bgGutterDel: "#261616",
-		bgEmpty: "#121212",
-		fgDim: "#505050",
-		fgLnum: "#646464",
-		fgRule: "#323232",
-		fgStripe: "#282828",
-		fgSafeMuted: "#8b949e",
+		description: "Neutral full-block background with GitHub-like hunk and change tints",
+		bgAdd: "#263a31",
+		bgDel: "#462b2b",
+		bgAddHighlight: "#2d5a41",
+		bgDelHighlight: "#643434",
+		bgGutterAdd: "#263f33",
+		bgGutterDel: "#482f2f",
+		bgBase: "#303030",
+		bgEmpty: "#303030",
+		bgHunk: "#1f314e",
+		fgDim: "#8f8f8f",
+		fgLnum: "#a0a0a0",
+		fgRule: "#4a4a4a",
+		fgHunk: "#9bbcff",
+		fgStripe: "#303030",
+		fgSafeMuted: "#b8c0ca",
 	},
 	midnight: {
 		name: "midnight",
 		description: "Subtle tints for pure black (#000000) terminal backgrounds",
-		bgAdd: "#0d1a12",
-		bgDel: "#1a0d0d",
-		bgAddHighlight: "#1a3825",
-		bgDelHighlight: "#381a1a",
-		bgGutterAdd: "#091208",
-		bgGutterDel: "#120908",
-		bgEmpty: "#080808",
-		fgDim: "#404040",
-		fgLnum: "#505050",
-		fgRule: "#282828",
-		fgStripe: "#1e1e1e",
-		fgSafeMuted: "#8b949e",
+		bgAdd: "#17251d",
+		bgDel: "#2b1c1c",
+		bgAddHighlight: "#254a33",
+		bgDelHighlight: "#552c2c",
+		bgGutterAdd: "#16291d",
+		bgGutterDel: "#2a1818",
+		bgBase: "#202020",
+		bgEmpty: "#202020",
+		bgHunk: "#182a45",
+		fgDim: "#7a7a7a",
+		fgLnum: "#8a8a8a",
+		fgRule: "#383838",
+		fgHunk: "#8fb0ee",
+		fgStripe: "#202020",
+		fgSafeMuted: "#aeb6c0",
 	},
 	subtle: {
 		name: "subtle",
 		description: "Minimal backgrounds — barely-there tints for a clean look",
-		bgAdd: "#081008",
-		bgDel: "#100808",
-		bgAddHighlight: "#122818",
-		bgDelHighlight: "#281212",
-		bgGutterAdd: "#060c06",
-		bgGutterDel: "#0c0606",
-		bgEmpty: "#060606",
-		fgDim: "#383838",
-		fgLnum: "#484848",
-		fgRule: "#242424",
-		fgStripe: "#181818",
-		fgSafeMuted: "#8b949e",
+		bgAdd: "#223027",
+		bgDel: "#342424",
+		bgAddHighlight: "#294f38",
+		bgDelHighlight: "#543030",
+		bgGutterAdd: "#223328",
+		bgGutterDel: "#3a2828",
+		bgBase: "#282828",
+		bgEmpty: "#282828",
+		bgHunk: "#1c2f4a",
+		fgDim: "#808080",
+		fgLnum: "#909090",
+		fgRule: "#404040",
+		fgHunk: "#93b3ef",
+		fgStripe: "#282828",
+		fgSafeMuted: "#aeb6c0",
 	},
 	neon: {
 		name: "neon",
 		description: "Higher contrast backgrounds for better visibility",
-		bgAdd: "#1a3320",
-		bgDel: "#331a16",
-		bgAddHighlight: "#2d5c3a",
-		bgDelHighlight: "#5c2d2d",
-		bgGutterAdd: "#142818",
-		bgGutterDel: "#28120e",
-		bgEmpty: "#141414",
-		fgDim: "#606060",
-		fgLnum: "#787878",
-		fgRule: "#404040",
+		bgAdd: "#274836",
+		bgDel: "#583030",
+		bgAddHighlight: "#35784f",
+		bgDelHighlight: "#7a4141",
+		bgGutterAdd: "#284935",
+		bgGutterDel: "#553332",
+		bgBase: "#303030",
+		bgEmpty: "#303030",
+		bgHunk: "#203b63",
+		fgDim: "#9a9a9a",
+		fgLnum: "#b0b0b0",
+		fgRule: "#505050",
+		fgHunk: "#a8c8ff",
 		fgStripe: "#303030",
-		fgSafeMuted: "#9da5ae",
+		fgSafeMuted: "#c5ccd6",
 	},
 };
 
@@ -190,9 +205,8 @@ let _autoDerivePending = true;
 let _hasExplicitBgConfig = false;
 
 /** Auto-derive changed-line background colors from the pi theme's fg diff colors.
- *  Uses toolSuccessBg/toolErrorBg as color mixing bases, but keeps neutral/context
- *  areas on the terminal default background. Falls back to black (0,0,0) when a
- *  theme background is unavailable; toolErrorBg falls back to toolSuccessBg. */
+ *  Uses the neutral diff-block background as the mixing base so context,
+ *  changed rows, and line-number cells read as one coherent tool surface. */
 function autoDeriveBgFromTheme(theme: any): void {
 	if (!theme?.getFgAnsi) return;
 	try {
@@ -202,46 +216,33 @@ function autoDeriveBgFromTheme(theme: any): void {
 		const delRgb = parseAnsiRgb(fgDel);
 		if (!addRgb || !delRgb) return;
 
-		let addBase = { r: 0, g: 0, b: 0 };
-		let delBase = addBase;
-		if (theme.getBgAnsi) {
+		// Keep the whole diff block on a consistent neutral tool background,
+		// then tint changed rows from that same base so context lines are not muted.
+		let base = parseAnsiRgb(BG_BASE) ?? { r: 48, g: 48, b: 48 };
+		if (theme.getBgAnsi && BG_BASE === BG_DEFAULT) {
 			try {
-				const successBgAnsi = theme.getBgAnsi("toolSuccessBg");
-				const successParsed = parseAnsiRgb(successBgAnsi);
-				if (successParsed) {
-					addBase = successParsed;
-					delBase = successParsed;
-				}
+				base = parseAnsiRgb(theme.getBgAnsi("toolSuccessBg")) ?? base;
 			} catch {
-				/* no toolSuccessBg — use black */
-			}
-
-			try {
-				const errorParsed = parseAnsiRgb(theme.getBgAnsi("toolErrorBg"));
-				if (errorParsed) delBase = errorParsed;
-			} catch {
-				/* no toolErrorBg — use toolSuccessBg/black */
+				/* keep default base */
 			}
 		}
 
-		// Line backgrounds — subtle accent mixed into the matching tool-state base (8–10%)
-		BG_ADD = mixBg(addBase, addRgb, 0.08);
-		BG_DEL = mixBg(delBase, delRgb, 0.1);
+		// Line backgrounds — GitHub-like, clearly tinted but not saturated.
+		BG_ADD = mixBg(base, addRgb, 0.16);
+		BG_DEL = mixBg(base, delRgb, 0.18);
 
-		// Word-level highlights — more visible (20–22%)
-		BG_ADD_W = mixBg(addBase, addRgb, 0.2);
-		BG_DEL_W = mixBg(delBase, delRgb, 0.22);
+		// Word-level highlights — stronger patches inside changed rows.
+		BG_ADD_W = mixBg(base, addRgb, 0.34);
+		BG_DEL_W = mixBg(base, delRgb, 0.36);
 
-		// Gutters — subtler than lines (5–6%)
-		BG_GUTTER_ADD = mixBg(addBase, addRgb, 0.05);
-		BG_GUTTER_DEL = mixBg(delBase, delRgb, 0.06);
-
-		// Keep neutral/context areas on the terminal default background. Only
-		// changed rows should receive add/delete backgrounds.
-		BG_EMPTY = BG_DEFAULT;
+		// Line-number cells match their changed row color; no separate gutter striping.
+		BG_GUTTER_ADD = mixBg(base, addRgb, 0.2);
+		BG_GUTTER_DEL = mixBg(base, delRgb, 0.22);
+		BG_EMPTY = BG_BASE;
+		BG_HUNK = mixBg(base, { r: 80, g: 135, b: 210 }, 0.24);
 
 		// Rebuild derived constants
-		DIVIDER = `${FG_RULE}│${RST}`;
+		DIVIDER = `${BG_BASE} ${RST}`;
 	} catch {
 		// Fall back to defaults silently
 	}
@@ -316,8 +317,14 @@ function applyDiffPalette(): void {
 	applyBg("DIFF_BG_GUTTER_DEL", "bgGutterDel", preset?.bgGutterDel, (v) => {
 		BG_GUTTER_DEL = v;
 	});
+	applyBg("DIFF_BG_BASE", "bgBase", preset?.bgBase, (v) => {
+		BG_BASE = v;
+	});
 	applyBg(null, "bgEmpty", preset?.bgEmpty, (v) => {
 		BG_EMPTY = v;
+	});
+	applyBg("DIFF_BG_HUNK", "bgHunk", preset?.bgHunk, (v) => {
+		BG_HUNK = v;
 	});
 
 	// --- Apply foregrounds ---
@@ -336,6 +343,9 @@ function applyDiffPalette(): void {
 	applyFg(null, "fgRule", preset?.fgRule, (v) => {
 		FG_RULE = v;
 	});
+	applyFg(null, "fgHunk", preset?.fgHunk, (v) => {
+		FG_HUNK = v;
+	});
 	applyFg(null, "fgStripe", preset?.fgStripe, (v) => {
 		FG_STRIPE = v;
 	});
@@ -348,7 +358,7 @@ function applyDiffPalette(): void {
 	if (shiki) THEME = shiki as BundledTheme;
 
 	// --- Rebuild derived constants ---
-	DIVIDER = `${FG_RULE}│${RST}`;
+	DIVIDER = `${BG_BASE} ${RST}`;
 	DEFAULT_DIFF_COLORS = { fgAdd: FG_ADD, fgDel: FG_DEL, fgCtx: FG_DIM };
 
 	// If no explicit bg config, auto-derive will run on first render
@@ -419,44 +429,41 @@ const MAX_WRAP_ROWS_NARROW = envInt("DIFF_WRAP_ROWS_NARROW", envInt("DIFF_WRAP_R
 
 let RST = "\x1b[0m";
 const BOLD = "\x1b[1m";
-const DIM = "\x1b[2m";
 
-// Subtle diff backgrounds — muted tones to let syntax fg shine through
-// Override via env: DIFF_BG_ADD="#1a3320" etc. (hex "#RRGGBB" format)
-let BG_ADD = envBg("DIFF_BG_ADD", "\x1b[48;2;22;38;32m"); // muted teal-green
-let BG_DEL = envBg("DIFF_BG_DEL", "\x1b[48;2;45;25;25m"); // muted brown-red
-let BG_ADD_W = envBg("DIFF_BG_ADD_HL", "\x1b[48;2;35;75;50m"); // word-level emphasis
-let BG_DEL_W = envBg("DIFF_BG_DEL_HL", "\x1b[48;2;80;35;35m");
-let BG_GUTTER_ADD = envBg("DIFF_BG_GUTTER_ADD", "\x1b[48;2;18;32;26m");
-let BG_GUTTER_DEL = envBg("DIFF_BG_GUTTER_DEL", "\x1b[48;2;38;22;22m");
-const BG_GUTTER_CTX = ""; // use terminal default bg for context gutters
-let BG_EMPTY = "\x1b[48;2;18;18;18m"; // filler rows when one side is shorter
+// Diff backgrounds — opencode/GitHub-inspired: a full neutral tool block
+// with clearly tinted changed rows. Override via env: DIFF_BG_ADD="#1a3320" etc.
+let BG_ADD = envBg("DIFF_BG_ADD", "\x1b[48;2;38;58;49m");
+let BG_DEL = envBg("DIFF_BG_DEL", "\x1b[48;2;70;43;43m");
+let BG_ADD_W = envBg("DIFF_BG_ADD_HL", "\x1b[48;2;45;90;65m");
+let BG_DEL_W = envBg("DIFF_BG_DEL_HL", "\x1b[48;2;100;52;52m");
+let BG_GUTTER_ADD = envBg("DIFF_BG_GUTTER_ADD", "\x1b[48;2;38;63;51m");
+let BG_GUTTER_DEL = envBg("DIFF_BG_GUTTER_DEL", "\x1b[48;2;72;47;47m");
+let BG_BASE = envBg("DIFF_BG_BASE", "\x1b[48;2;48;48;48m");
+let BG_EMPTY = BG_BASE;
+let BG_HUNK = envBg("DIFF_BG_HUNK", "\x1b[48;2;31;49;78m");
 
 // Diff foregrounds — override via env: DIFF_FG_ADD="#50d264" etc.
-let FG_ADD = envFg("DIFF_FG_ADD", "\x1b[38;2;100;180;120m"); // desaturated green
-let FG_DEL = envFg("DIFF_FG_DEL", "\x1b[38;2;200;100;100m"); // desaturated red
-let FG_DIM = "\x1b[38;2;80;80;80m";
-let FG_LNUM = "\x1b[38;2;100;100;100m";
-let FG_RULE = "\x1b[38;2;50;50;50m";
-let FG_SAFE_MUTED = "\x1b[38;2;139;148;158m";
+let FG_ADD = envFg("DIFF_FG_ADD", "\x1b[38;2;100;200;130m");
+let FG_DEL = envFg("DIFF_FG_DEL", "\x1b[38;2;235;110;110m");
+let FG_DIM = "\x1b[38;2;143;143;143m";
+let FG_LNUM = "\x1b[38;2;160;160;160m";
+let FG_RULE = "\x1b[38;2;74;74;74m";
+let FG_HUNK = "\x1b[38;2;155;188;255m";
+let FG_SAFE_MUTED = "\x1b[38;2;184;192;202m";
 
-let FG_STRIPE = "\x1b[38;2;40;40;40m"; // gray diagonal stripes on terminal default bg
+let FG_STRIPE = "\x1b[38;2;48;48;48m"; // retained for settings compatibility; no hatch rendering
 
-const BORDER_BAR = "▌";
-
-/** Generate a dense diagonal stripe fill for empty filler cells.
- *  Solid ╱ characters — uniform direction like CSS diagonal hatching. */
-function stripes(w: number, _rowOffset: number): string {
-	return BG_BASE + FG_STRIPE + "╱".repeat(w) + RST;
+/** Fill empty split-side cells with the same neutral tool background. */
+function emptyFill(w: number, _rowOffset: number): string {
+	return BG_EMPTY + " ".repeat(w) + RST;
 }
 
-let DIVIDER = `${FG_RULE}│${RST}`;
+let DIVIDER = `${BG_BASE} ${RST}`;
 const ESC_RE = "\u001b";
 const ANSI_RE = new RegExp(`${ESC_RE}\\[[0-9;]*m`, "g");
 const ANSI_CAPTURE_RE = new RegExp(`${ESC_RE}\\[([^m]*)m`, "g");
 const ANSI_PARAM_CAPTURE_RE = new RegExp(`${ESC_RE}\\[([0-9;]*)m`, "g");
 const BG_DEFAULT = "\x1b[49m"; // reset to terminal default background
-let BG_BASE = BG_DEFAULT; // neutral/context background; changed rows get explicit diff backgrounds
 
 // ---------------------------------------------------------------------------
 // Theme-aware diff colors
@@ -699,14 +706,8 @@ function summarize(a: number, d: number): string {
 	return `${FG_ADD}+${a}${RST} ${FG_DEL}-${d}${RST}`;
 }
 
-function rule(w: number): string {
-	return `${BG_BASE}${FG_RULE}${"─".repeat(w)}${RST}`;
-}
-
-function editSectionSeparator(diffs: ParsedDiff[]): string {
-	const maxLine = Math.max(...diffs.flatMap((diff) => diff.lines.map((line) => line.oldNum ?? line.newNum ?? 0)), 0);
-	const nw = Math.max(2, String(maxLine).length);
-	return ` ${FG_DIM}${" ".repeat(Math.max(0, nw - 3))}...${RST}`;
+function editSectionSeparator(_diffs: ParsedDiff[]): string {
+	return `${BG_HUNK}${FG_HUNK}${fit("  ···", termW())}${RST}`;
 }
 
 /**
@@ -721,7 +722,7 @@ function shouldUseSplit(diff: ParsedDiff, tw: number, maxRows = MAX_PREVIEW_LINE
 
 	const nw = Math.max(2, String(Math.max(...diff.lines.map((l) => l.oldNum ?? l.newNum ?? 0), 0)).length);
 	const half = Math.floor((tw - 1) / 2); // -1 for center divider
-	const gw = nw + 5; // border + num + sign + sp + │ + sp
+	const gw = nw + 3; // line number + sign + two-cell padding
 	const cw = Math.max(12, half - gw);
 	if (cw < SPLIT_MIN_CODE_WIDTH) return false;
 
@@ -892,7 +893,7 @@ function reconstructPreEditContent(content: string, operations: Array<{ oldText:
 	return out;
 }
 
-function parseEditDiffs(filePath: string, operations: Array<{ oldText: string; newText: string }>): ParsedDiff[] {
+function readEditBaseContent(filePath: string, operations: Array<{ oldText: string; newText: string }>): string {
 	let content = "";
 	try {
 		if (filePath && existsSync(filePath)) content = readFileSync(filePath, "utf-8");
@@ -906,7 +907,46 @@ function parseEditDiffs(filePath: string, operations: Array<{ oldText: string; n
 	const needsReconstruction = operations.some(
 		(operation) => !content.includes(operation.oldText) && !!operation.newText && content.includes(operation.newText),
 	);
-	const oldContent = needsReconstruction ? reconstructPreEditContent(content, operations) : content;
+	return needsReconstruction ? reconstructPreEditContent(content, operations) : content;
+}
+
+function applyEditOperations(
+	content: string,
+	operations: Array<{ oldText: string; newText: string }>,
+): { content: string; applied: number } {
+	let out = content;
+	let searchStart = 0;
+	let applied = 0;
+	for (const operation of operations) {
+		let index = out.indexOf(operation.oldText, searchStart);
+		if (index < 0) index = out.indexOf(operation.oldText);
+		if (index < 0) continue;
+		out = out.slice(0, index) + operation.newText + out.slice(index + operation.oldText.length);
+		searchStart = index + operation.newText.length;
+		applied++;
+	}
+	return { content: out, applied };
+}
+
+function diffVisibleChars(diff: ParsedDiff): number {
+	return diff.lines.reduce((sum, line) => sum + line.content.length + 1, 0);
+}
+
+function parseCombinedEditDiff(
+	filePath: string,
+	operations: Array<{ oldText: string; newText: string }>,
+): ParsedDiff | null {
+	if (!operations.length) return null;
+	const oldContent = readEditBaseContent(filePath, operations);
+	if (!oldContent) return null;
+	const applied = applyEditOperations(oldContent, operations);
+	if (applied.applied !== operations.length || applied.content === oldContent) return null;
+	const diff = parseDiff(oldContent, applied.content);
+	return { ...diff, chars: diffVisibleChars(diff) };
+}
+
+function parseEditDiffs(filePath: string, operations: Array<{ oldText: string; newText: string }>): ParsedDiff[] {
+	const oldContent = readEditBaseContent(filePath, operations);
 
 	let searchStart = 0;
 	return operations.map((operation) => {
@@ -918,7 +958,7 @@ function parseEditDiffs(filePath: string, operations: Array<{ oldText: string; n
 }
 
 function parseEditDiff(filePath: string, oldText: string, newText: string): ParsedDiff {
-	return parseEditDiffs(filePath, [{ oldText, newText }])[0] ?? parseDiff(oldText, newText);
+	return parseCombinedEditDiff(filePath, [{ oldText, newText }]) ?? parseDiff(oldText, newText);
 }
 
 // ---------------------------------------------------------------------------
@@ -1031,7 +1071,7 @@ function plainWordDiff(oldText: string, newText: string): { old: string; new: st
 //
 // Modelled after Shiki diff/GitHub stacked view:
 //   • Single line-number column (shows old num for del/ctx, new num for add)
-//   • Compact gutter: "NNN-│" or "NNN+│" or "NNN │"
+//   • Compact line-number cells: "NNN-" or "NNN+" or "NNN "
 //   • Full-width code — no side-by-side cramming
 //   • Hunk separators as "··· N unmodified lines ···"
 //   • Paired del/add lines adjacent with word-level emphasis
@@ -1048,7 +1088,7 @@ async function renderUnified(
 	const vis = diff.lines.slice(0, max);
 	const tw = termW();
 	const nw = Math.max(2, String(Math.max(...vis.map((l) => l.oldNum ?? l.newNum ?? 0), 0)).length);
-	const gw = nw + 5; // border + num + sign + sp + │ + sp
+	const gw = nw + 3; // line number + sign + two-cell padding
 	const cw = Math.max(20, tw - gw);
 	const canHL = diff.chars <= MAX_HL_CHARS && vis.length <= MAX_RENDER_LINES;
 
@@ -1067,9 +1107,8 @@ async function renderUnified(
 		nI = 0,
 		idx = 0;
 	const out: string[] = [];
-	out.push(rule(tw));
 
-	/** Emit a single stacked row with compact gutter + left border bar. */
+	/** Emit a single stacked row with compact line numbers and no extra gutter rails. */
 	function emitRow(
 		num: number | null,
 		sign: string,
@@ -1078,11 +1117,11 @@ async function renderUnified(
 		body: string,
 		bodyBg = "",
 	): void {
-		const borderFg = sign === "-" ? dc.fgDel : sign === "+" ? dc.fgAdd : "";
-		const border = borderFg ? `${borderFg}${BORDER_BAR}${RST}` : `${BG_BASE} `;
-		const numFg = borderFg || FG_LNUM;
-		const gutter = `${border}${gutterBg}${lnum(num, nw, numFg, "")}${signFg}${sign}${RST} ${DIVIDER} `;
-		const contGutter = `${border}${gutterBg}${" ".repeat(nw + 1)}${RST} ${DIVIDER} `;
+		const changedFg = sign === "-" ? dc.fgDel : sign === "+" ? dc.fgAdd : "";
+		const numFg = changedFg || FG_LNUM;
+		const padBg = bodyBg || BG_BASE;
+		const gutter = `${gutterBg}${lnum(num, nw, numFg, "")}${signFg}${sign}${RST}${padBg}  ${RST}`;
+		const contGutter = `${gutterBg}${" ".repeat(nw + 1)}${padBg}  ${RST}`;
 		const rows = wrapAnsi(tabs(body), cw, adaptiveWrapRows(), bodyBg);
 		out.push(`${gutter}${rows[0]}${RST}`);
 		for (let r = 1; r < rows.length; r++) out.push(`${contGutter}${rows[r]}${RST}`);
@@ -1091,23 +1130,19 @@ async function renderUnified(
 	while (idx < vis.length) {
 		const l = vis[idx];
 
-		// Hunk separator — collapsed context
+		// Hunk separator — collapsed context, highlighted with the GitHub-like blue band.
 		if (l.type === "sep") {
 			const gap = l.newNum;
-			const label = gap && gap > 0 ? ` ${gap} unmodified lines ` : "···";
-			const totalW = Math.min(tw, 72);
-			const pad = Math.max(0, totalW - label.length - 2);
-			const half1 = Math.floor(pad / 2),
-				half2 = pad - half1;
-			out.push(`${BG_BASE}${FG_DIM}${"─".repeat(half1)}${label}${"─".repeat(half2)}${RST}`);
+			const label = gap && gap > 0 ? `··· ${gap} unmodified lines ···` : "···";
+			out.push(`${BG_HUNK}${FG_HUNK}${fit(`  ${label}`, tw)}${RST}`);
 			idx++;
 			continue;
 		}
 
-		// Context line — dimmed, single line number
+		// Context line — normal syntax color, not dimmed.
 		if (l.type === "ctx") {
 			const hl = oldHL[oI] ?? l.content;
-			emitRow(l.newNum, " ", BG_BASE, dc.fgCtx, `${BG_BASE}${DIM}${hl}`, BG_BASE);
+			emitRow(l.newNum, " ", BG_BASE, dc.fgCtx, `${BG_BASE}${hl}`, BG_BASE);
 			oI++;
 			nI++;
 			idx++;
@@ -1157,7 +1192,6 @@ async function renderUnified(
 		}
 	}
 
-	out.push(rule(tw));
 	if (diff.lines.length > vis.length) {
 		out.push(`${BG_BASE}${FG_DIM}  … ${diff.lines.length - vis.length} more lines${RST}`);
 	}
@@ -1206,7 +1240,7 @@ async function renderSplit(
 	const vis = rows.slice(0, max);
 	const half = Math.floor((tw - 1) / 2); // -1 for center divider
 	const nw = Math.max(2, String(Math.max(...diff.lines.map((l) => l.oldNum ?? l.newNum ?? 0), 0)).length);
-	const gw = nw + 5; // border + num + sign + sp + │ + sp
+	const gw = nw + 3; // line number + sign + two-cell padding
 	const cw = Math.max(12, half - gw);
 	const canHL = diff.chars <= MAX_HL_CHARS && vis.length * 2 <= MAX_RENDER_LINES * 2;
 
@@ -1223,7 +1257,7 @@ async function renderSplit(
 
 	let lI = 0,
 		rI = 0;
-	let stripeRow = 0; // tracks row index for diagonal stripe offset
+	let fillerRow = 0; // retained as a stable filler-row offset
 
 	// Returns { gutter, contGutter, body } for wrapping composition
 	type HalfResult = { gutter: string; contGutter: string; bodyRows: string[] };
@@ -1234,19 +1268,17 @@ async function renderSplit(
 		ranges: Array<[number, number]> | null,
 		side: "left" | "right",
 	): HalfResult {
-		// Empty filler — diagonal stripes
+		// Empty filler — same neutral background as the rest of the tool block.
 		if (!line) {
-			const gw2 = nw + 2; // number + sign + space before │
-			const gPat = FG_STRIPE + "╱".repeat(gw2) + RST;
-			const g = ` ${gPat}${FG_RULE}│${RST} `;
-			return { gutter: g, contGutter: g, bodyRows: [stripes(cw, stripeRow)] };
+			const g = `${BG_EMPTY}${" ".repeat(nw + 3)}${RST}`;
+			return { gutter: g, contGutter: g, bodyRows: [emptyFill(cw, fillerRow)] };
 		}
-		// Hunk separator
+		// Hunk separator — blue band, matching GitHub's hunk styling.
 		if (line.type === "sep") {
 			const gap = line.newNum;
 			const label = gap && gap > 0 ? `··· ${gap} lines ···` : "···";
-			const g = `${BG_BASE} ${FG_DIM}${fit("", nw + 2)}${RST}${FG_RULE}│${RST} `;
-			return { gutter: g, contGutter: g, bodyRows: [`${BG_BASE}${FG_DIM}${fit(label, cw)}${RST}`] };
+			const g = `${BG_HUNK}${" ".repeat(nw + 3)}${RST}`;
+			return { gutter: g, contGutter: g, bodyRows: [`${BG_HUNK}${FG_HUNK}${fit(label, cw)}${RST}`] };
 		}
 
 		const isDel = line.type === "del",
@@ -1257,10 +1289,8 @@ async function renderSplit(
 		const sign = isDel ? "-" : isAdd ? "+" : " ";
 		const num = isDel ? line.oldNum : isAdd ? line.newNum : side === "left" ? line.oldNum : line.newNum;
 
-		// Border bar + colored line numbers for changed lines
-		const borderFg = isDel ? dc.fgDel : isAdd ? dc.fgAdd : "";
-		const border = borderFg ? `${borderFg}${BORDER_BAR}${RST}` : ` ${BG_BASE}`;
-		const numFg = borderFg || FG_LNUM;
+		const changedFg = isDel ? dc.fgDel : isAdd ? dc.fgAdd : "";
+		const numFg = changedFg || FG_LNUM;
 
 		let body: string;
 		if (ranges && ranges.length > 0) {
@@ -1268,17 +1298,16 @@ async function renderSplit(
 		} else if (isDel || isAdd) {
 			body = `${cBg}${hl}`;
 		} else {
-			body = `${BG_BASE}${DIM}${hl}`;
+			body = `${BG_BASE}${hl}`;
 		}
 
-		const gutter = `${border}${gBg}${lnum(num, nw, numFg, "")}${sFg}${BOLD}${sign}${RST} ${FG_RULE}│${RST} `;
-		const contGutter = `${border}${gBg}${" ".repeat(nw + 1)}${RST} ${FG_RULE}│${RST} `;
+		const gutter = `${gBg}${lnum(num, nw, numFg, "")}${sFg}${BOLD}${sign}${RST}${cBg}  ${RST}`;
+		const contGutter = `${gBg}${" ".repeat(nw + 1)}${cBg}  ${RST}`;
 		const bodyRows = wrapAnsi(tabs(body), cw, adaptiveWrapRows(), cBg);
 		return { gutter, contGutter, bodyRows };
 	}
 
 	const out: string[] = [];
-	out.push(`${rule(half)}${FG_RULE}┊${RST}${rule(half)}`);
 
 	for (const r of vis) {
 		const leftLine = r.left,
@@ -1306,22 +1335,22 @@ async function renderSplit(
 			rResult = half_build(rightLine, rhl, null, "right");
 		}
 
-		// Compose wrapped rows — pad shorter side with striped continuation rows
+		// Compose wrapped rows — pad shorter side with plain neutral continuation rows.
 		const maxRows = Math.max(lResult.bodyRows.length, rResult.bodyRows.length);
 		const leftIsEmpty = !r.left;
 		const rightIsEmpty = !r.right;
+		const centerGap = leftLine?.type === "sep" || rightLine?.type === "sep" ? `${BG_HUNK} ${RST}` : DIVIDER;
 		for (let row = 0; row < maxRows; row++) {
 			const lg = row === 0 ? lResult.gutter : lResult.contGutter;
 			const rg = row === 0 ? rResult.gutter : rResult.contGutter;
-			const lb = lResult.bodyRows[row] ?? (leftIsEmpty ? stripes(cw, stripeRow) : `${BG_EMPTY}${" ".repeat(cw)}${RST}`);
+			const lb = lResult.bodyRows[row] ?? (leftIsEmpty ? emptyFill(cw, fillerRow) : `${BG_EMPTY}${" ".repeat(cw)}${RST}`);
 			const rb =
-				rResult.bodyRows[row] ?? (rightIsEmpty ? stripes(cw, stripeRow) : `${BG_EMPTY}${" ".repeat(cw)}${RST}`);
-			out.push(`${lg}${lb}${DIVIDER}${rg}${rb}`);
-			stripeRow++;
+				rResult.bodyRows[row] ?? (rightIsEmpty ? emptyFill(cw, fillerRow) : `${BG_EMPTY}${" ".repeat(cw)}${RST}`);
+			out.push(`${lg}${lb}${centerGap}${rg}${rb}`);
+			fillerRow++;
 		}
 	}
 
-	out.push(`${rule(half)}${FG_RULE}┊${RST}${rule(half)}`);
 	if (rows.length > vis.length) {
 		out.push(`${BG_BASE}${FG_DIM}  … ${rows.length - vis.length} more lines${RST}`);
 	}
@@ -1593,7 +1622,22 @@ export default function diffRendererExtension(pi: any): void {
 				const lg = lang(fp);
 				const dc = resolveDiffColors(theme);
 
-				if (operations.length === 1) {
+				const combinedDiff = parseCombinedEditDiff(fp, operations);
+				if (combinedDiff) {
+					const summary = summarize(combinedDiff.added, combinedDiff.removed);
+					const previewLines = ctx.expanded ? MAX_RENDER_LINES : MAX_PREVIEW_LINES;
+					renderSplit(combinedDiff, lg, previewLines, dc)
+						.then((rendered) => {
+							if (ctx.state._pk !== pk) return;
+							ctx.state._pt = `${hdr}\n${summary}\n${rendered}`;
+							ctx.invalidate();
+						})
+						.catch(() => {
+							if (ctx.state._pk !== pk) return;
+							ctx.state._pt = `${hdr}  ${summary}`;
+							ctx.invalidate();
+						});
+				} else if (operations.length === 1) {
 					const diff = parseEditDiff(fp, operations[0].oldText, operations[0].newText);
 					const previewLines = ctx.expanded ? MAX_RENDER_LINES : MAX_PREVIEW_LINES;
 					renderSplit(diff, lg, previewLines, dc)
@@ -1613,18 +1657,10 @@ export default function diffRendererExtension(pi: any): void {
 						diffs.reduce((sum, diff) => sum + diff.added, 0),
 						diffs.reduce((sum, diff) => sum + diff.removed, 0),
 					);
-					const maxShown = ctx.expanded ? operations.length : Math.min(operations.length, 3);
-					const previewLines = ctx.expanded ? MAX_RENDER_LINES : Math.max(8, Math.floor(MAX_PREVIEW_LINES / maxShown));
-					Promise.all(
-						diffs.slice(0, maxShown).map((diff) =>
-							renderSplit(diff, lg, previewLines, dc).catch(() => summarize(diff.added, diff.removed)),
-						),
-					)
+					Promise.all(diffs.map((diff) => renderSplit(diff, lg, MAX_PREVIEW_LINES, dc).catch(() => summarize(diff.added, diff.removed))))
 						.then((sections) => {
 							if (ctx.state._pk !== pk) return;
-							const remainder = operations.length - maxShown;
-							const suffix = remainder > 0 ? `\n${theme.fg("muted", `… ${remainder} more edits, ctrl+o to expand`)}` : "";
-							ctx.state._pt = `${hdr}\n${summary}\n${sections.join(`\n${editSectionSeparator(diffs)}\n`)}${suffix}`;
+							ctx.state._pt = `${hdr}\n${summary}\n${sections.join(`\n${editSectionSeparator(diffs)}\n`)}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
