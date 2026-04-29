@@ -2,6 +2,7 @@ import {
 	CustomEditor,
 	type KeybindingsManager,
 	type Theme,
+	type ThemeColor,
 	UserMessageComponent,
 } from "@mariozechner/pi-coding-agent";
 import {
@@ -110,6 +111,28 @@ export class PolishedEditor extends CustomEditor {
 		return `${truncated}${pad}`;
 	}
 
+	private getThinkingColorToken(thinkingLevel: string | undefined): ThemeColor {
+		switch (thinkingLevel?.toLowerCase()) {
+			case "minimal":
+				return "thinkingMinimal";
+			case "low":
+				return "thinkingLow";
+			case "medium":
+				return "thinkingMedium";
+			case "high":
+				return "thinkingHigh";
+			case "xhigh":
+			case "x-high":
+			case "extra-high":
+				return "thinkingXhigh";
+			case "off":
+			case undefined:
+				return "thinkingOff";
+			default:
+				return "border";
+		}
+	}
+
 	render(width: number): string[] {
 		const innerWidth = Math.max(1, width - 2);
 		const rendered = super.render(innerWidth);
@@ -144,8 +167,9 @@ export class PolishedEditor extends CustomEditor {
 		const editorLines = editorFrame.slice(1, -1);
 		const metaParts = [this.getModelMeta()];
 		const thinkingLevel = this.getThinkingLevel();
+		const thinkingColorToken = this.getThinkingColorToken(thinkingLevel);
 		if (thinkingLevel && thinkingLevel !== "off") {
-			metaParts.push(this.uiTheme.fg("muted", thinkingLevel));
+			metaParts.push(this.uiTheme.fg(thinkingColorToken, thinkingLevel));
 		}
 		const meta = metaParts.filter(Boolean).join(this.uiTheme.fg("border", "  "));
 
