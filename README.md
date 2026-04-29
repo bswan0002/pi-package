@@ -6,6 +6,7 @@ Personal [pi](https://pi.dev) package for bswan0002 extensions and skills.
 
 ### Extensions
 
+- [`diff`](./extensions/diff) — replaces pi's `write` and `edit` rendering with Shiki-highlighted diffs, word-level highlights, wrapping, expandable multi-edit previews, and configurable colors/themes.
 - [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY` in the environment.
 - [`post-edit`](./extensions/post-edit) — runs project-configured format/lint/typecheck commands after agent edits when the project contains `.pi/post-edit.json`.
 - [`readonly-git-permissions`](./extensions/readonly-git-permissions) — blocks non-readonly git operations from the `bash` tool unless confirmed in the UI.
