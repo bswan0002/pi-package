@@ -695,10 +695,8 @@ function shortPath(cwd: string, home: string, p: string): string {
 }
 
 function summarize(a: number, d: number): string {
-	const p: string[] = [];
-	if (a > 0) p.push(`${FG_ADD}+${a}${RST}`);
-	if (d > 0) p.push(`${FG_DEL}-${d}${RST}`);
-	return p.length ? p.join(" ") : `${FG_DIM}no changes${RST}`;
+	if (a === 0 && d === 0) return `${FG_DIM}no changes${RST}`;
+	return `${FG_ADD}+${a}${RST} ${FG_DEL}-${d}${RST}`;
 }
 
 function rule(w: number): string {
@@ -1280,10 +1278,6 @@ async function renderSplit(
 	}
 
 	const out: string[] = [];
-	// Column headers — "old" / "new" positioned above line numbers
-	const hdrOld = `${BG_BASE}${" ".repeat(Math.max(0, nw - 2))}${dc.fgDel}${DIM}old${RST}`;
-	const hdrNew = `${BG_BASE}${" ".repeat(Math.max(0, nw - 2))}${dc.fgAdd}${DIM}new${RST}`;
-	out.push(`${BG_BASE}${hdrOld}${" ".repeat(Math.max(0, half - nw - 1))}${FG_RULE}┊${RST}${hdrNew}`);
 	out.push(`${rule(half)}${FG_RULE}┊${RST}${rule(half)}`);
 
 	for (const r of vis) {
