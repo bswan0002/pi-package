@@ -7,7 +7,7 @@ import type {
 } from "@mariozechner/pi-coding-agent";
 import { type EditorTheme, type TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { type PolishedTuiConfig, colorize, ensureConfigExists, loadConfig } from "./config";
-import { type GitStatusSummary, emptyGitStatus, readGitStatus } from "./git";
+import { type GitHubPrInfo, type GitStatusSummary, emptyGitStatus, readGitStatus } from "./git";
 import { type RuntimeInfo, readRuntimeInfo } from "./runtime";
 import { PolishedEditor, patchUserMessageComponent } from "./ui";
 
@@ -117,6 +117,46 @@ function formatRuntimeSegment(
 	if (!runtime) return "";
 	const label = runtime.version ? `${runtime.symbol} ${runtime.version}` : runtime.symbol;
 	return `${colorize(theme, mutedColor, "via")} ${colorize(theme, getRuntimeColorToken(runtime), label)}`;
+}
+
+function hyperlink(url: string, text: string): string {
+	return url ? `\x1b]8;;${url}\x07${text}\x1b]8;;\x07` : text;
+}
+
+function getPrColorToken(pr: GitHubPrInfo): string {
+	if (pr.isDraft) return "muted";
+	switch (pr.state.toUpperCase()) {
+		case "OPEN":
+			return "success";
+		case "CLOSED":
+			return "error";
+		case "MERGED":
+			return "thinkingHigh";
+		default:
+			return "warning";
+	}
+}
+
+function getPrIcon(pr: GitHubPrInfo): string {
+	if (pr.isDraft) return "";
+	switch (pr.state.toUpperCase()) {
+		case "CLOSED":
+			return "";
+		case "MERGED":
+			return "";
+		default:
+			return "";
+	}
+}
+
+function formatPullRequestSegment(theme: Pick<Theme, "fg">, pr: GitHubPrInfo | undefined): string {
+	if (!pr) return "";
+	const color = getPrColorToken(pr);
+	const icon = colorize(theme, color, getPrIcon(pr));
+	const base = pr.baseRefName ? colorize(theme, "accent", pr.baseRefName) : "?";
+	const head = pr.headRefName ? colorize(theme, "accent", pr.headRefName) : "?";
+	const arrow = colorize(theme, "muted", "<-");
+	return hyperlink(pr.url, `${icon} ${base} ${arrow} ${head}`);
 }
 
 function formatCwdLabel(cwd: string, cwdIcon: string): string {
@@ -238,9 +278,12 @@ export default function (pi: ExtensionAPI) {
 									: "";
 					const statusBlock =
 						allStatus || aheadBehind ? gitStatusColor(`[${allStatus}${aheadBehind}]`) : "";
-					const branchLabel = branch
-						? `${colorize(theme, "text", "on")} ${gitIcon} ${gitColor(branch)}${statusBlock ? ` ${statusBlock}` : ""}`
-						: "";
+					const prLabel = formatPullRequestSegment(theme, state.pullRequest);
+					const branchLabel = prLabel
+						? `${prLabel}${statusBlock ? ` ${statusBlock}` : ""}`
+						: branch
+							? `${colorize(theme, "text", "on")} ${gitIcon} ${gitColor(branch)}${statusBlock ? ` ${statusBlock}` : ""}`
+							: "";
 					const runtimeLabel = formatRuntimeSegment(theme, state.runtime, "text");
 
 					const left = [cwdLabel, branchLabel, runtimeLabel].filter(Boolean).join(" ");
@@ -319,6 +362,21 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_start", async (_event, ctx) => {
 		installUi(ctx);
+	});
+
+	pi.registerCommand("pr-refresh", {
+		description: "Refresh the GitHub PR status in the style footer",
+		handler: async (_args, ctx) => {
+			await refreshProjectState(ctx);
+			refresh();
+			const pr = state.pullRequest;
+			ctx.ui.notify(
+				pr
+					? `Found PR #${pr.number} targeting ${pr.baseRefName}.`
+					: "No GitHub PR found for this branch.",
+				"info",
+			);
+		},
 	});
 
 	pi.on("agent_start", async (_event, ctx) => {

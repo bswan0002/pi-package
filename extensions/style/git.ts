@@ -3,6 +3,16 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
+export type GitHubPrInfo = {
+	number: string;
+	url: string;
+	state: string;
+	baseRefName: string;
+	headRefName: string;
+	title: string;
+	isDraft: boolean;
+};
+
 export type GitStatusSummary = {
 	branch?: string;
 	dirty: boolean;
@@ -16,6 +26,7 @@ export type GitStatusSummary = {
 	renamed: number;
 	deleted: number;
 	typechanged: number;
+	pullRequest?: GitHubPrInfo;
 };
 
 export function emptyGitStatus(): GitStatusSummary {
@@ -32,6 +43,7 @@ export function emptyGitStatus(): GitStatusSummary {
 		renamed: 0,
 		deleted: 0,
 		typechanged: 0,
+		pullRequest: undefined,
 	};
 }
 
@@ -85,18 +97,50 @@ export function parseGitStatusPorcelain(stdoutText: string, hasStash: boolean): 
 	return status;
 }
 
+async function readGitHubPrInfo(cwd: string): Promise<GitHubPrInfo | undefined> {
+	try {
+		const { stdout } = await execFileAsync(
+			"gh",
+			["pr", "view", "--json", "number,url,state,baseRefName,headRefName,title,isDraft"],
+			{ cwd, timeout: 8000 },
+		);
+		const parsed = JSON.parse(typeof stdout === "string" ? stdout : String(stdout)) as Record<
+			string,
+			unknown
+		>;
+		const number = String(parsed.number ?? "");
+		const url = String(parsed.url ?? "");
+		if (!number || !url) return undefined;
+		return {
+			number,
+			url,
+			state: String(parsed.state ?? ""),
+			baseRefName: String(parsed.baseRefName ?? ""),
+			headRefName: String(parsed.headRefName ?? ""),
+			title: String(parsed.title ?? ""),
+			isDraft: Boolean(parsed.isDraft),
+		};
+	} catch {
+		return undefined;
+	}
+}
+
 export async function readGitStatus(cwd: string): Promise<GitStatusSummary> {
 	try {
-		const [{ stdout: statusStdout }, stashResult] = await Promise.all([
+		const [{ stdout: statusStdout }, stashResult, pullRequest] = await Promise.all([
 			execFileAsync("git", ["status", "--porcelain=2", "--branch"], { cwd }),
 			execFileAsync("git", ["rev-parse", "--verify", "--quiet", "refs/stash"], { cwd }).catch(
 				() => ({ stdout: "" }),
 			),
+			readGitHubPrInfo(cwd),
 		]);
 		const stdoutText = typeof statusStdout === "string" ? statusStdout : String(statusStdout);
 		const stashStdout =
 			typeof stashResult.stdout === "string" ? stashResult.stdout : String(stashResult.stdout);
-		return parseGitStatusPorcelain(stdoutText, stashStdout.trim().length > 0);
+		return {
+			...parseGitStatusPorcelain(stdoutText, stashStdout.trim().length > 0),
+			pullRequest,
+		};
 	} catch {
 		return emptyGitStatus();
 	}
