@@ -1453,7 +1453,6 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 			ctx.ui.setWidget(
 				"bswan0002:screenshot-picker:staged",
 				[`\uD83D\uDCF7 ${stagedImages.length} ${label} staged (Ctrl+Shift+X to clear)`],
-				{ placement: "belowEditor" }
 			);
 		} else {
 			ctx.ui.setWidget("bswan0002:screenshot-picker:staged", undefined);

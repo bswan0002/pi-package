@@ -8,10 +8,10 @@ Personal [pi](https://pi.dev) package for bswan0002 extensions and skills.
 
 - [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY` in the environment.
 - [`post-edit`](./extensions/post-edit) — runs project-configured format/lint/typecheck commands after agent edits when the project contains `.pi/post-edit.json`.
-- [`pr-indicator`](./extensions/pr-indicator) — shows whether the current git branch has an open GitHub PR, including a status/widget with PR metadata. Use `/pr-refresh` to refresh.
 - [`readonly-git-permissions`](./extensions/readonly-git-permissions) — blocks non-readonly git operations from the `bash` tool unless confirmed in the UI.
 - [`screenshot-picker`](./extensions/screenshot-picker) — opens a screenshot browser for staging images that attach to the next prompt. Use `/bswan0002-screenshot-picker` or `Ctrl+Shift+S`.
 - [`sounds`](./extensions/sounds) — plays distinct macOS sounds on agent end and permission prompts.
+- [`style`](./extensions/style) — installs the custom editor/statusline UI, including a clickable GitHub PR segment in the footer when the current branch has a PR. Use `/pr-refresh` to refresh PR/git footer state.
 
 ### Skills
 
