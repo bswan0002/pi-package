@@ -525,6 +525,8 @@ interface ParsedDiff {
 	added: number;
 	removed: number;
 	chars: number;
+	fullOldContent?: string;
+	fullNewContent?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -885,7 +887,7 @@ async function hlBlock(code: string, language: BundledLanguage | undefined): Pro
 // Diff parsing
 // ---------------------------------------------------------------------------
 
-function parseDiff(oldContent: string, newContent: string, ctx = 3): ParsedDiff {
+function parseDiff(oldContent: string, newContent: string, ctx = 3, includeFullContent = false): ParsedDiff {
 	const patch = Diff.structuredPatch("", "", oldContent, newContent, "", "", { context: ctx });
 	const oldAll = oldContent.split("\n");
 	const lines: DiffLine[] = [];
@@ -925,7 +927,13 @@ function parseDiff(oldContent: string, newContent: string, ctx = 3): ParsedDiff 
 			}
 		}
 	}
-	return { lines, added, removed, chars: oldContent.length + newContent.length };
+	return {
+		lines,
+		added,
+		removed,
+		chars: oldContent.length + newContent.length,
+		...(includeFullContent ? { fullOldContent: oldContent, fullNewContent: newContent } : {}),
+	};
 }
 
 function offsetParsedDiff(diff: ParsedDiff, offset: number): ParsedDiff {
@@ -990,10 +998,6 @@ function applyEditOperations(
 	return { content: out, applied };
 }
 
-function diffVisibleChars(diff: ParsedDiff): number {
-	return diff.lines.reduce((sum, line) => sum + line.content.length + 1, 0);
-}
-
 function parseCombinedEditDiff(
 	filePath: string,
 	operations: Array<{ oldText: string; newText: string }>,
@@ -1003,8 +1007,7 @@ function parseCombinedEditDiff(
 	if (!oldContent) return null;
 	const applied = applyEditOperations(oldContent, operations);
 	if (applied.applied !== operations.length || applied.content === oldContent) return null;
-	const diff = parseDiff(oldContent, applied.content);
-	return { ...diff, chars: diffVisibleChars(diff) };
+	return parseDiff(oldContent, applied.content, 3, true);
 }
 
 function parseEditDiffs(filePath: string, operations: Array<{ oldText: string; newText: string }>): ParsedDiff[] {
@@ -1153,9 +1156,12 @@ async function renderUnified(
 	const nw = Math.max(2, String(Math.max(...vis.map((l) => l.oldNum ?? l.newNum ?? 0), 0)).length);
 	const gw = nw + 3; // line number + sign + two-cell padding
 	const cw = Math.max(20, tw - gw);
-	const canHL = diff.chars <= MAX_HL_CHARS && vis.length <= MAX_RENDER_LINES;
+	const hasFullContent = diff.fullOldContent !== undefined && diff.fullNewContent !== undefined;
+	const hlChars = hasFullContent ? diff.fullOldContent!.length + diff.fullNewContent!.length : diff.chars;
+	const canHL = hlChars <= MAX_HL_CHARS && vis.length <= MAX_RENDER_LINES;
 
-	// Build separate old/new code blocks for highlighting
+	// Prefer full-file highlighting so visible hunks retain syntax state from omitted context.
+	// Fall back to highlighting only visible rows for synthetic/large diffs.
 	const oldSrc: string[] = [],
 		newSrc: string[] = [];
 	for (const l of vis) {
@@ -1163,8 +1169,19 @@ async function renderUnified(
 		if (l.type === "ctx" || l.type === "add") newSrc.push(l.content);
 	}
 	const [oldHL, newHL] = canHL
-		? await Promise.all([hlBlock(oldSrc.join("\n"), language), hlBlock(newSrc.join("\n"), language)])
+		? await Promise.all([
+				hlBlock(hasFullContent ? diff.fullOldContent! : oldSrc.join("\n"), language),
+				hlBlock(hasFullContent ? diff.fullNewContent! : newSrc.join("\n"), language),
+			])
 		: [oldSrc, newSrc];
+	const oldLineHL = (line: DiffLine, fallbackIndex: number) =>
+		canHL && hasFullContent && line.oldNum !== null
+			? (oldHL[line.oldNum - 1] ?? line.content)
+			: (oldHL[fallbackIndex] ?? line.content);
+	const newLineHL = (line: DiffLine, fallbackIndex: number) =>
+		canHL && hasFullContent && line.newNum !== null
+			? (newHL[line.newNum - 1] ?? line.content)
+			: (newHL[fallbackIndex] ?? line.content);
 
 	let oI = 0,
 		nI = 0,
@@ -1202,7 +1219,7 @@ async function renderUnified(
 
 		// Context line — normal syntax color, not dimmed.
 		if (l.type === "ctx") {
-			const hl = oldHL[oI] ?? l.content;
+			const hl = newLineHL(l, nI);
 			emitRow(l.newNum, " ", BG_BASE, dc.fgCtx, `${BG_BASE}${hl}`, BG_BASE);
 			oI++;
 			nI++;
@@ -1213,13 +1230,13 @@ async function renderUnified(
 		// Collect del/add blocks
 		const dels: Array<{ l: DiffLine; hl: string }> = [];
 		while (idx < vis.length && vis[idx].type === "del") {
-			dels.push({ l: vis[idx], hl: oldHL[oI] ?? vis[idx].content });
+			dels.push({ l: vis[idx], hl: oldLineHL(vis[idx], oI) });
 			oI++;
 			idx++;
 		}
 		const adds: Array<{ l: DiffLine; hl: string }> = [];
 		while (idx < vis.length && vis[idx].type === "add") {
-			adds.push({ l: vis[idx], hl: newHL[nI] ?? vis[idx].content });
+			adds.push({ l: vis[idx], hl: newLineHL(vis[idx], nI) });
 			nI++;
 			idx++;
 		}
@@ -1306,9 +1323,11 @@ async function renderSplit(
 	const gw = nw + 3; // line number + sign + two-cell padding
 	const leftCw = Math.max(12, leftPaneW - gw);
 	const rightCw = Math.max(12, rightPaneW - gw);
-	const canHL = diff.chars <= MAX_HL_CHARS && vis.length * 2 <= MAX_RENDER_LINES * 2;
+	const hasFullContent = diff.fullOldContent !== undefined && diff.fullNewContent !== undefined;
+	const hlChars = hasFullContent ? diff.fullOldContent!.length + diff.fullNewContent!.length : diff.chars;
+	const canHL = hlChars <= MAX_HL_CHARS && vis.length * 2 <= MAX_RENDER_LINES * 2;
 
-	// Build separate code blocks per side
+	// Prefer full-file highlighting so each side preserves syntax state across omitted hunks.
 	const leftSrc: string[] = [],
 		rightSrc: string[] = [];
 	for (const r of vis) {
@@ -1316,8 +1335,19 @@ async function renderSplit(
 		if (r.right && r.right.type !== "sep") rightSrc.push(r.right.content);
 	}
 	const [leftHL, rightHL] = canHL
-		? await Promise.all([hlBlock(leftSrc.join("\n"), language), hlBlock(rightSrc.join("\n"), language)])
+		? await Promise.all([
+				hlBlock(hasFullContent ? diff.fullOldContent! : leftSrc.join("\n"), language),
+				hlBlock(hasFullContent ? diff.fullNewContent! : rightSrc.join("\n"), language),
+			])
 		: [leftSrc, rightSrc];
+	const leftLineHL = (line: DiffLine, fallbackIndex: number) =>
+		canHL && hasFullContent && line.oldNum !== null
+			? (leftHL[line.oldNum - 1] ?? line.content)
+			: (leftHL[fallbackIndex] ?? line.content);
+	const rightLineHL = (line: DiffLine, fallbackIndex: number) =>
+		canHL && hasFullContent && line.newNum !== null
+			? (rightHL[line.newNum - 1] ?? line.content)
+			: (rightHL[fallbackIndex] ?? line.content);
 
 	let lI = 0,
 		rI = 0;
@@ -1381,8 +1411,8 @@ async function renderSplit(
 		let lResult: HalfResult, rResult: HalfResult;
 
 		if (paired && wd && wd.similarity >= WORD_DIFF_MIN_SIM && canHL) {
-			const lhl = leftHL[lI++] ?? leftLine.content;
-			const rhl = rightHL[rI++] ?? rightLine.content;
+			const lhl = leftLineHL(leftLine, lI++);
+			const rhl = rightLineHL(rightLine, rI++);
 			lResult = half_build(leftLine, lhl, wd.oldRanges, "left", leftCw);
 			rResult = half_build(rightLine, rhl, wd.newRanges, "right", rightCw);
 		} else if (paired && wd && wd.similarity >= WORD_DIFF_MIN_SIM && !canHL) {
@@ -1392,8 +1422,8 @@ async function renderSplit(
 			lResult = half_build(leftLine, pwd.old, null, "left", leftCw);
 			rResult = half_build(rightLine, pwd.new, null, "right", rightCw);
 		} else {
-			const lhl = leftLine && leftLine.type !== "sep" ? (leftHL[lI++] ?? leftLine?.content ?? "") : "";
-			const rhl = rightLine && rightLine.type !== "sep" ? (rightHL[rI++] ?? rightLine?.content ?? "") : "";
+			const lhl = leftLine && leftLine.type !== "sep" ? leftLineHL(leftLine, lI++) : "";
+			const rhl = rightLine && rightLine.type !== "sep" ? rightLineHL(rightLine, rI++) : "";
 			lResult = half_build(leftLine, lhl, null, "left", leftCw);
 			rResult = half_build(rightLine, rhl, null, "right", rightCw);
 		}
@@ -1428,6 +1458,7 @@ async function renderSplit(
 
 export const __testing = {
 	normalizeShikiContrast,
+	parseCombinedEditDiff,
 	parseDiff,
 	renderSplit,
 	renderUnified,
@@ -1492,7 +1523,7 @@ export default function diffRendererExtension(pi: any): void {
 
 			// Store in details — the only custom field TUI preserves in renderResult
 			if (old !== null && old !== content) {
-				const diff = parseDiff(old, content);
+				const diff = parseDiff(old, content, 3, true);
 				const lg = lang(fp);
 				(result as any).details = { _type: "diff", summary: summarize(diff.added, diff.removed), diff, language: lg };
 			} else if (old === null) {
