@@ -1,6 +1,6 @@
 # @bswan0002/pi-package
 
-Personal [pi](https://pi.dev) package for the owner's macOS workflow. Some extensions may work on Linux, but Linux is not the primary target. If you want to use or customize this package, copy or degit the repository and adapt it for your setup.
+Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may work on Linux, but Linux is not the primary target. If you want to use or customize this package, I recommend copying (degit) the repository and modifying as needed to suit your taste.
 
 ## Contents
 
