@@ -45,11 +45,13 @@
  *
  * Configuration (in ~/.pi/agent/settings.json):
  *   {
- *     "piPackage.screenshotPicker": {
- *       "sources": [
- *         "~/Pictures/Screenshots",
- *         "/path/to/images/*.png"
- *       ]
+ *     "piPackage": {
+ *       "screenshotPicker": {
+ *         "sources": [
+ *           "~/Pictures/Screenshots",
+ *           "/path/to/images/*.png"
+ *         ]
+ *       }
  *     }
  *   }
  *
@@ -1450,7 +1452,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 	}
 
 	// Register command
-	pi.registerCommand("piPackage.screenshotPicker", {
+	pi.registerCommand("ss", {
 		description: "Pick screenshots to attach to the next message.",
 		handler: async (_args, ctx) => {
 			await showScreenshotSelector(ctx);
