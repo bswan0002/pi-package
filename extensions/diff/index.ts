@@ -1723,7 +1723,7 @@ export default function diffRendererExtension(pi: any): void {
 			const renderWidth = ctx.state._renderWidth ?? termW();
 			const hdr = `${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("accent", sp(fp))}`;
 			const blankLine = () => bgLine("", renderWidth);
-			const headerLine = (suffix = "") => bgLine(`  ${hdr}${suffix ? ` ${suffix}` : ""}`, renderWidth);
+			const headerLine = (suffix = "") => bgLine(` ${hdr}${suffix ? ` ${suffix}` : ""}`, renderWidth);
 			const pendingSummary = operations.length > 0 ? summarizeEditOperations(operations).summary : "";
 			const pendingHeader = `${blankLine()}\n${headerLine(pendingSummary)}\n${blankLine()}`;
 
@@ -1746,7 +1746,7 @@ export default function diffRendererExtension(pi: any): void {
 					renderSplit(combinedDiff, lg, previewLines, dc, renderWidth)
 						.then((rendered) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}\n${blankLine()}\n${rendered}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}\n${blankLine()}\n${rendered}\n${blankLine()}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
@@ -1760,7 +1760,7 @@ export default function diffRendererExtension(pi: any): void {
 					renderSplit(diff, lg, previewLines, dc, renderWidth)
 						.then((rendered) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summarize(diff.added, diff.removed))}\n${blankLine()}\n${rendered}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summarize(diff.added, diff.removed))}\n${blankLine()}\n${rendered}\n${blankLine()}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
@@ -1781,7 +1781,7 @@ export default function diffRendererExtension(pi: any): void {
 					)
 						.then((sections) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}\n${blankLine()}\n${sections.join(`\n${editSectionSeparator(diffs, renderWidth)}\n`)}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}\n${blankLine()}\n${sections.join(`\n${editSectionSeparator(diffs, renderWidth)}\n`)}\n${blankLine()}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
