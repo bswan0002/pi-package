@@ -1,9 +1,18 @@
-import { MAX_QUESTIONS, MIN_OPTIONS, type QuestionnaireError, type QuestionParams, RESERVED_LABELS } from "./types";
+import {
+	MAX_OPTIONS,
+	MAX_QUESTIONS,
+	MIN_OPTIONS,
+	type QuestionnaireError,
+	type QuestionParams,
+	RESERVED_LABELS,
+} from "./types";
 
 export const ERROR_NO_QUESTIONS = "Error: At least one question is required";
 export const ERROR_TOO_MANY_QUESTIONS = `Error: At most ${MAX_QUESTIONS} questions are allowed per invocation`;
 export const ERROR_DUPLICATE_QUESTION = "Error: Question text must be unique within an invocation";
 export const ERROR_TOO_FEW_OPTIONS = `Error: Each question requires at least ${MIN_OPTIONS} options`;
+export const ERROR_TOO_MANY_OPTIONS = `Error: Each question allows at most ${MAX_OPTIONS} options`;
+export const ERROR_MULTI_SELECT_PREVIEW = "Error: Option previews are only supported for single-select questions";
 export const ERROR_RESERVED_LABEL = `Error: Option label is reserved (${RESERVED_LABELS.join(", ")})`;
 export const ERROR_DUPLICATE_OPTION_LABEL = "Error: Option labels must be unique within a question";
 
@@ -35,6 +44,12 @@ export function validateQuestionnaire(typed: QuestionParams): ValidationResult {
 	for (const q of typed.questions) {
 		if (q.options.length < MIN_OPTIONS) {
 			return { ok: false, error: "empty_options", message: ERROR_TOO_FEW_OPTIONS };
+		}
+		if (q.options.length > MAX_OPTIONS) {
+			return { ok: false, error: "too_many_options", message: ERROR_TOO_MANY_OPTIONS };
+		}
+		if (q.multiSelect === true && q.options.some((o) => typeof o.preview === "string" && o.preview.length > 0)) {
+			return { ok: false, error: "multi_select_preview", message: ERROR_MULTI_SELECT_PREVIEW };
 		}
 		const seenLabels = new Set<string>();
 		for (const o of q.options) {

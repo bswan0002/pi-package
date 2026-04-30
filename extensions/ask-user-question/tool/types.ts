@@ -145,10 +145,12 @@ export type QuestionnaireError =
 	| "no_ui"
 	| "no_questions"
 	| "empty_options"
+	| "too_many_options"
 	| "too_many_questions"
 	| "duplicate_question"
 	| "duplicate_option_label"
-	| "reserved_label";
+	| "reserved_label"
+	| "multi_select_preview";
 
 export interface QuestionnaireResult {
 	answers: QuestionAnswer[];
