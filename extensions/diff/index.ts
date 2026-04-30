@@ -403,8 +403,7 @@ const SPLIT_MAX_WRAP_RATIO = 0.2; // if >20% lines wrap in split, fall back to s
 const SPLIT_MAX_WRAP_LINES = 8; // absolute cap before unified fallback
 
 // --- Terminal bounds ---
-const MAX_TERM_WIDTH = 210; // max for 1728px wide display (~205 cols at typical font)
-const DEFAULT_TERM_WIDTH = 200; // safe default for 1728x1117 resolution
+const DEFAULT_TERM_WIDTH = 200; // safe default when terminal width is unavailable
 
 // --- Rendering limits ---
 const MAX_PREVIEW_LINES = 60; // was 50 — show slightly more context in edit preview
@@ -541,20 +540,55 @@ function tabs(s: string): string {
 }
 
 function termW(): number {
-	// Try multiple sources — process.stdout.columns may be undefined in piped/subagent contexts
+	// Try multiple sources — process.stdout.columns may be undefined in piped/subagent contexts.
 	const raw =
 		process.stdout.columns ||
 		(process.stderr as any).columns ||
 		Number.parseInt(process.env.COLUMNS ?? "", 10) ||
 		DEFAULT_TERM_WIDTH;
-	return Math.max(80, Math.min(raw - 4, MAX_TERM_WIDTH)); // -4 safety margin for pi TUI padding
+	return Math.max(80, raw - 4); // -4 safety margin for pi TUI padding
 }
 
-/** Pad/truncate `s` to exactly `w` visible chars. ANSI-aware. */
+function cellWidth(ch: string): number {
+	const cp = ch.codePointAt(0) ?? 0;
+	if (cp === 0 || cp < 32 || (cp >= 0x7f && cp < 0xa0)) return 0;
+	if (
+		(cp >= 0x0300 && cp <= 0x036f) ||
+		(cp >= 0xfe00 && cp <= 0xfe0f) ||
+		(cp >= 0x1ab0 && cp <= 0x1aff) ||
+		(cp >= 0x1dc0 && cp <= 0x1dff)
+	)
+		return 0;
+	if (
+		cp >= 0x1100 &&
+		(cp <= 0x115f ||
+			cp === 0x2329 ||
+			cp === 0x232a ||
+			(cp >= 0x2e80 && cp <= 0xa4cf) ||
+			(cp >= 0xac00 && cp <= 0xd7a3) ||
+			(cp >= 0xf900 && cp <= 0xfaff) ||
+			(cp >= 0xfe10 && cp <= 0xfe19) ||
+			(cp >= 0xfe30 && cp <= 0xfe6f) ||
+			(cp >= 0x2600 && cp <= 0x27bf) ||
+			(cp >= 0xff00 && cp <= 0xff60) ||
+			(cp >= 0xffe0 && cp <= 0xffe6) ||
+			(cp >= 0x1f300 && cp <= 0x1faff))
+	)
+		return 2;
+	return 1;
+}
+
+function displayWidth(s: string): number {
+	let w = 0;
+	for (const ch of strip(s)) w += cellWidth(ch);
+	return w;
+}
+
+/** Pad/truncate `s` to exactly `w` terminal cells. ANSI-aware. */
 function fit(s: string, w: number): string {
 	if (w <= 0) return "";
-	const plain = strip(s);
-	if (plain.length <= w) return s + " ".repeat(w - plain.length);
+	const plainW = displayWidth(s);
+	if (plainW <= w) return s + " ".repeat(w - plainW);
 	// Truncated — show content + dim › indicator
 	const showW = w > 2 ? w - 1 : w;
 	let vis = 0,
@@ -567,10 +601,19 @@ function fit(s: string, w: number): string {
 				continue;
 			}
 		}
-		vis++;
-		i++;
+		const cp = s.codePointAt(i) ?? s.charCodeAt(i);
+		const ch = String.fromCodePoint(cp);
+		const cw = cellWidth(ch);
+		if (vis + cw > showW) break;
+		vis += cw;
+		i += ch.length;
 	}
 	return w > 2 ? `${s.slice(0, i)}${RST}${FG_DIM}›${RST}` : `${s.slice(0, i)}${RST}`;
+}
+
+/** Fill a complete terminal-width row with `bg`, preserving it across ANSI resets in content. */
+function bgLine(s: string, w = termW(), bg = BG_BASE): string {
+	return bg + fit(s, w).replaceAll(RST, `${RST}${bg}`) + RST;
 }
 
 /** Extract last active fg + bg ANSI codes from a string. Used for wrapping continuations. */
@@ -614,9 +657,9 @@ function normalizeShikiContrast(ansi: string): string {
 /** Wrap ANSI-encoded string into rows of `w` visible chars. Max `maxRows` rows; last row truncates with ›. */
 function wrapAnsi(s: string, w: number, maxRows = adaptiveWrapRows(), fillBg = ""): string[] {
 	if (w <= 0) return [""];
-	const plain = strip(s);
-	if (plain.length <= w) {
-		const pad = w - plain.length;
+	const plainW = displayWidth(s);
+	if (plainW <= w) {
+		const pad = w - plainW;
 		return pad > 0 ? [s + fillBg + " ".repeat(pad) + (fillBg ? RST : "")] : [s];
 	}
 
@@ -644,21 +687,30 @@ function wrapAnsi(s: string, w: number, maxRows = adaptiveWrapRows(), fillBg = "
 			}
 		}
 
+		const cp = s.codePointAt(i) ?? s.charCodeAt(i);
+		const ch = String.fromCodePoint(cp);
+		const chW = cellWidth(ch);
+
 		// Row full
-		if (vis >= effW) {
+		if (vis + chW > effW && vis > 0) {
 			if (onLastRow) {
 				// Check if remaining string has visible chars
 				let hasMore = false;
-				for (let j = i; j < s.length; j++) {
+				for (let j = i; j < s.length; ) {
 					if (s[j] === "\x1b") {
 						const e2 = s.indexOf("m", j);
 						if (e2 !== -1) {
-							j = e2;
+							j = e2 + 1;
 							continue;
 						}
 					}
-					hasMore = true;
-					break;
+					const cp2 = s.codePointAt(j) ?? s.charCodeAt(j);
+					const ch2 = String.fromCodePoint(cp2);
+					if (cellWidth(ch2) > 0) {
+						hasMore = true;
+						break;
+					}
+					j += ch2.length;
 				}
 				if (hasMore && w > 2) row += `${RST}${FG_DIM}›${RST}`;
 				else row += fillBg + " ".repeat(Math.max(0, w - vis)) + RST;
@@ -667,7 +719,7 @@ function wrapAnsi(s: string, w: number, maxRows = adaptiveWrapRows(), fillBg = "
 			}
 			// Normal wrap — carry ANSI state forward
 			const state = ansiState(row);
-			rows.push(row + RST);
+			rows.push(row + fillBg + " ".repeat(Math.max(0, w - vis)) + RST);
 			row = state + fillBg;
 			vis = 0;
 			if (rows.length >= maxRows - 1) {
@@ -676,9 +728,9 @@ function wrapAnsi(s: string, w: number, maxRows = adaptiveWrapRows(), fillBg = "
 			}
 		}
 
-		row += s[i];
-		vis++;
-		i++;
+		row += ch;
+		vis += chW;
+		i += ch.length;
 	}
 
 	// Final row, padded
@@ -706,8 +758,8 @@ function summarize(a: number, d: number): string {
 	return `${FG_ADD}+${a}${RST} ${FG_DEL}-${d}${RST}`;
 }
 
-function editSectionSeparator(_diffs: ParsedDiff[]): string {
-	return `${BG_HUNK}${FG_HUNK}${fit("  ···", termW())}${RST}`;
+function editSectionSeparator(_diffs: ParsedDiff[], width = termW()): string {
+	return bgLine("", width, BG_HUNK);
 }
 
 /**
@@ -835,6 +887,7 @@ async function hlBlock(code: string, language: BundledLanguage | undefined): Pro
 
 function parseDiff(oldContent: string, newContent: string, ctx = 3): ParsedDiff {
 	const patch = Diff.structuredPatch("", "", oldContent, newContent, "", "", { context: ctx });
+	const oldAll = oldContent.split("\n");
 	const lines: DiffLine[] = [];
 	let added = 0,
 		removed = 0;
@@ -842,8 +895,17 @@ function parseDiff(oldContent: string, newContent: string, ctx = 3): ParsedDiff 
 	for (let hi = 0; hi < patch.hunks.length; hi++) {
 		if (hi > 0) {
 			const prev = patch.hunks[hi - 1];
-			const gap = patch.hunks[hi].oldStart - (prev.oldStart + prev.oldLines);
-			lines.push({ type: "sep", oldNum: null, newNum: gap > 0 ? gap : null, content: "" });
+			const oldEnd = prev.oldStart + prev.oldLines;
+			const newEnd = prev.newStart + prev.newLines;
+			const gap = patch.hunks[hi].oldStart - oldEnd;
+			// Tiny gaps are more distracting as a hunk separator than as real context.
+			if (gap > 0 && gap <= 2) {
+				for (let g = 0; g < gap; g++) {
+					lines.push({ type: "ctx", oldNum: oldEnd + g, newNum: newEnd + g, content: oldAll[oldEnd - 1 + g] ?? "" });
+				}
+			} else {
+				lines.push({ type: "sep", oldNum: null, newNum: gap > 0 ? gap : null, content: "" });
+			}
 		}
 		const h = patch.hunks[hi];
 		let oL = h.oldStart,
@@ -1073,7 +1135,7 @@ function plainWordDiff(oldText: string, newText: string): { old: string; new: st
 //   • Single line-number column (shows old num for del/ctx, new num for add)
 //   • Compact line-number cells: "NNN-" or "NNN+" or "NNN "
 //   • Full-width code — no side-by-side cramming
-//   • Hunk separators as "··· N unmodified lines ···"
+//   • Hunk separators as a plain blue band
 //   • Paired del/add lines adjacent with word-level emphasis
 // ---------------------------------------------------------------------------
 
@@ -1082,11 +1144,12 @@ async function renderUnified(
 	language: BundledLanguage | undefined,
 	max = MAX_RENDER_LINES,
 	dc: DiffColors = DEFAULT_DIFF_COLORS,
+	width?: number,
 ): Promise<string> {
 	if (!diff.lines.length) return "";
 
 	const vis = diff.lines.slice(0, max);
-	const tw = termW();
+	const tw = width ?? termW();
 	const nw = Math.max(2, String(Math.max(...vis.map((l) => l.oldNum ?? l.newNum ?? 0), 0)).length);
 	const gw = nw + 3; // line number + sign + two-cell padding
 	const cw = Math.max(20, tw - gw);
@@ -1130,11 +1193,9 @@ async function renderUnified(
 	while (idx < vis.length) {
 		const l = vis[idx];
 
-		// Hunk separator — collapsed context, highlighted with the GitHub-like blue band.
+		// Hunk separator — collapsed context, highlighted with a plain blue band.
 		if (l.type === "sep") {
-			const gap = l.newNum;
-			const label = gap && gap > 0 ? `··· ${gap} unmodified lines ···` : "···";
-			out.push(`${BG_HUNK}${FG_HUNK}${fit(`  ${label}`, tw)}${RST}`);
+			out.push(bgLine("", tw, BG_HUNK));
 			idx++;
 			continue;
 		}
@@ -1193,7 +1254,7 @@ async function renderUnified(
 	}
 
 	if (diff.lines.length > vis.length) {
-		out.push(`${BG_BASE}${FG_DIM}  … ${diff.lines.length - vis.length} more lines${RST}`);
+		out.push(bgLine(`${FG_DIM}  … ${diff.lines.length - vis.length} more lines${RST}`));
 	}
 	return out.join("\n");
 }
@@ -1207,9 +1268,10 @@ async function renderSplit(
 	language: BundledLanguage | undefined,
 	max = MAX_PREVIEW_LINES,
 	dc: DiffColors = DEFAULT_DIFF_COLORS,
+	width?: number,
 ): Promise<string> {
-	const tw = termW();
-	if (!shouldUseSplit(diff, tw, max)) return renderUnified(diff, language, max, dc);
+	const tw = width ?? termW();
+	if (!shouldUseSplit(diff, tw, max)) return renderUnified(diff, language, max, dc, tw);
 	if (!diff.lines.length) return "";
 
 	// Build rows
@@ -1238,10 +1300,12 @@ async function renderSplit(
 	}
 
 	const vis = rows.slice(0, max);
-	const half = Math.floor((tw - 1) / 2); // -1 for center divider
+	const leftPaneW = Math.floor((tw - 1) / 2); // -1 for center divider/gap
+	const rightPaneW = tw - 1 - leftPaneW;
 	const nw = Math.max(2, String(Math.max(...diff.lines.map((l) => l.oldNum ?? l.newNum ?? 0), 0)).length);
 	const gw = nw + 3; // line number + sign + two-cell padding
-	const cw = Math.max(12, half - gw);
+	const leftCw = Math.max(12, leftPaneW - gw);
+	const rightCw = Math.max(12, rightPaneW - gw);
 	const canHL = diff.chars <= MAX_HL_CHARS && vis.length * 2 <= MAX_RENDER_LINES * 2;
 
 	// Build separate code blocks per side
@@ -1267,18 +1331,17 @@ async function renderSplit(
 		hl: string,
 		ranges: Array<[number, number]> | null,
 		side: "left" | "right",
+		codeWidth: number,
 	): HalfResult {
 		// Empty filler — same neutral background as the rest of the tool block.
 		if (!line) {
 			const g = `${BG_EMPTY}${" ".repeat(nw + 3)}${RST}`;
-			return { gutter: g, contGutter: g, bodyRows: [emptyFill(cw, fillerRow)] };
+			return { gutter: g, contGutter: g, bodyRows: [emptyFill(codeWidth, fillerRow)] };
 		}
 		// Hunk separator — blue band, matching GitHub's hunk styling.
 		if (line.type === "sep") {
-			const gap = line.newNum;
-			const label = gap && gap > 0 ? `··· ${gap} lines ···` : "···";
 			const g = `${BG_HUNK}${" ".repeat(nw + 3)}${RST}`;
-			return { gutter: g, contGutter: g, bodyRows: [`${BG_HUNK}${FG_HUNK}${fit(label, cw)}${RST}`] };
+			return { gutter: g, contGutter: g, bodyRows: [`${BG_HUNK}${" ".repeat(codeWidth)}${RST}`] };
 		}
 
 		const isDel = line.type === "del",
@@ -1303,7 +1366,7 @@ async function renderSplit(
 
 		const gutter = `${gBg}${lnum(num, nw, numFg, "")}${sFg}${BOLD}${sign}${RST}${cBg}  ${RST}`;
 		const contGutter = `${gBg}${" ".repeat(nw + 1)}${cBg}  ${RST}`;
-		const bodyRows = wrapAnsi(tabs(body), cw, adaptiveWrapRows(), cBg);
+		const bodyRows = wrapAnsi(tabs(body), codeWidth, adaptiveWrapRows(), cBg);
 		return { gutter, contGutter, bodyRows };
 	}
 
@@ -1320,19 +1383,19 @@ async function renderSplit(
 		if (paired && wd && wd.similarity >= WORD_DIFF_MIN_SIM && canHL) {
 			const lhl = leftHL[lI++] ?? leftLine.content;
 			const rhl = rightHL[rI++] ?? rightLine.content;
-			lResult = half_build(leftLine, lhl, wd.oldRanges, "left");
-			rResult = half_build(rightLine, rhl, wd.newRanges, "right");
+			lResult = half_build(leftLine, lhl, wd.oldRanges, "left", leftCw);
+			rResult = half_build(rightLine, rhl, wd.newRanges, "right", rightCw);
 		} else if (paired && wd && wd.similarity >= WORD_DIFF_MIN_SIM && !canHL) {
 			const pwd = plainWordDiff(leftLine.content, rightLine.content);
 			lI++;
 			rI++;
-			lResult = half_build(leftLine, pwd.old, null, "left");
-			rResult = half_build(rightLine, pwd.new, null, "right");
+			lResult = half_build(leftLine, pwd.old, null, "left", leftCw);
+			rResult = half_build(rightLine, pwd.new, null, "right", rightCw);
 		} else {
 			const lhl = leftLine && leftLine.type !== "sep" ? (leftHL[lI++] ?? leftLine?.content ?? "") : "";
 			const rhl = rightLine && rightLine.type !== "sep" ? (rightHL[rI++] ?? rightLine?.content ?? "") : "";
-			lResult = half_build(leftLine, lhl, null, "left");
-			rResult = half_build(rightLine, rhl, null, "right");
+			lResult = half_build(leftLine, lhl, null, "left", leftCw);
+			rResult = half_build(rightLine, rhl, null, "right", rightCw);
 		}
 
 		// Compose wrapped rows — pad shorter side with plain neutral continuation rows.
@@ -1343,16 +1406,18 @@ async function renderSplit(
 		for (let row = 0; row < maxRows; row++) {
 			const lg = row === 0 ? lResult.gutter : lResult.contGutter;
 			const rg = row === 0 ? rResult.gutter : rResult.contGutter;
-			const lb = lResult.bodyRows[row] ?? (leftIsEmpty ? emptyFill(cw, fillerRow) : `${BG_EMPTY}${" ".repeat(cw)}${RST}`);
+			const lb =
+				lResult.bodyRows[row] ?? (leftIsEmpty ? emptyFill(leftCw, fillerRow) : `${BG_EMPTY}${" ".repeat(leftCw)}${RST}`);
 			const rb =
-				rResult.bodyRows[row] ?? (rightIsEmpty ? emptyFill(cw, fillerRow) : `${BG_EMPTY}${" ".repeat(cw)}${RST}`);
+				rResult.bodyRows[row] ??
+				(rightIsEmpty ? emptyFill(rightCw, fillerRow) : `${BG_EMPTY}${" ".repeat(rightCw)}${RST}`);
 			out.push(`${lg}${lb}${centerGap}${rg}${rb}`);
 			fillerRow++;
 		}
 	}
 
 	if (rows.length > vis.length) {
-		out.push(`${BG_BASE}${FG_DIM}  … ${rows.length - vis.length} more lines${RST}`);
+		out.push(bgLine(`${FG_DIM}  … ${rows.length - vis.length} more lines${RST}`));
 	}
 	return out.join("\n");
 }
@@ -1386,6 +1451,22 @@ export default function diffRendererExtension(pi: any): void {
 	const cwd = process.cwd();
 	const home = process.env.HOME ?? "";
 	const sp = (p: string) => shortPath(cwd, home, p);
+
+	function textComponentWithRenderWidth(ctx: any): any {
+		const text = ctx.lastComponent ?? new TextComponent("", 0, 0);
+		if (!text.__diffWidthPatched && typeof text.render === "function") {
+			const originalRender = text.render.bind(text);
+			text.render = (width: number) => {
+				if (ctx.state._renderWidth !== width) {
+					ctx.state._renderWidth = width;
+					ctx.invalidate?.();
+				}
+				return originalRender(width);
+			};
+			text.__diffWidthPatched = true;
+		}
+		return text;
+	}
 
 	// =======================================================================
 	// write
@@ -1607,18 +1688,21 @@ export default function diffRendererExtension(pi: any): void {
 		renderCall(args: any, theme: any, ctx: any) {
 			const fp = args?.path ?? args?.file_path ?? "";
 			const operations = getEditOperations(args);
-			const text = ctx.lastComponent ?? new TextComponent("", 0, 0);
+			const text = textComponentWithRenderWidth(ctx);
+			const renderWidth = ctx.state._renderWidth ?? termW();
 			const hdr = `${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("accent", sp(fp))}`;
+			const blankLine = () => bgLine("", renderWidth);
+			const headerLine = (suffix = "") => bgLine(`  ${hdr}${suffix ? ` ${suffix}` : ""}`, renderWidth);
 
 			if (!(ctx.argsComplete && operations.length > 0)) {
 				text.setText(hdr);
 				return text;
 			}
 
-			const pk = JSON.stringify({ fp, operations, w: termW(), expanded: ctx.expanded });
+			const pk = JSON.stringify({ fp, operations, w: renderWidth, expanded: ctx.expanded });
 			if (ctx.state._pk !== pk) {
 				ctx.state._pk = pk;
-				ctx.state._pt = `${hdr}  ${theme.fg("muted", "(rendering…)")}`;
+				ctx.state._pt = `${blankLine()}\n${headerLine(theme.fg("muted", "(rendering…)"))}`;
 				const lg = lang(fp);
 				const dc = resolveDiffColors(theme);
 
@@ -1626,29 +1710,29 @@ export default function diffRendererExtension(pi: any): void {
 				if (combinedDiff) {
 					const summary = summarize(combinedDiff.added, combinedDiff.removed);
 					const previewLines = ctx.expanded ? MAX_RENDER_LINES : MAX_PREVIEW_LINES;
-					renderSplit(combinedDiff, lg, previewLines, dc)
+					renderSplit(combinedDiff, lg, previewLines, dc, renderWidth)
 						.then((rendered) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${hdr}\n${summary}\n${rendered}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}\n${blankLine()}\n${rendered}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${hdr}  ${summary}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}`;
 							ctx.invalidate();
 						});
 				} else if (operations.length === 1) {
 					const diff = parseEditDiff(fp, operations[0].oldText, operations[0].newText);
 					const previewLines = ctx.expanded ? MAX_RENDER_LINES : MAX_PREVIEW_LINES;
-					renderSplit(diff, lg, previewLines, dc)
+					renderSplit(diff, lg, previewLines, dc, renderWidth)
 						.then((rendered) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${hdr}\n${summarize(diff.added, diff.removed)}\n${rendered}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summarize(diff.added, diff.removed))}\n${blankLine()}\n${rendered}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${hdr}  ${summarize(diff.added, diff.removed)}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summarize(diff.added, diff.removed))}`;
 							ctx.invalidate();
 						});
 				} else {
@@ -1657,15 +1741,19 @@ export default function diffRendererExtension(pi: any): void {
 						diffs.reduce((sum, diff) => sum + diff.added, 0),
 						diffs.reduce((sum, diff) => sum + diff.removed, 0),
 					);
-					Promise.all(diffs.map((diff) => renderSplit(diff, lg, MAX_PREVIEW_LINES, dc).catch(() => summarize(diff.added, diff.removed))))
+					Promise.all(
+						diffs.map((diff) =>
+							renderSplit(diff, lg, MAX_PREVIEW_LINES, dc, renderWidth).catch(() => summarize(diff.added, diff.removed)),
+						),
+					)
 						.then((sections) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${hdr}\n${summary}\n${sections.join(`\n${editSectionSeparator(diffs)}\n`)}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}\n${blankLine()}\n${sections.join(`\n${editSectionSeparator(diffs, renderWidth)}\n`)}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${hdr}  ${summary}`;
+							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}`;
 							ctx.invalidate();
 						});
 				}
@@ -1686,21 +1774,8 @@ export default function diffRendererExtension(pi: any): void {
 				text.setText(`\n${theme.fg("error", e)}`);
 				return text;
 			}
-			if (result.details?._type === "editInfo") {
-				const { summary: s, editLine } = result.details;
-				const loc = editLine > 0 ? ` ${theme.fg("muted", `at line ${editLine}`)}` : "";
-				const content = `  ${s}${loc}`;
-				const vis = content.replace(ANSI_RE, "").length;
-				const pad = Math.max(0, termW() - vis);
-				text.setText(`${content}${" ".repeat(pad)}`);
-				return text;
-			}
-			if (result.details?._type === "multiEditInfo") {
-				const { summary: s } = result.details;
-				const content = `  ${s}`;
-				const vis = content.replace(ANSI_RE, "").length;
-				const pad = Math.max(0, termW() - vis);
-				text.setText(`${content}${" ".repeat(pad)}`);
+			if (result.details?._type === "editInfo" || result.details?._type === "multiEditInfo") {
+				text.setText("");
 				return text;
 			}
 			text.setText(`  ${theme.fg("dim", String(result?.content?.[0]?.text ?? "edited").slice(0, 120))}`);
