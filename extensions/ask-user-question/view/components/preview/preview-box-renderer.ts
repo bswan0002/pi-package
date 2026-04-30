@@ -31,7 +31,8 @@ export function stripFenceMarkers(lines: readonly string[]): string[] {
  * Layout per content row: `│` + ` ` + content padded to `contentInner` + ` ` + `│`,
  * where `contentInner = width - BORDER_HORIZONTAL_OVERHEAD - 2 * BORDER_INNER_PADDING_HORIZONTAL`.
  * Top/bottom dash runs span corner-to-corner (`width - BORDER_HORIZONTAL_OVERHEAD`). When
- * `hidden > 0`, the bottom-row dash run is replaced with ` ✂ ── N lines hidden ── ` (corners stay).
+ * `hidden > 0`, the bottom-row dash run is replaced with a centered/clamped
+ * ` ✂ ── N lines hidden ── ` indicator (corners stay).
  */
 export function renderBorderedBox(
 	lines: readonly string[],
@@ -49,10 +50,11 @@ export function renderBorderedBox(
 		out.push(`${colorFn("│")}${pad}${padded}${pad}${colorFn("│")}`);
 	}
 	if (hidden > 0) {
-		const indicator = ` ✂ ── ${hidden} lines hidden ── `;
-		const space = dashSpan - indicator.length;
+		const indicator = truncateToWidth(` ✂ ── ${hidden} lines hidden ── `, dashSpan, "", true);
+		const indicatorWidth = visibleWidth(indicator);
+		const space = dashSpan - indicatorWidth;
 		const leftFill = "─".repeat(Math.max(0, Math.floor(space / 2)));
-		const rightFill = "─".repeat(Math.max(0, dashSpan - leftFill.length - indicator.length));
+		const rightFill = "─".repeat(Math.max(0, dashSpan - visibleWidth(leftFill) - indicatorWidth));
 		out.push(colorFn(`└${leftFill}${indicator}${rightFill}┘`));
 	} else {
 		out.push(colorFn(`└${"─".repeat(dashSpan)}┘`));
