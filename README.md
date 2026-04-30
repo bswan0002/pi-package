@@ -6,6 +6,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 
 ### Extensions
 
+- [`ask-user-question`](./extensions/ask-user-question) — adds an `ask_user_question` tool for structured TUI clarifying questions.
 - [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY`.
 - [`diff`](./extensions/diff) — replaces pi's `write` and `edit` rendering with Shiki-highlighted diffs.
 - [`post-edit`](./extensions/post-edit) — runs project-configured commands after agent edits when `.pi/post-edit.json` exists.
@@ -67,6 +68,7 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 
 | Extension                | Optional/required tools                                                           | Notes                                                    |
 | ------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| ask-user-question        | None                                                                              | Uses pi's interactive TUI.                               |
 | brave-search             | `BRAVE_SEARCH_API_KEY`                                                            | Environment variable required.                           |
 | diff                     | Shiki npm dependencies                                                            | No major system tool expected.                           |
 | post-edit                | project-configured commands                                                       | Runs whatever `.pi/post-edit.json` asks for.             |
