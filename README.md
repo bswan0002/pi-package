@@ -6,6 +6,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 
 ### Extensions
 
+- [`ask-user`](./extensions/ask-user) — adds the interactive `ask_user` tool for explicit user decisions.
 - [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY`.
 - [`diff`](./extensions/diff) — replaces pi's `write` and `edit` rendering with Shiki-highlighted diffs.
 - [`post-edit`](./extensions/post-edit) — runs project-configured commands after agent edits when `.pi/post-edit.json` exists.
@@ -16,6 +17,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 
 ### Skills
 
+- [`ask-user`](./skills/ask-user) — decision gate for ambiguous or high-stakes choices using `ask_user`.
 - [`pr-review`](./skills/pr-review) — performs a PR-style review of the current branch.
 - [`qq`](./skills/qq) — answers questions using only readonly project inspection.
 
@@ -49,7 +51,8 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
       "extensionEvents": { "readonly-git-permissions:confirm-needed": "/System/Library/Sounds/Ping.aiff" }
     },
     "diff": { "theme": "midnight", "colors": {} },
-    "style": { "icons": {}, "colors": {} }
+    "style": { "icons": {}, "colors": {} },
+    "askUser": { "displayMode": "inline" }
   }
 }
 ```

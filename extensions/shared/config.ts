@@ -10,6 +10,9 @@ export type PiPackageConfig = {
 	};
 	diff?: { theme?: string; colors?: Record<string, string> };
 	style?: { icons?: Record<string, string>; colors?: Record<string, string> };
+	askUser?: {
+		displayMode?: "overlay" | "inline";
+	};
 };
 
 export const globalSettingsPath = join(homedir(), ".pi", "agent", "settings.json");
@@ -46,6 +49,7 @@ function mergeConfig(base: PiPackageConfig, override: PiPackageConfig): PiPackag
 			icons: { ...(base.style?.icons ?? {}), ...(override.style?.icons ?? {}) },
 			colors: { ...(base.style?.colors ?? {}), ...(override.style?.colors ?? {}) },
 		},
+		askUser: { ...(base.askUser ?? {}), ...(override.askUser ?? {}) },
 	};
 }
 

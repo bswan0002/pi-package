@@ -8,4 +8,6 @@ export const EVENTS = {
 	POST_EDIT_RETRY: "post-edit:retry",
 	POST_EDIT_FAILED: "post-edit:failed",
 	POST_EDIT_COMPLETED: "post-edit:completed",
+	ASK_USER_ANSWERED: "ask-user:answered",
+	ASK_USER_CANCELLED: "ask-user:cancelled",
 } as const;
