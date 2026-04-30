@@ -56,21 +56,21 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 
 ## Platform support
 
-| Area | macOS | Linux | Notes |
-| --- | --- | --- | --- |
-| Package target | primary | may work | Personal workflow targets macOS. |
-| screenshot-picker | yes | partial/yes | Linux paths and `xdg-open` exist; thumbnails depend on terminal support. |
-| sounds | yes | no/unsupported | Uses `afplay`. |
-| style/diff/post-edit/readonly-git-permissions/brave-search | yes | likely | Mostly Node/pi behavior; external tools may vary. |
+| Area                                                       | macOS   | Linux          | Notes                                                                    |
+| ---------------------------------------------------------- | ------- | -------------- | ------------------------------------------------------------------------ |
+| Package target                                             | primary | may work       | Personal workflow targets macOS.                                         |
+| screenshot-picker                                          | yes     | partial/yes    | Linux paths and `xdg-open` exist; thumbnails depend on terminal support. |
+| sounds                                                     | yes     | no/unsupported | Uses `afplay`.                                                           |
+| style/diff/post-edit/readonly-git-permissions/brave-search | yes     | likely         | Mostly Node/pi behavior; external tools may vary.                        |
 
 ## External dependencies
 
-| Extension | Optional/required tools | Notes |
-| --- | --- | --- |
-| brave-search | `BRAVE_SEARCH_API_KEY` | Environment variable required. |
-| diff | Shiki npm dependencies | No major system tool expected. |
-| post-edit | project-configured commands | Runs whatever `.pi/post-edit.json` asks for. |
-| readonly-git-permissions | `git` | Intercepts `bash` git invocations. |
-| screenshot-picker | macOS `defaults`, macOS `open`, Linux `xdg-open`, terminal image protocol support | Image previews need capable terminals. |
-| sounds | macOS `afplay` | Configurable sounds are macOS-targeted. |
-| style | `git`, optional `gh` | GitHub PR footer segment uses GitHub CLI when available. |
+| Extension                | Optional/required tools                                                           | Notes                                                    |
+| ------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| brave-search             | `BRAVE_SEARCH_API_KEY`                                                            | Environment variable required.                           |
+| diff                     | Shiki npm dependencies                                                            | No major system tool expected.                           |
+| post-edit                | project-configured commands                                                       | Runs whatever `.pi/post-edit.json` asks for.             |
+| readonly-git-permissions | `git`                                                                             | Intercepts `bash` git invocations.                       |
+| screenshot-picker        | macOS `defaults`, macOS `open`, Linux `xdg-open`, terminal image protocol support | Image previews need capable terminals.                   |
+| sounds                   | macOS `afplay`                                                                    | Configurable sounds are macOS-targeted.                  |
+| style                    | `git`, optional `gh`                                                              | GitHub PR footer segment uses GitHub CLI when available. |
