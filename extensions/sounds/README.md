@@ -12,6 +12,7 @@ Config lives under `piPackage.sounds` in global `~/.pi/agent/settings.json`, wit
         "agent_end": "/System/Library/Sounds/Glass.aiff"
       },
       "extensionEvents": {
+        "ask-user-question:started": "/System/Library/Sounds/Hero.aiff",
         "readonly-git-permissions:confirm-needed": "/System/Library/Sounds/Ping.aiff"
       }
     }

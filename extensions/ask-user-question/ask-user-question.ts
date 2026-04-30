@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { EVENTS } from "../shared/events";
 import { QuestionnaireSession } from "./state/questionnaire-session";
 import { ROW_INTENT_META, sentinelsToAppend } from "./state/row-intent";
 import { buildQuestionnaireResponse, buildToolResult } from "./tool/response-envelope";
@@ -76,6 +77,7 @@ Preview content is rendered as markdown in a monospace box. Multi-line text with
 
 			const itemsByTab: WrappingSelectItem[][] = typed.questions.map((q) => buildItemsForQuestion(q));
 
+			pi.events.emit(EVENTS.ASK_USER_QUESTION_STARTED, { questionCount: typed.questions.length });
 			ctx.ui.setWorkingIndicator({ frames: [] });
 			try {
 				const result = await ctx.ui.custom<QuestionnaireResult>((tui, theme, _kb, done) => {

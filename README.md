@@ -33,24 +33,27 @@ One run without installing:
 pi -e ~/Dev/pi-package
 ```
 
-## Naming
-
-The package name retains `bswan0002` because this is a personal package tied to the GitHub username. Skill names, extension commands, events, and config keys avoid unnecessary personal namespacing.
-
 ## Shared config
 
-Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` overrides it when present.
+Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` overrides it when present. Example package-specific settings:
 
 ```json
 {
+  "theme": "dark-plus",
   "piPackage": {
-    "screenshotPicker": { "sources": ["~/Pictures/Screenshots"] },
-    "sounds": {
-      "piEvents": { "agent_end": "/System/Library/Sounds/Glass.aiff" },
-      "extensionEvents": { "readonly-git-permissions:confirm-needed": "/System/Library/Sounds/Ping.aiff" }
+    "screenshotPicker": {
+      "sources": [
+        "~/screenshots"
+      ]
     },
-    "diff": { "theme": "midnight", "colors": {} },
-    "style": { "icons": {}, "colors": {} }
+    "sounds": {
+      "piEvents": {
+        "agent_end": "/System/Library/Sounds/Glass.aiff"
+      },
+      "extensionEvents": {
+        "readonly-git-permissions:confirm-needed": "/System/Library/Sounds/Ping.aiff"
+      }
+    }
   }
 }
 ```

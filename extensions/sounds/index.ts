@@ -9,6 +9,7 @@ const DEFAULT_SOUNDS = {
 		agent_end: "/System/Library/Sounds/Glass.aiff",
 	},
 	extensionEvents: {
+		[EVENTS.ASK_USER_QUESTION_STARTED]: "/System/Library/Sounds/Hero.aiff",
 		[EVENTS.READONLY_GIT_CONFIRM_NEEDED]: "/System/Library/Sounds/Ping.aiff",
 	},
 };

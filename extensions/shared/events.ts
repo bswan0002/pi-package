@@ -1,4 +1,5 @@
 export const EVENTS = {
+	ASK_USER_QUESTION_STARTED: "ask-user-question:started",
 	READONLY_GIT_CONFIRM_NEEDED: "readonly-git-permissions:confirm-needed",
 	READONLY_GIT_BLOCKED: "readonly-git-permissions:blocked",
 	READONLY_GIT_ALLOWED: "readonly-git-permissions:allowed",
