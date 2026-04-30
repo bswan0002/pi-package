@@ -79,3 +79,7 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 | screenshot-picker        | macOS `defaults`, macOS `open`, Linux `xdg-open`, terminal image protocol support | Image previews need capable terminals.                   |
 | sounds                   | macOS `afplay`                                                                    | Configurable sounds are macOS-targeted.                  |
 | style                    | `git`, optional `gh`                                                              | GitHub PR footer segment uses GitHub CLI when available. |
+
+# TODO
+
+Maybe incorporate some settings management a la https://github.com/juanibiapina/pi-extension-settings
