@@ -1,13 +1,14 @@
 {
   "name": "@bswan0002/pi-package",
-  "version": "0.1.0",
-  "description": "Personal pi package for bswan0002 extensions and skills.",
-  "private": true,
+  "version": "1.0.0",
+  "description": "There are many pi packages, but this one is mine.",
+  "license": "MIT",
   "type": "module",
   "keywords": [
     "pi-package",
     "pi-extension",
-    "pi-skill"
+    "pi-skill",
+    "pi-theme"
   ],
   "pi": {
     "extensions": [

@@ -8,9 +8,9 @@ Readonly git operations are allowed without prompting. Anything else is blocked 
 
 This extension emits only scoped `pi.events` names:
 
-- `bswan0002:readonly-git-permissions:confirm-needed`
-- `bswan0002:readonly-git-permissions:blocked`
-- `bswan0002:readonly-git-permissions:allowed`
+- `readonly-git-permissions:confirm-needed`
+- `readonly-git-permissions:blocked`
+- `readonly-git-permissions:allowed`
 
 Payload shape:
 

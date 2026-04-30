@@ -1,5 +1,5 @@
 ---
-name: bswan0002-pr-review
+name: pr-review
 description: Review the current branch or pull request. Use when asked to review a PR, review branch changes, find issues before merge, or compare the working branch to the branch it was based on. Discovers an open GitHub PR with gh when possible, otherwise infers the likely base branch and reviews the resulting diff.
 ---
 
@@ -20,7 +20,7 @@ You are doing a PR-style code review of the current branch's changes.
 From the repository root, run:
 
 ```bash
-bash skills/bswan0002-pr-review/scripts/pr-context.sh
+bash skills/pr-review/scripts/pr-context.sh
 ```
 
 If this skill is installed globally or the relative path is not present, resolve the script relative to this `SKILL.md` file and run that absolute path instead.
