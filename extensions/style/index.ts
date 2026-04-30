@@ -5,7 +5,7 @@ import type {
 	KeybindingsManager,
 	Theme,
 } from "@mariozechner/pi-coding-agent";
-import { type EditorTheme, type TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import { type EditorTheme, type TUI, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import { type PolishedTuiConfig, colorize, ensureConfigExists, loadConfig } from "./config";
 import { type GitHubPrInfo, type GitStatusSummary, emptyGitStatus, readGitStatus } from "./git";
 import { type RuntimeInfo, readRuntimeInfo } from "./runtime";
@@ -295,13 +295,19 @@ export default function (pi: ExtensionAPI) {
 
 					const leftWidth = visibleWidth(left);
 					const rightWidth = visibleWidth(right);
-					const content =
-						leftWidth >= innerWidth
-							? truncateToWidth(left, innerWidth)
-							: leftWidth + 1 + rightWidth <= innerWidth
-								? `${left}${" ".repeat(innerWidth - leftWidth - rightWidth)}${right}`
-								: left;
-					return [` ${content} `];
+
+					if (leftWidth + 1 + rightWidth <= innerWidth) {
+						const content = `${left}${" ".repeat(innerWidth - leftWidth - rightWidth)}${right}`;
+						return [` ${content} `];
+					}
+
+					const wrapFooterLine = (line: string) =>
+						wrapTextWithAnsi(line, innerWidth).map((wrapped) =>
+							truncateToWidth(wrapped, innerWidth),
+						);
+					const leftLines = wrapFooterLine(left);
+					const rightLines = wrapFooterLine(right);
+					return [...leftLines, ...rightLines].map((line) => ` ${line} `);
 				},
 			};
 		});
