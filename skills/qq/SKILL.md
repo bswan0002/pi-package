@@ -1,5 +1,5 @@
 ---
-name: bswan0002-qq
+name: qq
 description: Answer a user question directly using only readonly inspection. Use when the user wants an explanation, answer, or clarification without code or file changes.
 allowed-tools: read bash
 ---

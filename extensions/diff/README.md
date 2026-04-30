@@ -40,19 +40,23 @@ DIFF_FG_ADD="#64c882"
 DIFF_FG_DEL="#eb6e6e"
 ```
 
-Project or global pi settings can also configure presets/colors in `.pi/settings.json`:
+Global `~/.pi/agent/settings.json` or project `.pi/settings.json` can configure presets/colors:
 
 ```json
 {
-  "diffTheme": "subtle",
-  "diffColors": {
-    "bgAdd": "#223027",
-    "bgDel": "#342424",
-    "bgAddHighlight": "#294f38",
-    "bgDelHighlight": "#543030",
-    "bgBase": "#303030",
-    "bgHunk": "#1f314e",
-    "shikiTheme": "dark-plus"
+  "piPackage": {
+    "diff": {
+      "theme": "subtle",
+      "colors": {
+        "bgAdd": "#223027",
+        "bgDel": "#342424",
+        "bgAddHighlight": "#294f38",
+        "bgDelHighlight": "#543030",
+        "bgBase": "#303030",
+        "bgHunk": "#1f314e",
+        "shikiTheme": "dark-plus"
+      }
+    }
   }
 }
 ```

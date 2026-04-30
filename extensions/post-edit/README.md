@@ -54,9 +54,9 @@ Job fields:
 
 All events are scoped:
 
-- `bswan0002:post-edit:started`
-- `bswan0002:post-edit:job-started`
-- `bswan0002:post-edit:job-finished`
-- `bswan0002:post-edit:retry`
-- `bswan0002:post-edit:failed`
-- `bswan0002:post-edit:completed`
+- `post-edit:started`
+- `post-edit:job-started`
+- `post-edit:job-finished`
+- `post-edit:retry`
+- `post-edit:failed`
+- `post-edit:completed`

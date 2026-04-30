@@ -1,54 +1,76 @@
 # @bswan0002/pi-package
 
-Personal [pi](https://pi.dev) package for bswan0002 extensions and skills.
+Personal [pi](https://pi.dev) package for the owner's macOS workflow. Some extensions may work on Linux, but Linux is not the primary target. If you want to use or customize this package, copy or degit the repository and adapt it for your setup.
 
 ## Contents
 
 ### Extensions
 
-- [`diff`](./extensions/diff) — replaces pi's `write` and `edit` rendering with Shiki-highlighted diffs, word-level highlights, wrapping, expandable multi-edit previews, and configurable colors/themes.
-- [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY` in the environment.
-- [`post-edit`](./extensions/post-edit) — runs project-configured format/lint/typecheck commands after agent edits when the project contains `.pi/post-edit.json`.
-- [`readonly-git-permissions`](./extensions/readonly-git-permissions) — blocks non-readonly git operations from the `bash` tool unless confirmed in the UI.
-- [`screenshot-picker`](./extensions/screenshot-picker) — opens a screenshot browser for staging images that attach to the next prompt. Use `/bswan0002-screenshot-picker` or `Ctrl+Shift+S`.
-- [`sounds`](./extensions/sounds) — plays distinct macOS sounds on agent end and permission prompts.
-- [`style`](./extensions/style) — installs the custom editor/statusline UI, including a clickable GitHub PR segment in the footer when the current branch has a PR. Use `/pr-refresh` to refresh PR/git footer state.
+- [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY`.
+- [`diff`](./extensions/diff) — replaces pi's `write` and `edit` rendering with Shiki-highlighted diffs.
+- [`post-edit`](./extensions/post-edit) — runs project-configured commands after agent edits when `.pi/post-edit.json` exists.
+- [`readonly-git-permissions`](./extensions/readonly-git-permissions) — blocks non-readonly git operations unless confirmed.
+- [`screenshot-picker`](./extensions/screenshot-picker) — stages screenshots for the next prompt. Use `/ss` or `Ctrl+Shift+S`; clear with `/ss-clear`.
+- [`sounds`](./extensions/sounds) — plays configurable macOS sounds on pi and extension events.
+- [`style`](./extensions/style) — installs the custom editor/statusline UI. Use `/pr-refresh` to refresh PR/git footer state.
 
 ### Skills
 
-- [`bswan0002-pr-review`](./skills/bswan0002-pr-review) — performs a PR-style review of the current branch, using GitHub PR metadata when available and otherwise inferring the likely base branch.
-- [`bswan0002-qq`](./skills/bswan0002-qq) — answers questions using only readonly project inspection.
+- [`pr-review`](./skills/pr-review) — performs a PR-style review of the current branch.
+- [`qq`](./skills/qq) — answers questions using only readonly project inspection.
 
 ## Install locally
 
-From another project, install this package into pi settings with:
+```bash
+npx degit bswan0002/pi-package ~/Dev/pi-package
+pi install ~/Dev/pi-package
+```
+
+One run without installing:
 
 ```bash
-pi install /Users/ben/Dev/pi-package
+pi -e ~/Dev/pi-package
 ```
 
-Or try it for one run without installing:
+## Naming
 
-```bash
-pi -e /Users/ben/Dev/pi-package
+The package name retains `bswan0002` because this is a personal package tied to the GitHub username. Skill names, extension commands, events, and config keys avoid unnecessary personal namespacing.
+
+## Shared config
+
+Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` overrides it when present.
+
+```json
+{
+  "piPackage": {
+    "screenshotPicker": { "sources": ["~/Pictures/Screenshots"] },
+    "sounds": {
+      "piEvents": { "agent_end": "/System/Library/Sounds/Glass.aiff" },
+      "extensionEvents": { "readonly-git-permissions:confirm-needed": "/System/Library/Sounds/Ping.aiff" }
+    },
+    "diff": { "theme": "midnight", "colors": {} },
+    "style": { "icons": {}, "colors": {} }
+  }
+}
 ```
 
-## Naming convention
+## Platform support
 
-Skill names use the Agent Skills-compatible namespace prefix:
+| Area | macOS | Linux | Notes |
+| --- | --- | --- | --- |
+| Package target | primary | may work | Personal workflow targets macOS. |
+| screenshot-picker | yes | partial/yes | Linux paths and `xdg-open` exist; thumbnails depend on terminal support. |
+| sounds | yes | no/unsupported | Uses `afplay`. |
+| style/diff/post-edit/readonly-git-permissions/brave-search | yes | likely | Mostly Node/pi behavior; external tools may vary. |
 
-```text
-bswan0002-<skill-name>
-```
+## External dependencies
 
-Custom extension bus events are scoped as:
-
-```text
-bswan0002:<extension-name>:<event-name>
-```
-
-For example:
-
-```text
-bswan0002:readonly-git-permissions:confirm-needed
-```
+| Extension | Optional/required tools | Notes |
+| --- | --- | --- |
+| brave-search | `BRAVE_SEARCH_API_KEY` | Environment variable required. |
+| diff | Shiki npm dependencies | No major system tool expected. |
+| post-edit | project-configured commands | Runs whatever `.pi/post-edit.json` asks for. |
+| readonly-git-permissions | `git` | Intercepts `bash` git invocations. |
+| screenshot-picker | macOS `defaults`, macOS `open`, Linux `xdg-open`, terminal image protocol support | Image previews need capable terminals. |
+| sounds | macOS `afplay` | Configurable sounds are macOS-targeted. |
+| style | `git`, optional `gh` | GitHub PR footer segment uses GitHub CLI when available. |

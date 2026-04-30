@@ -1,19 +1,19 @@
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { isEditToolResult, isWriteToolResult, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { EVENTS as SHARED_EVENTS } from "../shared/events";
 
-const EXTENSION_NAME = "post-edit";
 const CONFIG_PATH = ".pi/post-edit.json";
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 export const EVENTS = {
-	STARTED: `bswan0002:${EXTENSION_NAME}:started`,
-	JOB_STARTED: `bswan0002:${EXTENSION_NAME}:job-started`,
-	JOB_FINISHED: `bswan0002:${EXTENSION_NAME}:job-finished`,
-	RETRY: `bswan0002:${EXTENSION_NAME}:retry`,
-	FAILED: `bswan0002:${EXTENSION_NAME}:failed`,
-	COMPLETED: `bswan0002:${EXTENSION_NAME}:completed`,
+	STARTED: SHARED_EVENTS.POST_EDIT_STARTED,
+	JOB_STARTED: SHARED_EVENTS.POST_EDIT_JOB_STARTED,
+	JOB_FINISHED: SHARED_EVENTS.POST_EDIT_JOB_FINISHED,
+	RETRY: SHARED_EVENTS.POST_EDIT_RETRY,
+	FAILED: SHARED_EVENTS.POST_EDIT_FAILED,
+	COMPLETED: SHARED_EVENTS.POST_EDIT_COMPLETED,
 } as const;
 
 type JobMode = "files" | "project";

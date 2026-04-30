@@ -1,7 +1,7 @@
 {
   "name": "@bswan0002/pi-package",
   "version": "0.1.0",
-  "description": "Personal pi package for bswan0002 extensions and skills.",
+  "description": "Personal pi package for extensions and skills.",
   "private": true,
   "type": "module",
   "keywords": [

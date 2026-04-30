@@ -1,11 +1,10 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-
-const EXTENSION_NAME = "readonly-git-permissions";
+import { EVENTS as SHARED_EVENTS } from "../shared/events";
 
 export const EVENTS = {
-	CONFIRM_NEEDED: `bswan0002:${EXTENSION_NAME}:confirm-needed`,
-	BLOCKED: `bswan0002:${EXTENSION_NAME}:blocked`,
-	ALLOWED: `bswan0002:${EXTENSION_NAME}:allowed`,
+	CONFIRM_NEEDED: SHARED_EVENTS.READONLY_GIT_CONFIRM_NEEDED,
+	BLOCKED: SHARED_EVENTS.READONLY_GIT_BLOCKED,
+	ALLOWED: SHARED_EVENTS.READONLY_GIT_ALLOWED,
 } as const;
 
 const READONLY_GIT_SUBCOMMANDS = new Set([

@@ -1,6 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { loadPiPackageConfig } from "../shared/config";
 
 export type ColorSpec = string;
 
@@ -32,8 +30,6 @@ export type PolishedTuiConfig = {
 		separator: ColorSpec;
 	};
 };
-
-export const configPath = join(getAgentDir(), "zentui.json");
 
 const themeColorTokens = new Set([
 	"accent",
@@ -139,30 +135,19 @@ export function colorize(theme: ThemeLike, color: ColorSpec, text: string): stri
 }
 
 export function ensureConfigExists(): void {
-	try {
-		if (!existsSync(configPath)) {
-			writeFileSync(configPath, `${JSON.stringify(defaultConfig, null, 2)}\n`, "utf8");
-		}
-	} catch {
-		// Ignore config bootstrap failures; extension will fall back to defaults.
-	}
+	// Style config now lives in shared piPackage settings and is not auto-created.
 }
 
 export function loadConfig(): PolishedTuiConfig {
-	try {
-		if (!existsSync(configPath)) return defaultConfig;
-		const parsed = JSON.parse(readFileSync(configPath, "utf8")) as Partial<PolishedTuiConfig>;
-		return {
-			icons: {
-				...defaultConfig.icons,
-				...(parsed.icons ?? {}),
-			},
-			colors: {
-				...defaultConfig.colors,
-				...(parsed.colors ?? {}),
-			},
-		};
-	} catch {
-		return defaultConfig;
-	}
+	const parsed = loadPiPackageConfig().style ?? {};
+	return {
+		icons: {
+			...defaultConfig.icons,
+			...(parsed.icons ?? {}),
+		},
+		colors: {
+			...defaultConfig.colors,
+			...(parsed.colors ?? {}),
+		},
+	};
 }

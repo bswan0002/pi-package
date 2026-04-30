@@ -16,8 +16,8 @@
  * - Type your message after staging, images attach on send
  *
  * Usage:
- *   /bswan0002-screenshot-picker       - Show screenshot selector (stages images)
- *   /bswan0002-screenshot-picker-clear - Clear staged screenshots
+ *   /ss       - Show screenshot selector (stages images)
+ *   /ss-clear - Clear staged screenshots
  *   Ctrl+Shift+S                       - Quick access shortcut
  *   Ctrl+Shift+X                       - Clear all staged screenshots
  *
@@ -36,7 +36,7 @@
  *   esc              - Cancel
  *
  * Workflow:
- *   1. Press Ctrl+Shift+S or /bswan0002-screenshot-picker to open selector
+ *   1. Press Ctrl+Shift+S or /ss to open selector
  *   2. Use Ctrl+T to switch between source tabs (if multiple configured)
  *   3. Navigate with Up/Down, press s/space to stage screenshots (checkmark appears)
  *   4. Press Enter to close selector
@@ -45,7 +45,7 @@
  *
  * Configuration (in ~/.pi/agent/settings.json):
  *   {
- *     "bswan0002-screenshot-picker": {
+ *     "piPackage.screenshotPicker": {
  *       "sources": [
  *         "~/Pictures/Screenshots",
  *         "/path/to/images/*.png"
@@ -69,6 +69,7 @@
  *   See README for details.
  */
 
+import { loadPiPackageConfig } from "../shared/config";
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -259,18 +260,7 @@ function openFile(path: string): void {
  * Load extension config from settings.json.
  */
 function loadConfig(): Config {
-	const settingsPath = join(homedir(), ".pi", "agent", "settings.json");
-	if (existsSync(settingsPath)) {
-		try {
-			const settings = JSON.parse(readFileSync(settingsPath, "utf-8"));
-			if (settings["bswan0002-screenshot-picker"]) {
-				return settings["bswan0002-screenshot-picker"];
-			}
-		} catch {
-			// Ignore parse errors
-		}
-	}
-	return {};
+	return loadPiPackageConfig().screenshotPicker ?? {};
 }
 
 /**
@@ -476,7 +466,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 		stagedPaths.clear(); // Clear staged paths so picker doesn't show old ✓ state
 
 		// Clear the widget
-		ctx.ui.setWidget("bswan0002:screenshot-picker:staged", undefined);
+		ctx.ui.setWidget("screenshot-picker:staged", undefined);
 
 		return {
 			action: "transform" as const,
@@ -1451,16 +1441,16 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 		if (stagedImages.length > 0) {
 			const label = stagedImages.length === 1 ? "screenshot" : "screenshots";
 			ctx.ui.setWidget(
-				"bswan0002:screenshot-picker:staged",
+				"screenshot-picker:staged",
 				[`\uD83D\uDCF7 ${stagedImages.length} ${label} staged (Ctrl+Shift+X to clear)`],
 			);
 		} else {
-			ctx.ui.setWidget("bswan0002:screenshot-picker:staged", undefined);
+			ctx.ui.setWidget("screenshot-picker:staged", undefined);
 		}
 	}
 
 	// Register command
-	pi.registerCommand("bswan0002-screenshot-picker", {
+	pi.registerCommand("piPackage.screenshotPicker", {
 		description: "Pick screenshots to attach to the next message.",
 		handler: async (_args, ctx) => {
 			await showScreenshotSelector(ctx);
@@ -1469,7 +1459,7 @@ export default function screenshotsExtension(pi: ExtensionAPI) {
 	});
 
 	// Register command to clear staged screenshots
-	pi.registerCommand("bswan0002-screenshot-picker-clear", {
+	pi.registerCommand("ss-clear", {
 		description: "Clear staged screenshots",
 		handler: async (_args, ctx) => {
 			const count = stagedImages.length;

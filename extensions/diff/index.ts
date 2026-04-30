@@ -21,8 +21,10 @@
  *   • Async rendering with invalidate() for non-blocking preview
  */
 
+
 import { existsSync, readFileSync } from "node:fs";
 import { extname, relative } from "node:path";
+import { loadPiPackageConfig } from "../shared/config";
 
 import { codeToANSI } from "@shikijs/cli";
 import * as Diff from "diff";
@@ -33,8 +35,8 @@ import type { BundledLanguage, BundledTheme } from "shiki";
 //
 // Resolution chain (per color, highest priority first):
 //   1. Environment variable override (e.g. DIFF_BG_ADD="#1a3320")
-//   2. diffColors.bgAdd from .pi/settings.json (explicit per-color hex)
-//   3. diffTheme preset value (named preset like "midnight")
+//   2. piPackage.diff.colors.bgAdd from .pi/settings.json (explicit per-color hex)
+//   3. piPackage.diff.theme preset value (named preset like "midnight")
 //   4. Auto-derived from pi theme fg colors (default behavior)
 //   5. Hardcoded fallback
 // ---------------------------------------------------------------------------
@@ -65,8 +67,8 @@ interface DiffPreset {
 
 /** User diff config read from .pi/settings.json */
 interface DiffUserConfig {
-	diffTheme?: string;
-	diffColors?: Record<string, string>;
+	theme?: string;
+	colors?: Record<string, string>;
 }
 
 const DIFF_PRESETS: Record<string, DiffPreset> = {
@@ -248,22 +250,9 @@ function autoDeriveBgFromTheme(theme: any): void {
 	}
 }
 
-/** Load diff theme config from .pi/settings.json (project-level, then global). */
+/** Load diff theme config from shared piPackage settings. */
 function loadDiffConfig(): DiffUserConfig {
-	const paths = [`${process.cwd()}/.pi/settings.json`, `${process.env.HOME ?? ""}/.pi/settings.json`];
-	for (const p of paths) {
-		try {
-			if (existsSync(p)) {
-				const raw = JSON.parse(readFileSync(p, "utf-8"));
-				if (raw.diffTheme || raw.diffColors) {
-					return { diffTheme: raw.diffTheme, diffColors: raw.diffColors };
-				}
-			}
-		} catch {
-			// skip invalid files
-		}
-	}
-	return {};
+	return loadPiPackageConfig().diff ?? {};
 }
 
 /** Apply diff palette from settings → preset → (auto-derive deferred) → defaults.
@@ -272,11 +261,11 @@ function applyDiffPalette(): void {
 	const config = loadDiffConfig();
 
 	// Load preset if specified
-	const preset = config.diffTheme ? DIFF_PRESETS[config.diffTheme] : null;
+	const preset = config.theme ? DIFF_PRESETS[config.theme] : null;
 	if (preset) _hasExplicitBgConfig = true;
 
 	// Per-color overrides from settings
-	const ov = config.diffColors ?? {};
+	const ov = config.colors ?? {};
 	if (Object.keys(ov).length > 0) _hasExplicitBgConfig = true;
 
 	// Helper: apply a hex bg color if not env-overridden

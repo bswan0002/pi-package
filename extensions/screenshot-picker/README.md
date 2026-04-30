@@ -1,4 +1,4 @@
-# bswan0002-screenshot-picker
+# screenshot-picker
 
 A pi coding agent extension for quickly selecting and attaching screenshots to your prompts. Works on **macOS** and **Linux**. Browse recent images with thumbnail previews, stage multiple images, then type your message — staged screenshots attach automatically when you send.
 
@@ -10,19 +10,19 @@ Attaching screenshots during development is tedious. You're constantly:
 - Losing track of which screenshot is which
 - Breaking your flow to find the right image
 
-bswan0002-screenshot-picker gives you a visual screenshot browser right in your terminal:
+screenshot-picker gives you a visual screenshot browser right in your terminal:
 
 ```text
-/bswan0002-screenshot-picker
+/ss
 ```
 
 ## Install
 
-This package includes the extension under `extensions/screenshot-picker`. Use `/bswan0002-screenshot-picker` after installing/loading this pi package.
+This package includes the extension under `extensions/screenshot-picker`. Use `/ss` after installing/loading this pi package.
 
 ## Quick Start
 
-1. Press `Ctrl+Shift+S` or type `/bswan0002-screenshot-picker` to open the picker.
+1. Press `Ctrl+Shift+S` or type `/ss` to open the picker.
 2. Navigate with `↑↓`, press `s` or `space` to stage/unstage screenshots (`✓` appears).
 3. Press `Enter` to close the picker and keep staged screenshots.
 4. Type your message in the prompt.
@@ -32,7 +32,7 @@ Use `Esc` to cancel and clear staged screenshots without sending.
 
 ## Commands and shortcuts
 
-### `/bswan0002-screenshot-picker`
+### `/ss`
 
 Pick screenshots to attach to the next message.
 
@@ -51,7 +51,7 @@ Pick screenshots to attach to the next message.
 - **Enter** - Close picker and keep staged screenshots
 - **Esc** - Cancel and clear staged screenshots
 
-### `/bswan0002-screenshot-picker-clear`
+### `/ss-clear`
 
 Clear all staged screenshots without sending.
 
@@ -80,12 +80,14 @@ By default, the extension auto-detects screenshot locations based on your platfo
 
 ```json
 {
-  "bswan0002-screenshot-picker": {
-    "sources": [
-      "~/Desktop/bswan0002-screenshot-picker",
+  "piPackage": {
+    "screenshotPicker": {
+      "sources": [
+        "~/Pictures/Screenshots",
       "~/Pictures/Screenshots",
-      "/path/to/comfyui/output/**/thumbnail_*.png"
-    ]
+        "/path/to/comfyui/output/**/thumbnail_*.png"
+      ]
+    }
   }
 }
 ```
@@ -97,7 +99,7 @@ Each source becomes a tab in the picker UI. Duplicate source paths are deduped, 
 **Plain directories** - Non-recursively scans for common image files:
 
 ```json
-"~/Desktop/bswan0002-screenshot-picker"
+"~/Pictures/Screenshots"
 ```
 
 Supported extensions: `.png`, `.jpg`, `.jpeg`, `.webp`.
@@ -154,8 +156,8 @@ On the remote, configure the extension to read from the synced/mounted folder:
 
 ```json
 {
-  "bswan0002-screenshot-picker": {
-    "sources": ["~/Screenshots"]
+  "piPackage": {
+    "screenshotPicker": { "sources": ["~/Screenshots"] }
   }
 }
 ```
