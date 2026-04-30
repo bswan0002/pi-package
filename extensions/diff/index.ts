@@ -1724,16 +1724,18 @@ export default function diffRendererExtension(pi: any): void {
 			const hdr = `${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("accent", sp(fp))}`;
 			const blankLine = () => bgLine("", renderWidth);
 			const headerLine = (suffix = "") => bgLine(`  ${hdr}${suffix ? ` ${suffix}` : ""}`, renderWidth);
+			const pendingSummary = operations.length > 0 ? summarizeEditOperations(operations).summary : "";
+			const pendingHeader = `${blankLine()}\n${headerLine(pendingSummary)}\n${blankLine()}`;
 
 			if (!(ctx.argsComplete && operations.length > 0)) {
-				text.setText(hdr);
+				text.setText(pendingHeader);
 				return text;
 			}
 
 			const pk = JSON.stringify({ fp, operations, w: renderWidth, expanded: ctx.expanded });
 			if (ctx.state._pk !== pk) {
 				ctx.state._pk = pk;
-				ctx.state._pt = `${blankLine()}\n${headerLine(theme.fg("muted", "(rendering…)"))}`;
+				ctx.state._pt = pendingHeader;
 				const lg = lang(fp);
 				const dc = resolveDiffColors(theme);
 
