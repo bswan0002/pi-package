@@ -2,10 +2,10 @@
 
 Adds a PR update command:
 
-- `/pr-update` — generate and preview a PR title/body from current PR metadata, git diff context, commits, changed files, package scripts, PR authoring instructions, and any pull request template found in the repo; then ask for confirmation and run `gh pr edit --title ... --body ...`.
-- `/pr-update --dry-run` — preview only.
+- `/pr-update` — asks the agent to inspect the current PR diff, propose a high-signal PR title/body, ask for approval, then update the PR with `gh pr edit` if approved.
+- `/pr-update --dry-run` — asks the agent to inspect the diff and propose the title/body only.
 
-Drafts prefer high-signal summaries and validation steps over raw commit subjects. Weak commit messages/titles such as `wip`, `update`, or `changes` are ignored when possible.
+The command does not hard-code PR content. It gathers lightweight context (PR metadata, selected base ref, changed files, diff stat, commits, template paths, and instruction-file paths), then sends an agent prompt to read the actual diffs and generate the description dynamically.
 
 Template lookup checks common locations such as `.github/pull_request_template.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/PULL_REQUEST_TEMPLATE/*.md`, and `docs/PULL_REQUEST_TEMPLATE.md`.
 
