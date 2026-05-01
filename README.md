@@ -10,7 +10,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 - [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY`.
 - [`diff`](./extensions/diff) — replaces pi's `write` and `edit` rendering with Shiki-highlighted diffs.
 - [`post-edit`](./extensions/post-edit) — runs project-configured commands after agent edits when `.pi/post-edit.json` exists.
-- [`pr-tools`](./extensions/pr-tools) — adds `/pr-draft` and `/pr-update` for generated PR title/body drafts using `gh`, git diff context, and PR templates.
+- [`pr-tools`](./extensions/pr-tools) — adds `/pr-update` for generated PR title/body updates using `gh`, git diff context, and PR templates.
 - [`readonly-git-permissions`](./extensions/readonly-git-permissions) — blocks non-readonly git operations unless confirmed.
 - [`screenshot-picker`](./extensions/screenshot-picker) — stages screenshots for the next prompt. Use `/ss` or `Ctrl+Shift+S`; clear with `/ss-clear`.
 - [`sounds`](./extensions/sounds) — plays configurable macOS sounds on pi and extension events.
