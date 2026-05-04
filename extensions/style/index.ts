@@ -6,6 +6,7 @@ import type {
 	Theme,
 } from "@mariozechner/pi-coding-agent";
 import { type EditorTheme, type TUI, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import { getBetterOpenAIState, onBetterOpenAIStateChange } from "../shared/better-openai-state";
 import { type PolishedTuiConfig, colorize, ensureConfigExists, loadConfig } from "./config";
 import { type GitHubPrInfo, type GitStatusSummary, emptyGitStatus, readGitStatus } from "./git";
 import { type RuntimeInfo, readRuntimeInfo } from "./runtime";
@@ -166,6 +167,13 @@ function formatCwdLabel(cwd: string, cwdIcon: string): string {
 	return cwdIcon ? `${cwdIcon} ${last}` : last;
 }
 
+function sanitizeStatusText(text: string): string {
+	return text
+		.replace(/[\r\n\t]/g, " ")
+		.replace(/ +/g, " ")
+		.trim();
+}
+
 export default function (pi: ExtensionAPI) {
 	const state: FooterState = {
 		busy: false,
@@ -295,10 +303,22 @@ export default function (pi: ExtensionAPI) {
 
 					const leftWidth = visibleWidth(left);
 					const rightWidth = visibleWidth(right);
+					const statusRows = () => {
+						const extensionStatuses = footerData.getExtensionStatuses?.();
+						if (!extensionStatuses?.size) return [] as string[];
+						const text = Array.from(extensionStatuses.entries())
+							.sort(([a], [b]) => String(a).localeCompare(String(b)))
+							.map(([, value]) => sanitizeStatusText(String(value)))
+							.filter(Boolean)
+							.join(" | ");
+						if (!text) return [] as string[];
+						const clipped = truncateToWidth(text, innerWidth, "...");
+						return [` ${theme.fg("dim", clipped)} `];
+					};
 
 					if (leftWidth + 1 + rightWidth <= innerWidth) {
 						const content = `${left}${" ".repeat(innerWidth - leftWidth - rightWidth)}${right}`;
-						return [` ${content} `];
+						return [` ${content} `, ...statusRows()];
 					}
 
 					const wrapFooterLine = (line: string) =>
@@ -307,7 +327,7 @@ export default function (pi: ExtensionAPI) {
 						);
 					const leftLines = wrapFooterLine(left);
 					const rightLines = wrapFooterLine(right);
-					return [...leftLines, ...rightLines].map((line) => ` ${line} `);
+					return [...leftLines, ...rightLines].map((line) => ` ${line} `).concat(statusRows());
 				},
 			};
 		});
@@ -316,6 +336,7 @@ export default function (pi: ExtensionAPI) {
 	const installEditor = (ctx: ExtensionContext) => {
 		syncState(ctx);
 
+		let unsubscribeBetterOpenAI: (() => void) | undefined;
 		let currentEditor: PolishedEditor | undefined;
 		let autocompleteFixed = false;
 
@@ -324,16 +345,23 @@ export default function (pi: ExtensionAPI) {
 		};
 
 		const editorFactory = (tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
+			unsubscribeBetterOpenAI?.();
+			unsubscribeBetterOpenAI = onBetterOpenAIStateChange(() => tui.requestRender());
 			const editor = new PolishedEditor(
 				tui,
 				theme,
 				keybindings,
 				ctx.ui.theme,
-				() =>
-					[
+				() => {
+					const fastLabel = getBetterOpenAIState().fastLabel;
+					return [
 						ctx.ui.theme.fg("accent", state.modelLabel),
+						fastLabel ? ctx.ui.theme.fg("warning", fastLabel) : "",
 						ctx.ui.theme.fg("text", state.providerLabel),
-					].join(ctx.ui.theme.fg("borderMuted", "  ")),
+					]
+						.filter(Boolean)
+						.join(ctx.ui.theme.fg("borderMuted", "  "));
+				},
 				() => pi.getThinkingLevel(),
 			);
 			currentEditor = editor;

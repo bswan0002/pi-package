@@ -2,6 +2,8 @@
 
 Adds the `ask_user_question` tool for asking the user one or more structured clarifying questions in the pi TUI.
 
+Based on and attributed to [juicesharp/rpiv-ask-user-question](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question).
+
 ## Behavior
 
 - Ask 1–4 questions, each with 2–4 options.
