@@ -66,7 +66,7 @@ async function getPrInfo(cwd: string): Promise<PrInfo | undefined> {
 	} catch { return undefined; }
 }
 
-async function inferBaseRef(cwd: string, pr: PrInfo | undefined) {
+async function inferBaseRef(cwd: string, pr: PrInfo | undefined, currentBranch: string) {
 	if (pr?.baseRefName) {
 		await runOptional("git", ["fetch", "--quiet", "origin", pr.baseRefName], cwd);
 		const remoteBase = `origin/${pr.baseRefName}`;
@@ -74,7 +74,18 @@ async function inferBaseRef(cwd: string, pr: PrInfo | undefined) {
 		return { baseRef: hasRemote ? remoteBase : pr.baseRefName, baseReason: "GitHub PR baseRefName" };
 	}
 	const upstream = await runOptional("git", ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], cwd);
-	const candidates = [upstream, "origin/main", "main", "origin/master", "master", "origin/develop", "develop", "origin/trunk", "trunk"].filter(Boolean);
+	const upstreamIsHead = currentBranch && (upstream === currentBranch || upstream === `origin/${currentBranch}`);
+	const candidates = [
+		upstreamIsHead ? "" : upstream,
+		"origin/main",
+		"main",
+		"origin/master",
+		"master",
+		"origin/develop",
+		"develop",
+		"origin/trunk",
+		"trunk",
+	].filter((candidate): candidate is string => Boolean(candidate));
 	for (const candidate of candidates) {
 		if (await runOptional("git", ["rev-parse", "--verify", "--quiet", candidate], cwd)) return { baseRef: candidate, baseReason: "inferred from upstream/default branch candidates" };
 	}
@@ -115,8 +126,8 @@ function findInstructionPaths(root: string) {
 async function collectContext(cwd: string): Promise<Context> {
 	const root = await getRepoRoot(cwd);
 	const pr = await getPrInfo(root);
-	const { baseRef, baseReason } = await inferBaseRef(root, pr);
 	const branch = await runOptional("git", ["branch", "--show-current"], root);
+	const { baseRef, baseReason } = await inferBaseRef(root, pr, branch);
 	const changedFilesText = await runOptional("git", ["diff", "--name-only", `${baseRef}...HEAD`], root);
 	return {
 		root,
@@ -205,8 +216,14 @@ export default function (pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			const dryRun = args.includes("--dry-run");
 			const context = await collectContext(ctx.cwd);
-			ctx.ui.notify("Handing PR diff context to the agent for dynamic PR description generation.", "info");
-			pi.sendUserMessage(buildAgentPrompt(context, dryRun));
+			const prompt = buildAgentPrompt(context, dryRun);
+			if (ctx.isIdle()) {
+				ctx.ui.notify("Handing PR diff context to the agent for dynamic PR description generation.", "info");
+				pi.sendUserMessage(prompt);
+			} else {
+				pi.sendUserMessage(prompt, { deliverAs: "followUp" });
+				ctx.ui.notify("Queued PR diff context for the agent after the current turn.", "info");
+			}
 		},
 	});
 }

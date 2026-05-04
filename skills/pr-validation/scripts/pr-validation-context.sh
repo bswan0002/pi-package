@@ -32,6 +32,9 @@ fi
 
 if [ -z "$base_ref" ]; then
   upstream="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  if [ -n "$branch" ] && { [ "$upstream" = "$branch" ] || [ "$upstream" = "origin/$branch" ]; }; then
+    upstream=""
+  fi
   for candidate in "$upstream" origin/main main origin/master master origin/develop develop origin/trunk trunk; do
     if [ -n "$candidate" ] && git rev-parse --verify --quiet "$candidate" >/dev/null; then
       base_ref="$candidate"

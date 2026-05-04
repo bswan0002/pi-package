@@ -63,7 +63,7 @@ Use three-dot diff (`base...HEAD`) unless the script says otherwise.
 
 Use this structure:
 
-```markdown
+````markdown
 ## Validation scope
 - Base: `<base>`
 - Head: `<branch or HEAD>`
@@ -87,6 +87,6 @@ Use this structure:
 
 ## Evidence to add to PR
 - ...
-```
+````
 
 Prefer concise, actionable steps over generic checklists.
