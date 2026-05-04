@@ -2,6 +2,8 @@
 
 A pi coding agent extension for quickly selecting and attaching screenshots to your prompts. Works on **macOS** and **Linux**. Browse recent images with thumbnail previews, stage multiple images, then type your message — staged screenshots attach automatically when you send.
 
+Based on and attributed to [Graffioh/pi-screenshots-picker](https://github.com/Graffioh/pi-screenshots-picker).
+
 ## Why
 
 Attaching screenshots during development is tedious. You're constantly:

@@ -2,6 +2,8 @@
 
 Replaces pi's built-in `write` and `edit` tool rendering with syntax-highlighted diffs.
 
+Based on and attributed to [buddingnewinsights/pi-diff](https://github.com/buddingnewinsights/pi-diff).
+
 Features:
 
 - Unified and split diff views, with automatic fallback based on terminal width
