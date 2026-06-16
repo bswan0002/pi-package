@@ -40,7 +40,8 @@ These rules are authoritative for API boundary code in Cloudability Switchboard 
 - Return the whole envelope only when current consumers need fields like `meta`, pagination, aggregates, or generated IDs.
 - Unwrapping an envelope is not a transform. Do not introduce `ApiResponse` solely because a method returns `response.data.result`.
 - Use `Api*` response/entity names only when distinguishing a backend shape from a different public/UI shape.
-- Add explicit return types for transformed methods, mutation methods returning `void`, cloudability-core wrappers, and methods where the endpoint envelope differs from the returned value.
+- Add explicit return types for transformed methods, mutation methods returning `void`, and methods where the endpoint envelope differs from the returned value.
+- Do not add explicit return types solely because a method wraps a `cloudability-core` call; let TypeScript infer simple core wrapper return types.
 
 ## Axios
 
@@ -69,32 +70,15 @@ Keep constant backend defaults near the API module, e.g. `const DASHBOARDS_QUERY
 - Use `cloudability-core` when it already provides the endpoint, especially for shared core cache/invalidation behavior.
 - Never call `core.v3.*` data-fetching or mutation methods directly from query modules or components. Wrap them in a local API module.
 - Cache side-effect calls like `core.v3.user.invalidate.getUserSettings()` may remain in query modules.
-- Create `src/utils/cloudabilityCoreUtils.ts` if it does not exist:
-
-```ts
-import { type CoreResponse } from "@apptio/cloudability-core";
-
-import { t } from "@/lib/i18n/t";
-
-export const unwrapCoreData = <T>(response: CoreResponse<T>): T => {
-  if (response.status === "OK") {
-    return response.data as T;
-  }
-
-  if (response.error) {
-    throw response.error;
-  }
-
-  throw new Error(t("app:status.server_error"));
-};
-```
-
-Use it in every core-backed API method:
+- Use `unwrapCoreData` in every core-backed API method:
 
 ```ts
 const data = unwrapCoreData(await core.v3.views.getViews());
 return data.result;
 ```
+
+- For setup/repair of `unwrapCoreData` or optional `StripReadonlies` readonly normalization only, reference [references/BOILERPLATE.md](references/BOILERPLATE.md). Do not load it for normal API method work.
+- If a repo chooses the optional readonly-stripping setup, normalize `cloudability-core` readonly types only in `unwrapCoreData`; do not scatter readonly-removal assertions through API methods or consumers.
 
 ## Query handoff checklist
 
