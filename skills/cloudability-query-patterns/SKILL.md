@@ -37,7 +37,7 @@ export const dashboardsKeys = {
 
 - Read hooks end with `Query`; mutation hooks end with `Mutation`.
 - Mutation names put the action first: `useCreateWidgetMutation`, `useUpdateTabNameMutation`.
-- Query hook params follow the API skill's single object argument convention. No positional IDs for hooks with params.
+- Query hooks should use the shape `useFooQuery(scalarOrParamsOrPayload, optionalQueryOptions)`. The first argument is the API/query input: pass a lone scalar identifier/value directly for detail hooks, e.g. `useDashboardQuery(dashboardId)`, and use a params/payload object for multi-field inputs, list/search/report params, or payload-like values. The second argument, when supported, is only for query behavior/UI-control options like `enabled`, `select`, or `keepPreviousData`.
 - Query behavior/UI-control fields go in a separate options object, not in API params/payloads.
 - Use `type`, not `interface`; do not add `readonly`.
 - Use specific local type names: `ReportQueryOptions`, `CreateDashboardMutationOptions`, `UpdateWidgetMutationPayload`. Avoid plain `QueryOptions`/`MutationOptions`.

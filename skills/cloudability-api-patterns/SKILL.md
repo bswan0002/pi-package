@@ -15,15 +15,16 @@ These rules are authoritative for API boundary code in Cloudability Switchboard 
 - Method names include the domain/entity: `getDashboard`, `getDashboards`, `createWidget`, `updateWidget`, `deleteWidget`.
 - Use `getFoo` for one entity and `getFoos` for a collection.
 - Write methods as `async` functions with `const response = await ...; return ...`.
-- Methods with arguments take exactly one object argument. No positional IDs. No empty params types for no-arg methods.
+- Methods should use ergonomic arguments. Accept a lone scalar identifier/value directly, e.g. `getDashboard(dashboardId: number)` or `deleteWidget(widgetId: number)`. Use one object argument when the method has multiple values, an actual request body/payload, or a cohesive params object. No empty params types for no-arg methods.
 - Keep query/cache concerns out of API modules: query keys, stale time, `enabled`, `meta`, optimistic updates, invalidation, cache writes, and `select` belong in queries.
 
 ## Types
 
 - Define API shapes with `type`, not `interface`; do not add `readonly`.
 - Avoid generic names like `Params`, `Payload`, `Response`, or `RequestBody`; names must include method/domain.
-- Use `Params` for GET/read argument objects, including path IDs and query params: `GetDashboardParams`.
-- Use `Payload` for mutation argument objects, including path IDs needed to build URLs: `DeleteWidgetPayload`.
+- Use `Params` for GET/read argument objects with multiple values and/or query params: `GetRecommendationsParams`.
+- Use `Payload` for mutation argument objects with request bodies or multiple values, including path IDs needed to build URLs when combined with body data: `UpdateDashboardSharesPayload`.
+- Do not create `*Params`/`*Payload` types solely to wrap one scalar path ID.
 - Use `ApiParams`, `ApiPayload`, or `Api*` entity names only when backend-bound shape differs from public/UI shape.
 - Do not create aliases that only rename existing types, e.g. avoid `type UpdateDashboardPayload = Dashboard`; use `Dashboard` directly.
 - Export types only when needed outside the file. Keep backend-only transform types private unless needed by a sibling `*ApiUtils.ts`.
@@ -82,6 +83,6 @@ return data.result;
 
 ## Query handoff checklist
 
-- API methods should support `queryFn: () => api.getFoo(params)` and `mutationFn: api.updateFoo`.
+- API methods should support simple query and mutation handoff, e.g. `queryFn: () => api.getFoo(idOrParams)` and `mutationFn: api.updateFoo`.
 - Export API params/payload types when query modules need them.
-- Before finishing, check: correct scope, one exported API object, specific names, one object arg, `type` not `interface`, no `readonly`, no pointless aliases, `Api*` only for different backend shapes, non-trivial transforms in sibling `*ApiUtils.ts`, axios from `@/lib/axios/axios`, core calls wrapped with `unwrapCoreData`, ergonomic return values.
+- Before finishing, check: correct scope, one exported API object, specific names, ergonomic args, scalar IDs are not forced into object wrappers, `type` not `interface`, no `readonly`, no pointless aliases, `Api*` only for different backend shapes, non-trivial transforms in sibling `*ApiUtils.ts`, axios from `@/lib/axios/axios`, core calls wrapped with `unwrapCoreData`, ergonomic return values.
