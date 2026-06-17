@@ -73,7 +73,11 @@ export const useAccountsQuery = <TSelected = Array<Account>>(
 ```
 
 - Use `staleTime: 15 * 1000 * 60` for stable local API data where avoiding needless refetch is desired.
-- For cloudability-core-backed API wrappers, omit `staleTime` to use default value of 0 when the core method already manages caching.
+- For cloudability-core-backed API wrappers, inspect the installed core implementation before deciding `staleTime`. Use the target repo's `node_modules/@apptio/cloudability-core/modules/v3/<module>.js` as source of truth. If source files for the exact installed package version are available in the current workspace or package repository, use them only as additional context. Do not rely on `.d.ts` files because they do not show cache configuration, and installed `node_modules` may differ from local source checkouts.
+- A core `action.get` method is shared-cache-backed when its implementation passes `cacheKeyConfig` or explicit non-false `cacheOptions`. In `cloudability-core` transport, `cacheOptions` defaults to `false`, but `cacheKeyConfig` turns caching on by converting that default to `{}` and creates a stable cache ID from `coreId`, optional `viewId`, and `dynParams`. `cacheOptions: { ttl: ... }` customizes the core cache TTL.
+- If the core method is shared-cache-backed, omit React Query `staleTime` so the query stays stale by default and refetches go through core; core then decides whether to serve its cache or hit the network and core invalidation remains authoritative.
+- If the core method is not shared-cache-backed, treat it like a local axios endpoint and choose an explicit React Query `staleTime` when the data is stable. Example: in some installed versions, `core.v3.users.getUsers` has no `cacheKeyConfig`, so `useUsersQuery` may use `staleTime: 15 * 1000 * 60`; newer or different methods such as `getApiUsers` may be cached if their implementation includes `cacheKeyConfig`.
+- When reviewing a cached core method with params, verify the implementation's `cacheKeyConfig` includes all request-varying values in `viewId`/`dynParams`; if not, do not rely on the core cache without fixing or escalating the core method.
 - Use `keepPreviousData` for pagination, debounced search, and other scenarios where it makes sense; do not add it broadly.
 
 ## Error meta and setup
