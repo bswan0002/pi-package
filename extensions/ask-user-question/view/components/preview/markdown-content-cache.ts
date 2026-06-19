@@ -1,5 +1,5 @@
-import type { Theme } from "@mariozechner/pi-coding-agent";
-import { Markdown, type MarkdownTheme, visibleWidth } from "@mariozechner/pi-tui";
+import type { Theme } from "@earendil-works/pi-coding-agent";
+import { Markdown, type MarkdownTheme, visibleWidth } from "@earendil-works/pi-tui";
 import type { QuestionData } from "../../../tool/types";
 import { stripFenceMarkers } from "./preview-box-renderer";
 

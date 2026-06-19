@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadPiPackageConfig, hasSoundsConfig, bootstrapGlobalSoundsConfig } from "../shared/config";
 import { EVENTS } from "../shared/events";
 

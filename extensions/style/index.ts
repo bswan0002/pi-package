@@ -1,11 +1,11 @@
-import type { AssistantMessage } from "@mariozechner/pi-ai";
+import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
 	KeybindingsManager,
 	Theme,
-} from "@mariozechner/pi-coding-agent";
-import { type EditorTheme, type TUI, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { type EditorTheme, type TUI, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { getBetterOpenAIState, onBetterOpenAIStateChange } from "../shared/better-openai-state";
 import { type PolishedTuiConfig, colorize, ensureConfigExists, loadConfig } from "./config";
 import { type GitHubPrInfo, type GitStatusSummary, emptyGitStatus, readGitStatus } from "./git";

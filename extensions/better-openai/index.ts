@@ -4,7 +4,7 @@
  * Adds `service_tier: "priority"` to OpenAI provider payloads while fast mode is
  * enabled and the selected model is in the configured allow-list.
  */
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { CONFIG_BASENAME, STATUS_KEY } from "./src/identity";
 import { formatTokens, sanitizeStatusText, truncateToWidth, visibleWidth } from "./src/format";
 import {
@@ -484,8 +484,8 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
 
   async function showSettingsPicker(ctx: ExtensionContext): Promise<void> {
     const [{ getSettingsListTheme }, { Container, SettingsList }] = await Promise.all([
-      import("@mariozechner/pi-coding-agent"),
-      import("@mariozechner/pi-tui"),
+      import("@earendil-works/pi-coding-agent"),
+      import("@earendil-works/pi-tui"),
     ]);
     await ctx.ui.custom((tui, theme, _kb, done) => {
       const container = new Container();

@@ -1,5 +1,5 @@
-import { getMarkdownTheme, type Theme } from "@mariozechner/pi-coding-agent";
-import { Input } from "@mariozechner/pi-tui";
+import { getMarkdownTheme, type Theme } from "@earendil-works/pi-coding-agent";
+import { Input } from "@earendil-works/pi-tui";
 import { type QuestionData, SENTINEL_LABELS } from "../tool/types";
 import {
 	type BoundGlobalBinding,

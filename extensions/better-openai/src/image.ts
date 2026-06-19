@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, isAbsolute, join, resolve, sep } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { ResolvedConfig } from "./config";
 import { isRecord } from "./config";
 import { readCodexAuth } from "./usage";
@@ -552,7 +552,7 @@ export function registerOpenAIImage(
     };
   }
 
-  void import("@mariozechner/pi-tui")
+  void import("@earendil-works/pi-tui")
     .then(({ Box, Container, Image, Text }) => {
       pi.registerMessageRenderer<CodexImageResult>("openai-image", (message, _options, theme) => {
         const result = message.details;

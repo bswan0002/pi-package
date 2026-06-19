@@ -24,6 +24,8 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { extname, relative } from "node:path";
+import { createEditTool, createWriteTool } from "@earendil-works/pi-coding-agent";
+import { Text as TextComponent } from "@earendil-works/pi-tui";
 import { loadPiPackageConfig } from "../shared/config";
 
 import { codeToANSI } from "@shikijs/cli";
@@ -1457,17 +1459,6 @@ export default function diffRendererExtension(pi: any): void {
 	// Apply diff theme palette from settings/presets before rendering
 	applyDiffPalette();
 
-	let createWriteTool: any, createEditTool: any, TextComponent: any;
-	try {
-		const sdk = require("@mariozechner/pi-coding-agent");
-		createWriteTool = sdk.createWriteTool;
-		createEditTool = sdk.createEditTool;
-		TextComponent = require("@mariozechner/pi-tui").Text;
-	} catch {
-		return;
-	}
-	if (!createWriteTool || !createEditTool || !TextComponent) return;
-
 	const cwd = process.cwd();
 	const home = process.env.HOME ?? "";
 	const sp = (p: string) => shortPath(cwd, home, p);
@@ -1492,7 +1483,7 @@ export default function diffRendererExtension(pi: any): void {
 	// write
 	// =======================================================================
 
-	const origWrite = createWriteTool(cwd);
+	const origWrite = createWriteTool(cwd) as any;
 
 	pi.registerTool({
 		...origWrite,
@@ -1638,7 +1629,7 @@ export default function diffRendererExtension(pi: any): void {
 	// edit
 	// =======================================================================
 
-	const origEdit = createEditTool(cwd);
+	const origEdit = createEditTool(cwd) as any;
 
 	function getEditOperations(input: any): Array<{ oldText: string; newText: string }> {
 		if (Array.isArray(input?.edits)) {

@@ -25,16 +25,16 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@mariozechner/pi-ai": "*",
-    "@mariozechner/pi-coding-agent": "*",
-    "@mariozechner/pi-tui": "*"
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
   },
   "devDependencies": {
-    "@mariozechner/pi-ai": "*",
-    "@mariozechner/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
     "@types/node": "^24.0.0",
     "typescript": "6.0.3",
-    "@mariozechner/pi-tui": "*"
+    "@earendil-works/pi-tui": "*"
   },
   "dependencies": {
     "@shikijs/cli": "^4.0.2",

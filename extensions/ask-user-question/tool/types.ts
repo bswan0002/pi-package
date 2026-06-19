@@ -1,4 +1,4 @@
-import { Type } from "@mariozechner/pi-ai";
+import { Type } from "@earendil-works/pi-ai";
 import { LABELS_BY_KIND, ROW_INTENT_META } from "../state/row-intent";
 
 export const MAX_QUESTIONS = 4;
