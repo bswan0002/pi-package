@@ -8,6 +8,13 @@ export type PiPackageConfig = {
 		piEvents?: Record<string, string>;
 		extensionEvents?: Record<string, string>;
 	};
+	readonlyGitPermissions?: {
+		explainer?: {
+			enabled?: boolean;
+			provider?: string;
+			model?: string;
+		};
+	};
 	diff?: { theme?: string; colors?: Record<string, string> };
 	style?: { icons?: Record<string, string>; colors?: Record<string, string> };
 };
@@ -34,6 +41,14 @@ function mergeConfig(base: PiPackageConfig, override: PiPackageConfig): PiPackag
 			...(override.sounds ?? {}),
 			piEvents: { ...(base.sounds?.piEvents ?? {}), ...(override.sounds?.piEvents ?? {}) },
 			extensionEvents: { ...(base.sounds?.extensionEvents ?? {}), ...(override.sounds?.extensionEvents ?? {}) },
+		},
+		readonlyGitPermissions: {
+			...(base.readonlyGitPermissions ?? {}),
+			...(override.readonlyGitPermissions ?? {}),
+			explainer: {
+				...(base.readonlyGitPermissions?.explainer ?? {}),
+				...(override.readonlyGitPermissions?.explainer ?? {}),
+			},
 		},
 		diff: {
 			...(base.diff ?? {}),

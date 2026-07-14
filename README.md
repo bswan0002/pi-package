@@ -48,6 +48,13 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
         "~/screenshots"
       ]
     },
+    "readonlyGitPermissions": {
+      "explainer": {
+        "enabled": true,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-luna"
+      }
+    },
     "sounds": {
       "piEvents": {
         "agent_end": "/System/Library/Sounds/Glass.aiff"
