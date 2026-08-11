@@ -466,6 +466,7 @@ function explainerConfig() {
 		enabled: configured?.enabled ?? true,
 		provider: configured?.provider?.trim() || DEFAULT_EXPLAINER.provider,
 		model: configured?.model?.trim() || DEFAULT_EXPLAINER.model,
+		autoAllowReadOnly: configured?.autoAllowReadOnly ?? false,
 	};
 }
 
@@ -595,6 +596,18 @@ function explainerSection(result: ExplainerResult) {
 	}
 	const writes = result.review.writes.length > 0 ? result.review.writes.join(", ") : "none";
 	return `\n\nAI safety review — ${result.label} (advisory)\n${result.review.summary}\nWrites: ${writes}`;
+}
+
+function isAutoAllowableReview(
+	result: ExplainerResult,
+	config: ExplainerConfig,
+): result is Extract<ExplainerResult, { status: "available" }> {
+	return (
+		config.autoAllowReadOnly &&
+		result.status === "available" &&
+		result.review.verdict === "read-only" &&
+		result.review.writes.length === 0
+	);
 }
 
 type PermissionChoice = "block" | "allow";
@@ -783,18 +796,20 @@ export default function (pi: ExtensionAPI) {
 			toolName: event.toolName,
 		};
 
-		if (!ctx.hasUI) {
+		const config = explainerConfig();
+		if (!ctx.hasUI && !config.autoAllowReadOnly) {
 			const reason = "Blocked non-readonly git command (no UI available for confirmation).";
 			pi.events.emit(EVENTS.BLOCKED, { ...payload, reason });
 			return { block: true, reason };
 		}
 
-		const config = explainerConfig();
 		const cacheKey = `${config.enabled}\u0000${config.provider}\u0000${config.model}\u0000${command}`;
 		let review = explanationCache.get(cacheKey);
 		if (!review) {
 			const label = `${config.provider}/${config.model}`;
-			ctx.ui.setStatus(EXPLAINER_STATUS_KEY, config.enabled ? `Reviewing with ${label}…` : undefined);
+			if (ctx.hasUI) {
+				ctx.ui.setStatus(EXPLAINER_STATUS_KEY, config.enabled ? `Reviewing with ${label}…` : undefined);
+			}
 			try {
 				review = await explainBlockedCommand(command, ctx, config);
 				cacheExplanation(cacheKey, review);
@@ -803,8 +818,24 @@ export default function (pi: ExtensionAPI) {
 				const reason = ctx.signal?.aborted ? "review cancelled" : timedOut ? "review timed out" : "request failed";
 				review = { status: "unavailable", label, reason };
 			} finally {
-				ctx.ui.setStatus(EXPLAINER_STATUS_KEY, undefined);
+				if (ctx.hasUI) ctx.ui.setStatus(EXPLAINER_STATUS_KEY, undefined);
 			}
+		}
+
+		if (isAutoAllowableReview(review, config)) {
+			pi.events.emit(EVENTS.ALLOWED, {
+				...payload,
+				decision: "ai-read-only",
+				reviewer: review.label,
+				review: review.review,
+			});
+			return undefined;
+		}
+
+		if (!ctx.hasUI) {
+			const reason = "Blocked non-readonly git command (AI review did not qualify for automatic approval and no UI is available for confirmation).";
+			pi.events.emit(EVENTS.BLOCKED, { ...payload, reason });
+			return { block: true, reason };
 		}
 
 		pi.events.emit(EVENTS.CONFIRM_NEEDED, payload);
@@ -817,7 +848,7 @@ export default function (pi: ExtensionAPI) {
 			return { block: true, reason };
 		}
 
-		pi.events.emit(EVENTS.ALLOWED, payload);
+		pi.events.emit(EVENTS.ALLOWED, { ...payload, decision: "user" });
 		return undefined;
 	});
 }

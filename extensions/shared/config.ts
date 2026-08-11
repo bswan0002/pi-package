@@ -13,6 +13,7 @@ export type PiPackageConfig = {
 			enabled?: boolean;
 			provider?: string;
 			model?: string;
+			autoAllowReadOnly?: boolean;
 		};
 	};
 	diff?: { theme?: string; colors?: Record<string, string> };

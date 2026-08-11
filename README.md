@@ -18,6 +18,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 
 ### Skills
 
+- [`cloudability-staging-api`](./skills/cloudability-staging-api) — uses staging API evidence to validate product assumptions and handwritten frontend API types.
 - [`confluence-export`](./skills/confluence-export) — fetches Atlassian Confluence Cloud pages and saves them as Markdown.
 - [`pr-review`](./skills/pr-review) — performs a PR-style review of the current branch.
 - [`qq`](./skills/qq) — answers questions using only readonly project inspection.
@@ -52,7 +53,8 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
       "explainer": {
         "enabled": true,
         "provider": "openai-codex",
-        "model": "gpt-5.6-luna"
+        "model": "gpt-5.6-luna",
+        "autoAllowReadOnly": false
       }
     },
     "sounds": {
@@ -83,6 +85,7 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 | ask-user-question        | None                                                                              | Uses pi's interactive TUI.                               |
 | better-openai            | OpenAI Codex OAuth                                                                | Use `/login openai-codex`; powers usage and image generation. |
 | brave-search             | `BRAVE_SEARCH_API_KEY`                                                            | Environment variable required.                           |
+| cloudability-staging-api | `CLDY_API_KEY`, `curl`, `jq`                                                      | Basic-auth API key and command-line JSON tooling required. |
 | confluence-export        | `ATLASSIAN_EMAIL`, `ATLASSIAN_API_KEY`, `curl`, `python3`, `pandoc`               | Environment variables required.                         |
 | diff                     | Shiki npm dependencies                                                            | No major system tool expected.                           |
 | post-edit                | project-configured commands                                                       | Runs whatever `.pi/post-edit.json` asks for.             |
