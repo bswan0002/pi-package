@@ -61,12 +61,17 @@ curl --silent --show-error --fail-with-body \
 
 Never print, log, persist, or expose `CLDY_API_KEY`, and do not enable shell tracing. If authentication fails, report the status without revealing credentials.
 
-## Safety boundary
+## Mutation approval and safety boundary
 
 - Proactively run GET or HEAD requests when the evidence rule above applies.
-- Ask for explicit user confirmation immediately before every POST, PUT, PATCH, or DELETE request.
-- A general request to investigate or implement a feature is not mutation approval.
-- After approval, send only the smallest request needed and report what staging state changed.
+- Send POST, PUT, PATCH, or DELETE requests only to `https://api-s.cloudability.com`. Approval never permits production writes or writes to any other host.
+- Before the first mutation, identify the investigation's stated scope and check whether the user has explicitly approved either its mutation plan or all staging mutations for that scope during the current session.
+- Valid session-scoped approval includes: “I approve all staging mutations for this investigation” and, when clearly referring to staging, “create whatever test fixtures you need, perform any writes needed, and clean them up when done.”
+- A general request such as “investigate this issue using staging” or “implement and test this feature” does **not** authorize writes.
+- If approval is absent, ask once for either session-scoped approval or approval of a specific mutation plan. Do not execute a mutation until one is granted.
+- After approval, do not ask again for each in-scope POST, PUT, PATCH, or DELETE. Ask again only if an operation materially exceeds the approved scope, affects non-test data, targets anything other than staging, or introduces substantially greater risk than the approved plan.
+- Session-scoped approval automatically includes deleting agent-created test fixtures during cleanup; do not request separate cleanup approval.
+- Use the smallest mutations needed. Track agent-created fixtures, clean them up when done, and report the staging state changed and the cleanup performed.
 
 ## Interpret the evidence
 
