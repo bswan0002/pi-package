@@ -29,7 +29,7 @@ Do not call staging for assumptions unrelated to backend data or when the result
 
 ## Authenticated request pattern
 
-Staging is `https://api-s.cloudability.com`. Never substitute a production Cloudability host.
+Staging is `https://api-s.cloudability.com` and is the default. If the user specifically asks to use production credentials or a production endpoint, doing so is acceptable; use only the credential and endpoint they explicitly designate, and do not silently substitute production in any other case.
 
 First verify the credential exists without printing it:
 
@@ -64,7 +64,7 @@ Never print, log, persist, or expose `CLDY_API_KEY`, and do not enable shell tra
 ## Mutation approval and safety boundary
 
 - Proactively run GET or HEAD requests when the evidence rule above applies.
-- Send POST, PUT, PATCH, or DELETE requests only to `https://api-s.cloudability.com`. Approval never permits production writes or writes to any other host.
+- Send POST, PUT, PATCH, or DELETE requests to `https://api-s.cloudability.com` by default. A production mutation is acceptable only when the user explicitly requests production use **and** approves the specific production mutation plan; a general request to use production credentials or an endpoint does not by itself authorize writes. Never mutate any other host without similarly explicit user direction and approval.
 - Before the first mutation, identify the investigation's stated scope and check whether the user has explicitly approved either its mutation plan or all staging mutations for that scope during the current session.
 - Valid session-scoped approval includes: “I approve all staging mutations for this investigation” and, when clearly referring to staging, “create whatever test fixtures you need, perform any writes needed, and clean them up when done.”
 - A general request such as “investigate this issue using staging” or “implement and test this feature” does **not** authorize writes.
