@@ -1,4 +1,4 @@
-import type { Component } from "@mariozechner/pi-tui";
+import type { Component } from "@earendil-works/pi-tui";
 import type { StatefulView } from "../stateful-view";
 import { WrappingSelect, type WrappingSelectItem, type WrappingSelectTheme } from "./wrapping-select";
 

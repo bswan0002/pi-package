@@ -2,11 +2,11 @@
 
 OpenAI/Codex quality-of-life extension for pi.
 
-Ported from and attributed to [mattleong/pi-better-openai](https://github.com/mattleong/pi-better-openai), with footer behavior adapted for this package so it does not replace the custom `style` footer.
+Ported from and attributed to [mattleong/pi-better-openai](https://github.com/mattleong/pi-better-openai), with footer behavior adapted for this package so it does not replace the custom `style` footer. The Codex provider transport comes from [howaboua/pi-codex-conversion](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/main/packages/pi-codex-conversion).
 
 ## Features
 
-- `/fast` toggles OpenAI priority mode for supported OpenAI/OpenAI Codex models by injecting `service_tier: "priority"` into provider requests.
+- `/fast` toggles OpenAI priority mode for supported models. OpenAI Codex uses a custom transport that sends the complete Fast Mode contract (`service_tier`, Codex originator, and priority routing hint) across WebSocket, SSE, retries, and cached continuations.
 - `/openai-usage` shows OpenAI Codex subscription usage.
 - `/openai-settings` opens a TUI settings picker for fast mode, usage, and image settings.
 - `openai_image` tool and `/openai-image` generate/edit images through OpenAI Codex subscription auth.

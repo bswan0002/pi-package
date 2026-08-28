@@ -77,8 +77,8 @@ import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "n
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import type { ImageContent } from "@mariozechner/pi-ai";
+import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type { ImageContent } from "@earendil-works/pi-ai";
 import {
 	Image,
 	Key,
@@ -87,7 +87,7 @@ import {
 	getImageDimensions as getTerminalImageDimensions,
 	matchesKey,
 	visibleWidth,
-} from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-tui";
 import { globSync } from "glob";
 
 interface ScreenshotInfo {

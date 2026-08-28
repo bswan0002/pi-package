@@ -1,9 +1,10 @@
-import { complete, type Message } from "@mariozechner/pi-ai";
+import type { Message } from "@earendil-works/pi-ai";
+import { complete } from "@earendil-works/pi-ai/compat";
 import {
 	type ExtensionAPI,
 	type ExtensionContext,
 	type Theme,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import {
 	Box,
 	type Component,
@@ -14,7 +15,7 @@ import {
 	Text,
 	truncateToWidth,
 	visibleWidth,
-} from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-tui";
 import { loadPiPackageConfig } from "../shared/config";
 import { EVENTS as SHARED_EVENTS } from "../shared/events";
 
