@@ -1,4 +1,4 @@
-import { Key, matchesKey } from "@mariozechner/pi-tui";
+import { Key, matchesKey } from "@earendil-works/pi-tui";
 import type { QuestionAnswer } from "../tool/types";
 import { ROW_INTENT_META } from "./row-intent";
 import type { QuestionnaireRuntime, QuestionnaireState } from "./state";

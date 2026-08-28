@@ -1,10 +1,10 @@
 /**
  * Better OpenAI for pi.
  *
- * Adds `service_tier: "priority"` to OpenAI provider payloads while fast mode is
- * enabled and the selected model is in the configured allow-list.
+ * Enables OpenAI priority processing for allow-listed models. Codex requests use
+ * a custom provider so the body and transport routing identity stay in sync.
  */
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { CONFIG_BASENAME, STATUS_KEY } from "./src/identity";
 import { formatTokens, sanitizeStatusText, truncateToWidth, visibleWidth } from "./src/format";
 import {
@@ -36,6 +36,7 @@ import {
   requestCodexUsage,
 } from "./src/usage";
 import { registerOpenAIImage, _imageTest } from "./src/image";
+import { registerFastCodexProvider } from "./src/provider";
 import { setBetterOpenAIState } from "../shared/better-openai-state";
 
 const COMMAND = "fast";
@@ -114,6 +115,8 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
   let lastInjectedModel: string | undefined;
   let lastInjectedTier: string | undefined;
 
+  const fastCodexProvider = registerFastCodexProvider(pi, () => active);
+
   function refresh(ctx: ExtensionContext): ResolvedConfig {
     cachedConfig = resolveConfig(ctx.cwd || process.cwd());
     return cachedConfig;
@@ -139,8 +142,10 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
 
   function setActive(ctx: ExtensionContext, next: boolean): void {
     const nextConfig = refresh(ctx);
+    const wasActive = active;
     desiredActive = next;
     applyDesiredFastState(ctx, nextConfig);
+    if (active !== wasActive) fastCodexProvider.reset(ctx.sessionManager.getSessionId());
     persist(nextConfig);
     updateFooter(ctx);
     if (next && !active) {
@@ -439,8 +444,10 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
     const bool = rawValue === "true";
     const num = Number(rawValue);
     if (id === "fast.enabled") {
+      const wasActive = active;
       desiredActive = bool;
       applyDesiredFastState(ctx, cfg);
+      if (active !== wasActive) fastCodexProvider.reset(ctx.sessionManager.getSessionId());
       if (cfg.persistState) {
         current.active = active;
         current.desiredActive = desiredActive;
@@ -484,8 +491,8 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
 
   async function showSettingsPicker(ctx: ExtensionContext): Promise<void> {
     const [{ getSettingsListTheme }, { Container, SettingsList }] = await Promise.all([
-      import("@mariozechner/pi-coding-agent"),
-      import("@mariozechner/pi-tui"),
+      import("@earendil-works/pi-coding-agent"),
+      import("@earendil-works/pi-tui"),
     ]);
     await ctx.ui.custom((tui, theme, _kb, done) => {
       const container = new Container();
@@ -629,6 +636,7 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
     const wasActive = active;
     applyDesiredFastState(ctx, cfg);
     if (active !== wasActive) {
+      fastCodexProvider.reset(ctx.sessionManager.getSessionId());
       persist(cfg);
       ctx.ui.notify(
         active

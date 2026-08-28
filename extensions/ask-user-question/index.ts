@@ -3,7 +3,7 @@
  * tool: a structured option selector with a free-text "Other" fallback.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerAskUserQuestionTool } from "./ask-user-question";
 
 export default function (pi: ExtensionAPI) {

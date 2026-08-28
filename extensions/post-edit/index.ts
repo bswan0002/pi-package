@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
-import { isEditToolResult, isWriteToolResult, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { isEditToolResult, isWriteToolResult, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { EVENTS as SHARED_EVENTS } from "../shared/events";
 
 const CONFIG_PATH = ".pi/post-edit.json";

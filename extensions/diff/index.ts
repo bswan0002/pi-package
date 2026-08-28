@@ -1459,10 +1459,10 @@ export default function diffRendererExtension(pi: any): void {
 
 	let createWriteTool: any, createEditTool: any, TextComponent: any;
 	try {
-		const sdk = require("@mariozechner/pi-coding-agent");
+		const sdk = require("@earendil-works/pi-coding-agent");
 		createWriteTool = sdk.createWriteTool;
 		createEditTool = sdk.createEditTool;
-		TextComponent = require("@mariozechner/pi-tui").Text;
+		TextComponent = require("@earendil-works/pi-tui").Text;
 	} catch {
 		return;
 	}

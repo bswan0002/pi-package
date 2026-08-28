@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { EVENTS } from "../shared/events";
 import { QuestionnaireSession } from "./state/questionnaire-session";
 import { ROW_INTENT_META, sentinelsToAppend } from "./state/row-intent";

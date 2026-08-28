@@ -1,4 +1,4 @@
-import type { Component } from "@mariozechner/pi-tui";
+import type { Component } from "@earendil-works/pi-tui";
 
 /**
  * Emits `max(0, getMax(width) - getCurrent(width))` empty rows. Used in

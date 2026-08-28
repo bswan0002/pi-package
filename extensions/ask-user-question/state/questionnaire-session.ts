@@ -1,5 +1,5 @@
-import type { Theme } from "@mariozechner/pi-coding-agent";
-import { getKeybindings, type Input } from "@mariozechner/pi-tui";
+import type { Theme } from "@earendil-works/pi-coding-agent";
+import { getKeybindings, type Input } from "@earendil-works/pi-tui";
 import { type QuestionData, type QuestionnaireResult, type QuestionParams, SENTINEL_LABELS } from "../tool/types";
 import type { WrappingSelectItem } from "../view/components/wrapping-select";
 import type { QuestionnairePropsAdapter } from "../view/props-adapter";
