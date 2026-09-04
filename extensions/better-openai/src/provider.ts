@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ProviderConfig } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_CODEX_CONVERSION_CONFIG } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config.js";
 import {
   closeOpenAICodexWebSocketSessions,
@@ -17,7 +17,26 @@ export function registerFastCodexProvider(
   pi: ExtensionAPI,
   isFastActive: () => boolean,
 ): FastCodexProviderController {
-  registerOpenAICodexCustomProvider(pi, {
+  // Keep Pi's refreshable catalog (and models.json overrides). The conversion
+  // provider's static models would replace it, hiding newly released models and
+  // overriding current reasoning, tool, context-window, and pricing metadata.
+  const providerAPI: ExtensionAPI = {
+    ...pi,
+    registerProvider(name, config?: ProviderConfig) {
+      if (typeof name !== "string") {
+        pi.registerProvider(name);
+        return;
+      }
+      if (!config) throw new Error("Missing provider configuration");
+      if (name === "openai-codex") {
+        const { models: _models, ...transportConfig } = config;
+        pi.registerProvider(name, transportConfig);
+        return;
+      }
+      pi.registerProvider(name, config);
+    },
+  };
+  registerOpenAICodexCustomProvider(providerAPI, {
     getConfig: () => ({
       executionMode: "normal",
       openai: {

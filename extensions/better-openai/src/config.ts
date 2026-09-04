@@ -13,11 +13,13 @@ export const DEFAULT_SUPPORTED_MODELS = [
   "openai/gpt-5.6-luna",
   "openai/gpt-5.6-sol",
   "openai/gpt-5.6-terra",
+  "openai/gpt-6-astra",
   "openai-codex/gpt-5.4",
   "openai-codex/gpt-5.5",
   "openai-codex/gpt-5.6-luna",
   "openai-codex/gpt-5.6-sol",
   "openai-codex/gpt-5.6-terra",
+  "openai-codex/gpt-6-astra",
 ] as const;
 
 export type FooterMode = (typeof FOOTER_MODES)[number];
@@ -96,7 +98,8 @@ export const DEFAULT_CONFIG: ConfigFile = {
   persistState: true,
   active: false,
   desiredActive: false,
-  supportedModels: [...DEFAULT_SUPPORTED_MODELS],
+  // Leave supportedModels unset so bootstrapped configs inherit future defaults.
+  // An explicit user-provided array remains an exact override (including []).
   usage: DEFAULT_USAGE_CONFIG,
   footer: DEFAULT_FOOTER_CONFIG,
   image: DEFAULT_IMAGE_CONFIG,
@@ -213,8 +216,8 @@ function ensureConfigFile(projectConfigPath: string, globalConfigPath: string): 
   writeConfig(globalConfigPath, DEFAULT_CONFIG);
 }
 
-export function resolveConfig(cwd: string): ResolvedConfig {
-  const paths = configPaths(cwd);
+export function resolveConfig(cwd: string, home = homedir()): ResolvedConfig {
+  const paths = configPaths(cwd, home);
   ensureConfigFile(paths.project, paths.global);
 
   const projectConfigExists = existsSync(paths.project);

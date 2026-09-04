@@ -22,7 +22,8 @@
     ]
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:better-openai": "node --test tests/better-openai.test.mjs"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": ">=0.84.3",
