@@ -221,9 +221,14 @@ function autoDeriveBgFromTheme(theme: any): void {
 		// Keep the whole diff block on a consistent neutral tool background,
 		// then tint changed rows from that same base so context lines are not muted.
 		let base = parseAnsiRgb(BG_BASE) ?? { r: 48, g: 48, b: 48 };
-		if (theme.getBgAnsi && BG_BASE === BG_DEFAULT) {
+		if (theme.getBgAnsi && !process.env.DIFF_BG_BASE) {
 			try {
-				base = parseAnsiRgb(theme.getBgAnsi("toolSuccessBg")) ?? base;
+				const themeBg = theme.getBgAnsi("toolSuccessBg");
+				const themeBase = parseAnsiRgb(themeBg);
+				if (themeBase) {
+					base = themeBase;
+					BG_BASE = themeBg;
+				}
 			} catch {
 				/* keep default base */
 			}
@@ -451,7 +456,6 @@ const ESC_RE = "\u001b";
 const ANSI_RE = new RegExp(`${ESC_RE}\\[[0-9;]*m`, "g");
 const ANSI_CAPTURE_RE = new RegExp(`${ESC_RE}\\[([^m]*)m`, "g");
 const ANSI_PARAM_CAPTURE_RE = new RegExp(`${ESC_RE}\\[([0-9;]*)m`, "g");
-const BG_DEFAULT = "\x1b[49m"; // reset to terminal default background
 
 // ---------------------------------------------------------------------------
 // Theme-aware diff colors
@@ -1260,7 +1264,7 @@ async function renderUnified(
 	}
 
 	if (diff.lines.length > vis.length) {
-		out.push(bgLine(`${FG_DIM}  … ${diff.lines.length - vis.length} more lines${RST}`));
+		out.push(bgLine(`${FG_DIM}  … ${diff.lines.length - vis.length} more lines${RST}`, tw));
 	}
 	return out.join("\n");
 }
@@ -1436,7 +1440,7 @@ async function renderSplit(
 	}
 
 	if (rows.length > vis.length) {
-		out.push(bgLine(`${FG_DIM}  … ${rows.length - vis.length} more lines${RST}`));
+		out.push(bgLine(`${FG_DIM}  … ${rows.length - vis.length} more lines${RST}`, tw));
 	}
 	return out.join("\n");
 }
@@ -1472,8 +1476,9 @@ export default function diffRendererExtension(pi: any): void {
 	const home = process.env.HOME ?? "";
 	const sp = (p: string) => shortPath(cwd, home, p);
 
-	function textComponentWithRenderWidth(ctx: any): any {
+	function textComponentWithRenderWidth(ctx: any, theme: any): any {
 		const text = ctx.lastComponent ?? new TextComponent("", 0, 0);
+		text.__diffShellBg = theme.getBgAnsi(ctx.isPartial ? "toolPendingBg" : ctx.isError ? "toolErrorBg" : "toolSuccessBg");
 		if (!text.__diffWidthPatched && typeof text.render === "function") {
 			const originalRender = text.render.bind(text);
 			text.render = (width: number) => {
@@ -1481,7 +1486,11 @@ export default function diffRendererExtension(pi: any): void {
 					ctx.state._renderWidth = width;
 					ctx.invalidate?.();
 				}
-				return originalRender(width);
+				// Full resets also clear Pi's enclosing background. Restore it for
+				// Text's trailing spaces and the right padding Pi appends afterward.
+				return originalRender(width).map(
+					(line: string) => line.replaceAll(RST, `${RST}${text.__diffShellBg}`) + text.__diffShellBg,
+				);
 			};
 			text.__diffWidthPatched = true;
 		}
@@ -1493,6 +1502,23 @@ export default function diffRendererExtension(pi: any): void {
 	// =======================================================================
 
 	const origWrite = createWriteTool(cwd);
+
+	function writeHeader(args: any, theme: any, state: any): string {
+		const fp = args?.path ?? args?.file_path ?? "";
+		if (state._writePath !== fp) {
+			state._writePath = fp;
+			state._writeIsNew = !fp || !existsSync(fp);
+		}
+		// Persisted result details are authoritative, including after /reload.
+		const d = state._writeDetails;
+		const isNew = d ? d._type === "new" : state._writeIsNew;
+		const label = isNew ? "create" : "write";
+		let suffix = "";
+		if (d?._type === "new") suffix = theme.fg("success", `new file · ${d.lines} lines`);
+		else if (d?._type === "diff") suffix = summarize(d.diff.added, d.diff.removed);
+		else if (d?._type === "noChange") suffix = theme.fg("muted", "no changes");
+		return `${theme.fg("toolTitle", theme.bold(label))} ${theme.fg("accent", sp(fp))}${suffix ? ` ${suffix}` : ""}`;
+	}
 
 	pi.registerTool({
 		...origWrite,
@@ -1516,7 +1542,7 @@ export default function diffRendererExtension(pi: any): void {
 				const lg = lang(fp);
 				(result as any).details = { _type: "diff", summary: summarize(diff.added, diff.removed), diff, language: lg };
 			} else if (old === null) {
-				const lineCount = content ? content.split("\n").length : 0;
+				const lineCount = content ? content.replace(/\n$/, "").split("\n").length : 0;
 				(result as any).details = { _type: "new", lines: lineCount, content: content ?? "", filePath: fp };
 			} else if (old === content) {
 				(result as any).details = { _type: "noChange" };
@@ -1526,10 +1552,13 @@ export default function diffRendererExtension(pi: any): void {
 
 		renderCall(args: any, theme: any, ctx: any) {
 			const fp = args?.path ?? args?.file_path ?? "";
-			const isNew = !fp || !existsSync(fp);
-			const label = isNew ? "create" : "write";
-			const text = ctx.lastComponent ?? new TextComponent("", 0, 0);
-			const hdr = `${theme.fg("toolTitle", theme.bold(label))} ${theme.fg("accent", sp(fp))}`;
+			const text = textComponentWithRenderWidth(ctx, theme);
+			ctx.state._writeCallComponent = text;
+			const hdr = writeHeader(args, theme, ctx.state);
+			if (ctx.state._writeResultReceived) {
+				text.setText(hdr);
+				return text;
+			}
 
 			// Streaming
 			if (args?.content && !ctx.argsComplete) {
@@ -1539,15 +1568,15 @@ export default function diffRendererExtension(pi: any): void {
 			}
 
 			// New file preview with Shiki
-			if (args?.content && ctx.argsComplete && isNew) {
-				const previewKey = `create:${fp}:${String(args.content).length}`;
+			if (args?.content && ctx.argsComplete && ctx.state._writeIsNew) {
+				const previewKey = `create:${fp}:${String(args.content).length}:${ctx.expanded}`;
 				if (ctx.state._previewKey !== previewKey) {
 					ctx.state._previewKey = previewKey;
 					ctx.state._previewText = hdr;
 					const lg = lang(fp);
 					hlBlock(args.content, lg)
 						.then((lines: string[]) => {
-							if (ctx.state._previewKey !== previewKey) return;
+							if (ctx.state._writeResultReceived || ctx.state._previewKey !== previewKey) return;
 							const maxShow = ctx.expanded ? lines.length : 16;
 							const preview = lines.slice(0, maxShow).join("\n");
 							const rem = lines.length - maxShow;
@@ -1567,7 +1596,12 @@ export default function diffRendererExtension(pi: any): void {
 		},
 
 		renderResult(result: any, _opt: any, theme: any, ctx: any) {
-			const text = ctx.lastComponent ?? new TextComponent("", 0, 0);
+			const text = textComponentWithRenderWidth(ctx, theme);
+			ctx.state._writeResultReceived = true;
+			ctx.state._writeDetails = ctx.isError ? undefined : result.details;
+			// Pi invokes the call renderer first; update that same component now
+			// so the settled label/stats appear inline on this render, not next time.
+			ctx.state._writeCallComponent?.setText(writeHeader(ctx.args, theme, ctx.state));
 			if (ctx.isError) {
 				const e =
 					result.content
@@ -1579,57 +1613,57 @@ export default function diffRendererExtension(pi: any): void {
 			}
 			const d = result.details;
 			if (d?._type === "diff") {
-				const w = termW();
+				const w = ctx.state._renderWidth ?? termW();
 				const key = `wd:${w}:${d.summary}:${d.diff?.lines?.length ?? 0}:${d.language ?? ""}`;
 				if (ctx.state._wdk !== key) {
 					ctx.state._wdk = key;
-					ctx.state._wdt = `  ${d.summary}\n${theme.fg("muted", "  rendering diff…")}`;
+					ctx.state._wdt = `\n${theme.fg("muted", "rendering diff…")}`;
 					const dc = resolveDiffColors(theme);
-					renderSplit(d.diff, d.language, MAX_RENDER_LINES, dc)
+					renderSplit(d.diff, d.language, MAX_RENDER_LINES, dc, w)
 						.then((rendered: string) => {
 							if (ctx.state._wdk !== key) return;
-							ctx.state._wdt = `  ${d.summary}\n${rendered}`;
+							ctx.state._wdt = `\n${rendered}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
 							if (ctx.state._wdk !== key) return;
-							ctx.state._wdt = `  ${d.summary}`;
+							ctx.state._wdt = "";
 							ctx.invalidate();
 						});
 				}
-				text.setText(ctx.state._wdt ?? `  ${d.summary}`);
+				text.setText(ctx.state._wdt ?? "");
 				return text;
 			}
 			if (d?._type === "noChange") {
-				text.setText(`  ${theme.fg("muted", "✓ no changes")}`);
+				text.setText("");
 				return text;
 			}
 			if (d?._type === "new") {
 				const { lines: lineCount, content: rawContent, filePath: fp } = d;
-				const pk = `nf:${fp}:${lineCount}`;
+				const pk = `nf:${fp}:${lineCount}:${ctx.expanded}`;
 				if (ctx.state._nfk !== pk) {
 					ctx.state._nfk = pk;
-					ctx.state._nft = `  ${theme.fg("success", `✓ new file (${lineCount} lines)`)}`;
+					ctx.state._nft = rawContent ? `\n${theme.fg("muted", "rendering preview…")}` : "";
 					const lg = lang(fp);
 					if (rawContent) {
-						hlBlock(rawContent, lg)
+						hlBlock(rawContent.replace(/\n$/, ""), lg)
 							.then((hlLines: string[]) => {
 								if (ctx.state._nfk !== pk) return;
 								const maxShow = ctx.expanded ? hlLines.length : 12;
 								const preview = hlLines.slice(0, maxShow).join("\n");
 								const rem = hlLines.length - maxShow;
-								let out = `  ${theme.fg("success", `✓ new file (${lineCount} lines)`)}\n${preview}`;
-								if (rem > 0) out += `\n${theme.fg("muted", `  … ${rem} more lines`)}`;
+								let out = `\n${preview}`;
+								if (rem > 0) out += `\n${theme.fg("muted", `… ${rem} more lines`)}`;
 								ctx.state._nft = out;
 								ctx.invalidate();
 							})
 							.catch(() => {});
 					}
 				}
-				text.setText(ctx.state._nft ?? `  ${theme.fg("success", `✓ new file (${lineCount} lines)`)}`);
+				text.setText(ctx.state._nft ?? "");
 				return text;
 			}
-			text.setText(`  ${theme.fg("dim", String(result?.content?.[0]?.text ?? "written").slice(0, 120))}`);
+			text.setText(`\n${theme.fg("dim", String(result?.content?.[0]?.text ?? "written").slice(0, 120))}`);
 			return text;
 		},
 	});
@@ -1708,13 +1742,14 @@ export default function diffRendererExtension(pi: any): void {
 		renderCall(args: any, theme: any, ctx: any) {
 			const fp = args?.path ?? args?.file_path ?? "";
 			const operations = getEditOperations(args);
-			const text = textComponentWithRenderWidth(ctx);
+			const text = textComponentWithRenderWidth(ctx, theme);
 			const renderWidth = ctx.state._renderWidth ?? termW();
+			const dc = resolveDiffColors(theme);
 			const hdr = `${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("accent", sp(fp))}`;
-			const blankLine = () => bgLine("", renderWidth);
-			const headerLine = (suffix = "") => bgLine(` ${hdr}${suffix ? ` ${suffix}` : ""}`, renderWidth);
+			// Pi's default Box owns the outer padding and background.
+			const headerLine = (suffix = "") => `${hdr}${suffix ? ` ${suffix}` : ""}`;
 			const pendingSummary = operations.length > 0 ? summarizeEditOperations(operations).summary : "";
-			const pendingHeader = `${blankLine()}\n${headerLine(pendingSummary)}\n${blankLine()}`;
+			const pendingHeader = headerLine(pendingSummary);
 
 			if (!(ctx.argsComplete && operations.length > 0)) {
 				text.setText(pendingHeader);
@@ -1726,7 +1761,6 @@ export default function diffRendererExtension(pi: any): void {
 				ctx.state._pk = pk;
 				ctx.state._pt = pendingHeader;
 				const lg = lang(fp);
-				const dc = resolveDiffColors(theme);
 
 				const combinedDiff = parseCombinedEditDiff(fp, operations);
 				if (combinedDiff) {
@@ -1735,12 +1769,12 @@ export default function diffRendererExtension(pi: any): void {
 					renderSplit(combinedDiff, lg, previewLines, dc, renderWidth)
 						.then((rendered) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}\n${blankLine()}\n${rendered}\n${blankLine()}`;
+							ctx.state._pt = `${headerLine(summary)}\n\n${rendered}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}`;
+							ctx.state._pt = headerLine(summary);
 							ctx.invalidate();
 						});
 				} else if (operations.length === 1) {
@@ -1749,12 +1783,12 @@ export default function diffRendererExtension(pi: any): void {
 					renderSplit(diff, lg, previewLines, dc, renderWidth)
 						.then((rendered) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summarize(diff.added, diff.removed))}\n${blankLine()}\n${rendered}\n${blankLine()}`;
+							ctx.state._pt = `${headerLine(summarize(diff.added, diff.removed))}\n\n${rendered}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summarize(diff.added, diff.removed))}`;
+							ctx.state._pt = headerLine(summarize(diff.added, diff.removed));
 							ctx.invalidate();
 						});
 				} else {
@@ -1770,12 +1804,12 @@ export default function diffRendererExtension(pi: any): void {
 					)
 						.then((sections) => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}\n${blankLine()}\n${sections.join(`\n${editSectionSeparator(diffs, renderWidth)}\n`)}\n${blankLine()}`;
+							ctx.state._pt = `${headerLine(summary)}\n\n${sections.join(`\n${editSectionSeparator(diffs, renderWidth)}\n`)}`;
 							ctx.invalidate();
 						})
 						.catch(() => {
 							if (ctx.state._pk !== pk) return;
-							ctx.state._pt = `${blankLine()}\n${headerLine(summary)}`;
+							ctx.state._pt = headerLine(summary);
 							ctx.invalidate();
 						});
 				}
@@ -1786,7 +1820,7 @@ export default function diffRendererExtension(pi: any): void {
 		},
 
 		renderResult(result: any, _opt: any, theme: any, ctx: any) {
-			const text = ctx.lastComponent ?? new TextComponent("", 0, 0);
+			const text = textComponentWithRenderWidth(ctx, theme);
 			if (ctx.isError) {
 				const e =
 					result.content
