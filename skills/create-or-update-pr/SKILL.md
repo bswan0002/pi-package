@@ -21,25 +21,36 @@ Ask "Create this PR?" or "Update this PR?" and wait for explicit approval. Do no
 
 ## Discover the scope
 
-1. Read repository instructions. Inspect `git status --short`, `git branch --show-current`, remotes, and branch tracking. Stop and clarify detached HEAD or ambiguous repository/head identity.
-2. Resolve the GitHub repository with `gh repo view --json nameWithOwner,defaultBranchRef`. Use explicit `--repo` on subsequent gh commands.
-3. Look for an open PR for the exact head branch using `gh pr list --repo "$repo" --head "$branch" --state open --json number,url,title,body,baseRefName,headRefName,headRepositoryOwner,isDraft`. Confirm head owner for forks. Read the matching PR with `gh pr view`; do not create duplicates. Authentication/network failures are not evidence that no PR exists.
-4. Separate committed changes from uncommitted work and local-only commits. PRs contain pushed commits, not the working tree. Do not silently stage, commit, amend, rebase, or force-push. If committing is necessary, ask separately before proceeding.
+Read the target repository's instructions. From its worktree, run the bundled helper using the path relative to **this skill**, not the target repository:
+
+```bash
+python3 /absolute/path/to/create-or-update-pr/scripts/pr-context.py
+# For an explicit target/fork or user-requested base:
+python3 /absolute/path/to/create-or-update-pr/scripts/pr-context.py --repo owner/repo --head-remote fork --base parent-branch
+```
+
+Resolve the absolute path from this `SKILL.md` location. Requires Python 3.9+, git, and authenticated gh. The helper is read-only: no fetch, commits, ref updates, pushes, PR writes, or Jira writes. See [discovery details](references/branch-discovery.md) for output, limitations, and recovery.
+
+It returns current-branch metadata and creation reflog, exact-head/owner open PR metadata, publication state, a live remote base SHA, ancestry evidence, and scoped diff commands. It does **not** choose the nearest branch or treat the tracking upstream as a parent. Command/network failures stop discovery rather than masquerading as “no PR.”
+
+1. Resolve any errors/warnings. No open PR is established only by a successful exact-head/owner lookup. Preserve an existing PR and its base; do not create duplicates. Confirm fork head/target identity when relevant.
+2. Separate committed changes, dirty files, and unpublished commits. PRs contain pushed commits, not the working tree. Never silently stage, commit, amend, rebase, or force-push. If committing is necessary, ask separately.
+3. Inspect the **full diff** using the returned command, relevant surrounding code, and repository PR templates. The JSON summary is not a substitute for reading the diff.
 
 ## Choose the base branch
 
-Git does not reliably record which branch a branch was created from. Infer it from evidence, not branch naming or an automatic default to main.
+Use this priority order:
 
-Use this order:
+1. Explicit user-requested base, subject to approval.
+2. Existing PR base. Explain conflicting stack evidence; do not silently retarget.
+3. Current-branch metadata (`gh-merge-base`, `vscode-merge-base`, `github-pr-base-branch`) and branch creation reflog, corroborated by live remote branch existence and ancestry.
+4. Only if evidence is missing/conflicting: targeted worktree/stack investigation or a question to the user. Do not dump all branches/configuration by default.
 
-1. An explicitly requested base, subject to the approval gate.
-2. For an existing PR, preserve its current base unless the user approves a proposed change. If stack evidence conflicts, explain it rather than silently retargeting.
-3. For a new PR, inspect current-branch metadata: `git config --get "branch.$branch.gh-merge-base"`, `git config --get "branch.$branch.vscode-merge-base"`, and `git config --get "branch.$branch.github-pr-base-branch"`. The latter may encode `owner#repo#branch`; verify the repository. Treat these as potentially stale hints and corroborate them with history.
-4. Inspect branch creation reflog and relevant worktree/stack configuration. Ben's `~/.config/worktrunk/config.toml` (or `$XDG_CONFIG_HOME/worktrunk/config.toml`) has a `stack` alias using `wt switch --create --base=@`: its intended parent is the branch active when stacking, not the repository default. Read current configuration rather than assuming it never changes. Never execute `wt stack` to discover context.
-5. Corroborate candidates with `git reflog show "$branch"`, `git worktree list`, `git merge-base`, and branch-specific commits/diffs. A tracking upstream usually points to this branch's published copy, not its parent. Likewise, `worktrunk.history` is navigation history, not a parent map. Do not select a descendant just because it shares a recent merge-base.
-6. Use the repository default only when evidence supports it. If candidates conflict, the parent was deleted/merged, or confidence is low, ask rather than silently broadening the PR to main.
+**Stop rule:** for a new PR, when normalized metadata and creation source identify the same parent, the creation commit is in both head and remote-parent history, and no warnings remain, use that parent for the proposal. Do not keep scanning unrelated branches. Existing PR metadata or an explicit base does not need this inference exercise.
 
-Verify the selected base exists in the target GitHub repository. Fetch its remote ref if needed, without switching branches or changing the working tree. Inspect `git log "$baseRef"..HEAD` and the full `git diff "$baseRef"...HEAD`, plus relevant surrounding code. Summarize only this branch's changes, not inherited stack changes. If a parent has unpushed commits, surface that: GitHub's diff may include them until the parent is pushed. Do not publish the parent without permission.
+A single hint, expired reflog, rebase, missing/deleted parent, or conflicting candidates needs manual corroboration or clarification. Do not select descendants simply because they share a recent merge-base. Do not fall back to `main` or `HEAD~1` without evidence. Do not use `--base` merely to suppress uncertainty; reserve it for user-requested or manually confirmed choices.
+
+The helper compares against the **live remote parent**, not a potentially ahead local parent. If required objects are absent, fetch only the relevant branch from a verified target remote and rerun. Surface unpublished parent commits; never push a parent without permission. See [discovery details](references/branch-discovery.md) for worktree-safe fetch commands and fallback evidence.
 
 ## Jira context and wording
 
@@ -75,7 +86,7 @@ Example body:
 
 ## Publish only after approval
 
-1. Recheck branch/HEAD and existing PR metadata before writing. If code or human-written PR content changed since the proposal, reconcile it and seek approval again when the proposal changes. If nothing needs updating, say so instead of performing a write.
+1. Rerun the discovery helper to recheck branch/HEAD, dirty state, publication state, live base SHA, and existing PR metadata before writing. If code or human-written PR content changed since the proposal, reconcile it and seek approval again when the proposal changes. If nothing needs updating, say so instead of performing a write.
 2. Perform only the approved push, if needed. Use an explicit remote/refspec; never force-push or push unrelated branches implicitly.
 3. Put the approved body in a temporary file outside the repository. Use `gh pr create --repo "$repo" --base "$base" --head "$head" --title "$title" --body-file "$bodyFile"` or `gh pr edit "$number" --repo "$repo" --title "$title" --body-file "$bodyFile"`. Use the correct owner-qualified head for forks. Include `--base` on edit only for an approved base change. Do not use `--fill` to replace the approved wording.
 4. Preserve existing draft/ready status, labels, reviewers, and assignees unless a change was approved. Show draft/ready intent in the proposal for new PRs; use `--draft` if agreed.
