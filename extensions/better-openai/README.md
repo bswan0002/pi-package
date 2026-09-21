@@ -35,6 +35,8 @@ Footer modes in this package are intentionally limited to:
 
 ## Models and fast mode
 
+Requires Pi 0.86.1 or newer. Pi 0.86 moved system instructions and tool declarations into transcript system messages. This extension adapts those messages for the pinned conversion transport, which still expects the older context format. Without this adapter, Codex receives no tools and falls back to a generic system prompt. Restart Pi after updating this package.
+
 GPT-6 Astra supports `/fast`. The custom Codex transport preserves Pi's refreshable model catalog rather than replacing it with a bundled list. This keeps model availability, reasoning levels, tool capabilities, context limits, and pricing metadata up to date. Conversion-only model aliases are not injected; add custom models through Pi's `models.json` if needed.
 
 If Astra is missing from `/model`, run `pi update --models`, then restart Pi. Account access and server-side fast-mode availability still apply.
@@ -48,8 +50,5 @@ Billing differs by authentication: [Codex Fast mode](https://developers.openai.c
 ## Checks
 
 ```bash
-npm run test:better-openai
 npm run typecheck
 ```
-
-Tests use isolated config and model stores and do not make live model requests.

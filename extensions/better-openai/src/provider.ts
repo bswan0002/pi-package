@@ -1,3 +1,4 @@
+import { getCurrentSystemPrompt, getCurrentTools } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ProviderConfig } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_CODEX_CONVERSION_CONFIG } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config.js";
 import {
@@ -29,8 +30,23 @@ export function registerFastCodexProvider(
       }
       if (!config) throw new Error("Missing provider configuration");
       if (name === "openai-codex") {
-        const { models: _models, ...transportConfig } = config;
-        pi.registerProvider(name, transportConfig);
+        const { models: _models, streamSimple, ...transportConfig } = config;
+        pi.registerProvider(name, {
+          ...transportConfig,
+          streamSimple: streamSimple && ((model, context, options) => {
+            // Pi 0.86 carries prompt/tool updates in system messages. The pinned
+            // conversion transport still expects the pre-0.86 Context shape.
+            // Collapse all deltas using Pi's helpers, including removals, before
+            // entering either transport lane or its retry/continuation logic.
+            const legacyContext = {
+              ...context,
+              systemPrompt: getCurrentSystemPrompt(context.messages),
+              tools: getCurrentTools(context.messages),
+              messages: context.messages.filter((message) => message.role !== "system"),
+            };
+            return streamSimple(model, legacyContext, options);
+          }),
+        });
         return;
       }
       pi.registerProvider(name, config);
