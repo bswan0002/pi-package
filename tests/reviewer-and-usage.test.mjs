@@ -56,7 +56,7 @@ test("reviewer completes an inspection/tool-result loop and honors cancellation"
   const cwd = await mkdtemp(join(tmpdir(), "pi-review-loop-"));
   t.after(() => rm(cwd, { recursive: true, force: true }));
   await writeFile(join(cwd, "script.sh"), "git status\n");
-  const verdict = { verdict: "read-only", summary: "Reads Git status.", writes: [] };
+  const verdict = { verdict: "read-only", gitEffect: "read-only", summary: "Reads Git status.", writes: [] };
   let calls = 0;
   const ctx = { cwd, modelRegistry: {
     find: () => ({ id: "gpt-6-luna" }),
@@ -78,7 +78,7 @@ test("reviewer completes an inspection/tool-result loop and honors cancellation"
   assert.deepEqual(result.review, verdict);
   assert.equal(calls, 2);
   assert.equal(_test.isAutoAllowableReview(result, config), true);
-  assert.equal(_test.isAutoAllowableReview({ ...result, review: { ...verdict, verdict: "unknown" } }, config), false);
+  assert.equal(_test.isAutoAllowableReview({ ...result, review: { ...verdict, verdict: "unknown", gitEffect: "unknown" } }, config), false);
   assert.equal(_test.isAutoAllowableReview({ ...result, review: { ...verdict, writes: ["file"] } }, config), false);
   await assert.rejects(inspectReviewTool("read_review_file", { path: "script.sh" }, cwd, "", AbortSignal.abort()));
 });
@@ -106,7 +106,7 @@ test("reviewer does not auto-approve failed, malformed or over-budget reviews", 
   for (const response of [
     { stopReason: "error", content: [{ type: "text", text: '{"verdict":"read-only","summary":"OK","writes":[]}' }] },
     { stopReason: "stop", content: [{ type: "text", text: "looks safe" }] },
-    { stopReason: "toolUse", content: Array.from({ length: 5 }, (_, i) => ({ type: "toolCall", id: String(i), name: "read_review_file", arguments: { path: "never-read" } })) },
+    { stopReason: "toolUse", content: Array.from({ length: 9 }, (_, i) => ({ type: "toolCall", id: String(i), name: "read_review_file", arguments: { path: "never-read" } })) },
   ]) {
     const ctx = { cwd: process.cwd(), modelRegistry: {
       find: () => ({ id: "gpt-6-luna" }),
@@ -116,5 +116,92 @@ test("reviewer does not auto-approve failed, malformed or over-budget reviews", 
     const result = await _test.explainBlockedCommand("git example", ctx, config);
     assert.equal(result.status, "unavailable");
     assert.equal(_test.isAutoAllowableReview(result, config), false);
+  }
+});
+
+
+test("inspection searches registrations, pages helpers, and rejects unreferenced targets", async (t) => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-review-source-"));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  await writeFile(join(cwd, "extension.ts"), 'registerCommand("usage", handler);\n' + "x".repeat(13000) + "HELPER_END");
+  await writeFile(join(cwd, "auth.json"), "usage secret");
+  await symlink(join(cwd, "auth.json"), join(cwd, "innocent.ts"));
+  const inspect = (name, args, command = "herdr agent prompt test-agent /usage") => inspectReviewTool(name, args, cwd, command, new AbortController().signal);
+  const found = await inspect("search_review_source", { text: "usage" });
+  assert.match(found, /extension.ts byte 0/);
+  assert.doesNotMatch(found, /usage secret/);
+  assert.match(await inspect("read_review_file", { path: "extension.ts", offset: 12000 }), /HELPER_END/);
+  for (const offset of [-1, 1.5, 2000001, "0"]) await assert.rejects(inspect("read_review_file", { path: "extension.ts", offset }));
+  for (const target of ["other-agent", "--help", "test-agent;touch", "test"]) await assert.rejects(inspect("inspect_herdr_agent", { target }));
+});
+
+test("unknown gets an evidence-gathering follow-up and never implies no writes", async () => {
+  const config = { enabled: true, provider: "openai-codex", model: "gpt-6-luna", autoAllowReadOnly: true };
+  let calls = 0;
+  const review = { verdict: "unknown", gitEffect: "unknown", summary: "Target handler registration unavailable.", writes: [] };
+  const ctx = { cwd: process.cwd(), modelRegistry: {
+    find: () => ({ id: config.model }),
+    getApiKeyAndHeaders: async () => ({ ok: true, apiKey: "fixture" }),
+    streamSimple: (_model, context) => ({ result: async () => {
+      if (++calls === 2) assert.match(context.messages.at(-1).content[0].text, /specific evidence still missing/);
+      return { role: "assistant", stopReason: "stop", content: [{ type: "text", text: JSON.stringify(review) }] };
+    } }),
+  } };
+  const result = await _test.explainBlockedCommand("herdr agent prompt example /usage", ctx, config);
+  assert.equal(calls, 2);
+  assert.equal(_test.isAutoAllowableReview(result, config), false);
+  assert.equal(_test.reviewWrites(review), "undetermined");
+  assert.equal(_test.reviewWrites({ ...review, writes: ["known file"] }), "known file; additional writes undetermined");
+  assert.equal(_test.reviewWrites({ ...review, verdict: "read-only" }), "none");
+});
+
+test("permission panel pins decisions while long details scroll and resize", async () => {
+  const { Text, visibleWidth } = await import("@earendil-works/pi-tui");
+  const theme = { fg: (_color, text) => text, bg: (_color, text) => text };
+  let height = 24;
+  const content = new Text(Array.from({ length: 200 }, (_, i) => `detail ${i} 界 🌙 ` + "long command ".repeat(10)).join("\n"), 0, 0);
+  const footer = { render: () => ["Block", "Allow once", "esc block"], invalidate() {} };
+  const panel = new _test.PermissionPanel(content, theme, footer, () => height);
+  for (const width of [20, 40, 76, 104]) {
+    for (height of [10, 15, 24, 50]) {
+      const lines = panel.render(width);
+      assert.ok(lines.length <= height, `${width}x${height}: ${lines.length}`);
+      assert.ok(lines.every(line => visibleWidth(line) <= width));
+      assert.match(lines.join("\n"), /Allow once/);
+      assert.match(lines.join("\n"), /Block/);
+    }
+  }
+  height = 24;
+  const first = panel.render(76).join("\n");
+  assert.equal(panel.handleScroll("\x1b[6~"), true);
+  assert.notEqual(panel.render(76).join("\n"), first);
+  panel.handleScroll("\x1b[F");
+  assert.match(panel.render(76).join("\n"), /detail 199/);
+  panel.handleScroll("\x1b[H");
+  assert.equal(panel.render(76).join("\n"), first);
+  assert.equal(panel.handleScroll("\r"), false);
+  height = 5;
+  assert.deepEqual(panel.render(76), footer.render());
+});
+
+
+test("contradictory verdicts get one correction opportunity, never silent approval", async () => {
+  const config = { enabled: true, provider: "openai-codex", model: "gpt-6-luna", autoAllowReadOnly: true };
+  for (const correct of [true, false]) {
+    let calls = 0;
+    const ctx = { cwd: process.cwd(), modelRegistry: {
+      find: () => ({ id: config.model }),
+      getApiKeyAndHeaders: async () => ({ ok: true, apiKey: "fixture" }),
+      streamSimple: (_model, context) => ({ result: async () => {
+        calls++;
+        if (calls === 2) assert.match(context.messages.at(-1).content[0].text, /contradict/);
+        const review = { verdict: correct && calls === 2 ? "read-only" : "mutating", gitEffect: "none", summary: "Displays usage; no persistent changes.", writes: [] };
+        return { role: "assistant", stopReason: "stop", content: [{ type: "text", text: JSON.stringify(review) }] };
+      } }),
+    } };
+    const result = await _test.explainBlockedCommand("git status; herdr agent prompt example /usage", ctx, config);
+    assert.equal(calls, 2);
+    assert.equal(result.status, correct ? "available" : "unavailable");
+    assert.equal(_test.isAutoAllowableReview(result, config), correct);
   }
 });
