@@ -2,7 +2,7 @@
  * Better OpenAI for pi.
  *
  * Enables OpenAI priority processing for allow-listed models. Codex requests use
- * a custom provider so the body and transport routing identity stay in sync.
+ * a custom transport that requests service_tier=priority without changing client identity.
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { CONFIG_BASENAME, STATUS_KEY } from "./src/identity";
@@ -115,7 +115,7 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
   let lastInjectedModel: string | undefined;
   let lastInjectedTier: string | undefined;
 
-  const fastCodexProvider = registerFastCodexProvider(pi, () => active);
+  const fastCodexProvider = registerFastCodexProvider(pi);
 
   function refresh(ctx: ExtensionContext): ResolvedConfig {
     cachedConfig = resolveConfig(ctx.cwd || process.cwd());

@@ -53,7 +53,7 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
       "explainer": {
         "enabled": true,
         "provider": "openai-codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6-luna",
         "autoAllowReadOnly": false
       }
     },

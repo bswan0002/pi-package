@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 export type UsageWindow = {
+  limit_window_seconds?: number | null;
   used_percent?: number | null;
   reset_after_seconds?: number | null;
   reset_at?: number | null;
@@ -21,10 +22,12 @@ export type CodexUsageResponse = {
 };
 
 export type UsageSnapshot = {
-  fiveHourLeftPercent: number | null;
-  sevenDayLeftPercent: number | null;
-  fiveHourResetInSeconds: number | null;
-  sevenDayResetInSeconds: number | null;
+  windows: Array<{
+    label: string;
+    durationSeconds: number | null;
+    leftPercent: number | null;
+    resetInSeconds: number | null;
+  }>;
   isLimited: boolean;
 };
 
@@ -44,12 +47,12 @@ function clampPercent(value: number): number {
 }
 
 function usedToLeftPercent(value: number | null | undefined): number | null {
-  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return clampPercent(100 - value);
 }
 
 export function formatResetCountdown(seconds: number | null): string | null {
-  if (typeof seconds !== "number" || Number.isNaN(seconds)) return null;
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) return null;
   const total = Math.max(0, Math.round(seconds));
   const days = Math.floor(total / 86_400);
   const hours = Math.floor((total % 86_400) / 3_600);
@@ -59,31 +62,6 @@ export function formatResetCountdown(seconds: number | null): string | null {
   if (hours > 0) return `${hours}h${minutes}m`;
   if (minutes > 0) return `${minutes}m`;
   return `${secs}s`;
-}
-
-function formatResetClock(
-  seconds: number | null,
-  options?: { includeDate?: boolean },
-): string | null {
-  if (typeof seconds !== "number" || Number.isNaN(seconds)) return null;
-  const resetDate = new Date(Date.now() + Math.max(0, seconds) * 1000);
-  const now = new Date();
-  const time = resetDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  if (!options?.includeDate && resetDate.toDateString() === now.toDateString()) return time;
-  const weekday = resetDate.toLocaleDateString(undefined, { weekday: "short" });
-  if (!options?.includeDate) return `${weekday} ${time}`;
-  const date = resetDate.toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
-  return `${weekday} ${date} ${time}`;
-}
-
-function formatCompactReset(
-  label: string,
-  seconds: number | null,
-  options?: { includeDate?: boolean },
-): string | null {
-  const countdown = formatResetCountdown(seconds);
-  const clock = formatResetClock(seconds, options);
-  return countdown && clock ? `${label} ↺ ${countdown} - ${clock}` : null;
 }
 
 export function readCodexAuth(): { accessToken: string; accountId: string } | undefined {
@@ -166,9 +144,9 @@ function findSparkRateLimitBucket(data: CodexUsageResponse): RateLimitBucket | n
 }
 
 function getResetSeconds(window: UsageWindow | null | undefined): number | null {
-  if (typeof window?.reset_after_seconds === "number" && !Number.isNaN(window.reset_after_seconds))
+  if (typeof window?.reset_after_seconds === "number" && Number.isFinite(window.reset_after_seconds))
     return window.reset_after_seconds;
-  if (typeof window?.reset_at !== "number" || Number.isNaN(window.reset_at)) return null;
+  if (typeof window?.reset_at !== "number" || !Number.isFinite(window.reset_at)) return null;
   const resetAtSeconds =
     window.reset_at > 100_000_000_000 ? window.reset_at / 1000 : window.reset_at;
   return Math.max(0, resetAtSeconds - Date.now() / 1000);
@@ -182,17 +160,29 @@ export function parseUsageSnapshot(
     modelId === SPARK_MODEL_ID
       ? findSparkRateLimitBucket(data)
       : normalizeRateLimitBucket(data.rate_limit);
+  const windows: UsageSnapshot["windows"] = [];
+  for (const [key, fallback] of [["primary_window", "Primary"], ["secondary_window", "Secondary"]] as const) {
+    const window = bucket?.[key];
+    if (!window || !asObject(window)) continue;
+    const duration = window.limit_window_seconds;
+    const durationSeconds = typeof duration === "number" && Number.isSafeInteger(duration) && duration > 0 ? duration : null;
+    windows.push({
+      label: durationSeconds === null ? fallback : formatWindowDuration(durationSeconds),
+      durationSeconds,
+      leftPercent: usedToLeftPercent(window.used_percent),
+      resetInSeconds: getResetSeconds(window),
+    });
+  }
+  // API slot order isn't a duration contract. Display known windows shortest first.
+  windows.sort((a, b) => (a.durationSeconds ?? Infinity) - (b.durationSeconds ?? Infinity));
   return {
-    fiveHourLeftPercent: usedToLeftPercent(bucket?.primary_window?.used_percent),
-    sevenDayLeftPercent: usedToLeftPercent(bucket?.secondary_window?.used_percent),
-    fiveHourResetInSeconds: getResetSeconds(bucket?.primary_window),
-    sevenDayResetInSeconds: getResetSeconds(bucket?.secondary_window),
+    windows,
     isLimited: bucket?.limit_reached === true || bucket?.allowed === false,
   };
 }
 
 export function formatPercent(value: number | null): string {
-  return typeof value === "number" && !Number.isNaN(value)
+  return typeof value === "number" && Number.isFinite(value)
     ? `${Math.round(clampPercent(value))}%`
     : "--";
 }
@@ -201,15 +191,20 @@ export function formatUsageSnapshot(
   snapshot: UsageSnapshot,
   options: { showResetTimes: boolean },
 ): string {
-  const fiveHour = formatPercent(snapshot.fiveHourLeftPercent);
-  const sevenDay = formatPercent(snapshot.sevenDayLeftPercent);
-  const fiveHourReset = options.showResetTimes
-    ? formatResetCountdown(snapshot.fiveHourResetInSeconds)
-    : null;
-  const sevenDayReset = options.showResetTimes
-    ? formatResetCountdown(snapshot.sevenDayResetInSeconds)
-    : null;
-  const fiveHourText = `5h: ${fiveHour}${fiveHourReset ? ` ↺ ${fiveHourReset}` : ""}`;
-  const sevenDayText = `7d: ${sevenDay}${sevenDayReset ? ` ↺ ${sevenDayReset}` : ""}`;
-  return `${fiveHourText} | ${sevenDayText}`;
+  if (!snapshot.windows.length) return "Usage unavailable";
+  return snapshot.windows.map((window) => {
+    const reset = options.showResetTimes ? formatResetCountdown(window.resetInSeconds) : null;
+    return `${window.label}: ${formatPercent(window.leftPercent)}${reset ? ` ↺ ${reset}` : ""}`;
+  }).join(" | ");
+}
+
+export function formatWindowDuration(seconds: number): string {
+  const parts: string[] = [];
+  let remaining = seconds;
+  for (const [unit, size] of [["d", 86400], ["h", 3600], ["m", 60], ["s", 1]] as const) {
+    const count = Math.floor(remaining / size);
+    if (count) parts.push(`${count}${unit}`);
+    remaining %= size;
+  }
+  return parts.join("");
 }

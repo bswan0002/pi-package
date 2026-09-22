@@ -6,11 +6,11 @@ Ported from and attributed to [mattleong/pi-better-openai](https://github.com/ma
 
 ## Features
 
-- `/fast` toggles OpenAI priority mode for supported models. OpenAI Codex uses a custom transport that sends the complete Fast Mode contract (`service_tier`, Codex originator, and priority routing hint) across WebSocket, SSE, retries, and cached continuations.
+- `/fast` toggles OpenAI priority mode for supported models. OpenAI Codex uses a custom transport that requests `service_tier=priority` without changing client identity or injecting routing hints across WebSocket, SSE, retries, and cached continuations.
 - `/openai-usage` shows OpenAI Codex subscription usage.
 - `/openai-settings` opens a TUI settings picker for fast mode, usage, and image settings.
 - `openai_image` tool and `/openai-image` generate/edit images through OpenAI Codex subscription auth.
-- Usage is exposed as an extension status row below the custom footer, e.g. `5h: 100% ↺ 4h24m | 7d: 97% ↺ 2d6h`.
+- Usage is exposed as an extension status row below the custom footer. Labels follow each API window’s `limit_window_seconds`, not its primary/secondary position; absent windows are omitted, and missing durations get neutral labels. For example, `5h: 100% ↺ 4h24m | 7d: 97% ↺ 2d6h`.
 - Fast mode is surfaced in the custom prompt box model metadata instead of taking over the footer.
 
 ## Auth
@@ -35,20 +35,25 @@ Footer modes in this package are intentionally limited to:
 
 ## Models and fast mode
 
-Requires Pi 0.86.1 or newer. Pi 0.86 moved system instructions and tool declarations into transcript system messages. This extension adapts those messages for the pinned conversion transport, which still expects the older context format. Without this adapter, Codex receives no tools and falls back to a generic system prompt. Restart Pi after updating this package.
+Requires Pi 0.87.1 or newer and uses Codex Conversion 3.0.37. The transport consumes transcript-native prompt and tool updates directly, preserving their chronological placement. Restart Pi after updating this package.
 
-GPT-6 Astra supports `/fast`. The custom Codex transport preserves Pi's refreshable model catalog rather than replacing it with a bundled list. This keeps model availability, reasoning levels, tool capabilities, context limits, and pricing metadata up to date. Conversion-only model aliases are not injected; add custom models through Pi's `models.json` if needed.
+GPT-6 Astra, Sol, and Luna support `/fast` where available. The custom Codex transport preserves Pi's refreshable model catalog rather than replacing it with a bundled list. This keeps model availability, reasoning levels, tool capabilities, context limits, and pricing metadata up to date. Conversion-only model aliases are not injected; add custom models through Pi's `models.json` if needed.
 
-If Astra is missing from `/model`, run `pi update --models`, then restart Pi. Account access and server-side fast-mode availability still apply.
+If a GPT-6 model is missing from `/model`, run `pi update --models`, then restart Pi. Account access and server-side fast-mode availability still apply.
 
 Omit `supportedModels` from `pi-better-openai.json` to inherit this extension's maintained fast-mode allowlist. An explicit array replaces the defaults; `[]` disables fast eligibility for every model. Older bootstrapped configs saved a snapshot of the defaults: remove that property if you want future additions automatically. Restart Pi after changing config or provider code.
 
 Astra cannot disable reasoning; Pi's current catalog hides `off` and maps `minimal` to `low`. This extension also preserves Pi's conservative context limit (currently 272K), rather than automatically opting into the model's 1.05M maximum. Explicit `models.json` model overrides remain supported.
 
-Billing differs by authentication: [Codex Fast mode](https://developers.openai.com/codex/speed/) consumes 2.5× Standard subscription credits for Astra where available; the [API model page](https://developers.openai.com/api/docs/models/gpt-6-astra) lists 2× applicable API rates. Pi's dollar estimates are not a subscription-credit meter; use `/openai-usage` for account usage. A local `fast` indicator means priority processing was requested, not that the server confirmed it.
+Billing differs by authentication: [Codex Fast mode](https://developers.openai.com/codex/speed/) consumes 2.5× Standard subscription credits for GPT-6 Astra, Sol, and Luna where available; the [API model page](https://developers.openai.com/api/docs/models/gpt-6-astra) lists 2× applicable API rates. Pi's dollar estimates are not a subscription-credit meter; use `/openai-usage` for account usage. A local `fast` indicator means priority processing was requested, not that the server confirmed it.
+
+Responses Lite and autonomous reasoning-effort changes remain disabled. Pi’s generic idle cache warming is disabled for this custom Codex transport because it cannot honor the one-token cap and could disturb continuation state.
 
 ## Checks
 
 ```bash
 npm run typecheck
+npm test
 ```
+
+Tests exercise provider registration and mocked SSE requests without using credentials or making model calls.

@@ -14,12 +14,16 @@ export const DEFAULT_SUPPORTED_MODELS = [
   "openai/gpt-5.6-sol",
   "openai/gpt-5.6-terra",
   "openai/gpt-6-astra",
+  "openai/gpt-6-sol",
+  "openai/gpt-6-luna",
   "openai-codex/gpt-5.4",
   "openai-codex/gpt-5.5",
   "openai-codex/gpt-5.6-luna",
   "openai-codex/gpt-5.6-sol",
   "openai-codex/gpt-5.6-terra",
   "openai-codex/gpt-6-astra",
+  "openai-codex/gpt-6-sol",
+  "openai-codex/gpt-6-luna",
 ] as const;
 
 export type FooterMode = (typeof FOOTER_MODES)[number];
