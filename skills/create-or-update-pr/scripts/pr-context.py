@@ -3,6 +3,8 @@
 
 import argparse
 import json
+import re
+from pathlib import Path
 import subprocess
 import sys
 from urllib.parse import quote
@@ -34,6 +36,39 @@ def ancestor(older, newer):
     return result.returncode == 0
 
 
+def creation_checkouts(branch, creation):
+    common_dir = Path(run("git", "rev-parse", "--git-common-dir")).resolve()
+    logs = [common_dir / "logs" / "HEAD"]
+    worktrees_dir = common_dir / "worktrees"
+    if worktrees_dir.is_dir():
+        logs.extend(sorted(worktrees_dir.glob("*/logs/HEAD")))
+    matches = []
+    for log in logs:
+        if not log.is_file():
+            continue
+        # Raw reflogs retain both SHAs, including the old HEAD of a checkout.
+        for line in log.read_text().splitlines():
+            record, separator, message = line.partition("\t")
+            if not separator:
+                continue
+            checkout = re.fullmatch(r"checkout: moving from (.+) to (.+)", message)
+            if not checkout or checkout[2] != branch:
+                continue
+            fields = record.split()
+            if len(fields) < 4:
+                continue
+            if (fields[0] != creation["sha"] or fields[1] != creation["sha"]
+                    or fields[-2] != str(creation["timestamp"])):
+                continue
+            source = checkout[1]
+            if source in ("HEAD", "@", branch) or re.fullmatch(r"[0-9a-fA-F]{4,64}", source):
+                continue
+            matches.append({"source": source, "sha": fields[1],
+                            "timestamp": creation["timestamp"],
+                            "head_reflog": str(log)})
+    return matches
+
+
 def discover(args):
     root = run("git", "rev-parse", "--show-toplevel")
     branch = run("git", "branch", "--show-current")
@@ -45,9 +80,19 @@ def discover(args):
     target = repo["nameWithOwner"]
     metadata = {key: config(f"branch.{branch}.{key}") for key in
                 ("gh-merge-base", "vscode-merge-base", "github-pr-base-branch")}
-    reflog = run("git", "reflog", "show", "--format=%H%x09%gs", f"refs/heads/{branch}")
-    creation = next((line.split("\t", 1) for line in reversed(reflog.splitlines())
-                     if "\tbranch: Created from " in line), None)
+    reflog = run("git", "reflog", "show", "--date=raw", "--format=%H%x09%gD%x09%gs",
+                 f"refs/heads/{branch}")
+    creation = None
+    for line in reversed(reflog.splitlines()):
+        sha, selector, message = line.split("\t", 2)
+        if not message.startswith("branch: Created from "):
+            continue
+        timestamp = re.search(r"@\{(\d+) [+-]\d{4}\}$", selector)
+        if not timestamp:
+            raise RuntimeError(f"Cannot parse branch creation timestamp: {selector}")
+        creation = {"sha": sha, "source": message.removeprefix("branch: Created from "),
+                    "timestamp": int(timestamp[1])}
+        break
     remote = args.head_remote or config(f"branch.{branch}.remote") or "origin"
     remote_url = run("git", "remote", "get-url", remote)
     # Resolve repository identity through gh, rather than guessing from SSH/HTTPS URL syntax.
@@ -85,10 +130,18 @@ def discover(args):
         return value if value not in (branch, "HEAD", "@") else None
 
     hints = {key: normalize(value) for key, value in metadata.items() if value}
-    creation_source = creation[1].removeprefix("branch: Created from ") if creation else None
+    creation_source = creation["source"] if creation else None
+    checkouts = []
+    if creation and creation_source in ("HEAD", "@") and not pr and not args.base:
+        checkouts = creation_checkouts(branch, creation)
+    checkout_parents = {normalize(checkout["source"]) for checkout in checkouts}
+    resolved_creation_source = normalize(creation_source)
+    if creation_source in ("HEAD", "@") and len(checkout_parents) == 1:
+        resolved_creation_source = next(iter(checkout_parents))
     if creation_source:
-        hints["creation_reflog"] = normalize(creation_source)
-    candidates = sorted({value for value in hints.values() if value})
+        hints["creation_reflog"] = resolved_creation_source
+    candidates = sorted({value for value in hints.values() if value}
+                        | {value for value in checkout_parents if value})
     warnings = []
     base = None
     reason = None
@@ -99,15 +152,18 @@ def discover(args):
     elif pr:
         base, reason = pr["baseRefName"], "Existing PR base is authoritative"
     elif len(candidates) == 1 and all(hints.values()):
-        base, reason = candidates[0], "Current-branch hints agree; verify ancestry below"
+        base = candidates[0]
+        reason = ("Branch creation matched a HEAD checkout by timestamp and old/new SHA; verify ancestry below"
+                  if checkouts else "Current-branch hints agree; verify ancestry below")
     else:
         warnings.append("No unambiguous parent evidence. Inspect targeted stack/worktree history or ask the user; do not default to main.")
     if base and any(candidate != base for candidate in candidates):
         warnings.append("Parent hints conflict with selected base; explain before approval.")
     if base and not pr and not args.base:
         metadata_agrees = any(normalize(value) == base for value in metadata.values() if value)
-        if not metadata_agrees or normalize(creation_source) != base:
-            warnings.append("Metadata and creation source do not independently agree; corroborate the parent manually.")
+        checkout_agrees = checkout_parents == {base}
+        if resolved_creation_source != base or not (metadata_agrees or checkout_agrees):
+            warnings.append("Parent lacks agreeing metadata/creation evidence or a creation-time HEAD checkout; corroborate manually.")
 
     # ls-remote success with no matching ref means unpublished; failures are not absence.
     published = run("git", "ls-remote", "--heads", remote, f"refs/heads/{branch}")
@@ -137,8 +193,8 @@ def discover(args):
                 warnings.append("No merge-base: fetch missing/shallow history or resolve unrelated histories.")
             else:
                 scope["base_contains_head"] = ancestor(head, sha)
-                scope["creation_on_head_history"] = ancestor(creation[0], head) if creation else None
-                scope["creation_on_base_history"] = ancestor(creation[0], sha) if creation else None
+                scope["creation_on_head_history"] = ancestor(creation["sha"], head) if creation else None
+                scope["creation_on_base_history"] = ancestor(creation["sha"], sha) if creation else None
                 if scope["base_contains_head"]:
                     warnings.append("Base already contains HEAD: no branch changes, or a descendant/integration branch was selected.")
                 if not pr and not args.base and (not creation or not scope["creation_on_head_history"]
@@ -158,7 +214,7 @@ def discover(args):
             "working_tree": run("git", "status", "--short").splitlines(),
             "upstream": run("git", "rev-parse", "--abbrev-ref", "@{upstream}", optional=True),
             "publication": publication, "open_pr": pr, "metadata": metadata,
-            "creation": {"sha": creation[0], "source": creation_source} if creation else None,
+            "creation": creation, "creation_checkouts": checkouts,
             "parent_candidates": candidates, "base": scope, "warnings": warnings,
             "next_step": "Resolve warnings before proposing publication" if warnings else
                          "Inspect full diff, repository instructions/templates, and Jira; then propose for approval"}

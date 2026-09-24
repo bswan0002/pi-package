@@ -9,7 +9,7 @@ Run `scripts/pr-context.py` relative to the skill directory, with the target wor
 - `upstream`: tracking branch, **not** a parent hint.
 - `publication`: head remote/repository/branch, live published SHA, and local-only/remote-only commit counts when the object is available. The head remote defaults to the configured tracking remote, then `origin`; override with `--head-remote` when the intended publication remote differs. No published ref means a push is needed, not that a push is approved. Remote-only commits require reconciliation, never an automatic force-push.
 - `open_pr`: successful exact branch and owner match, including full body/base/draft state. An empty successful result is distinct from a failed lookup. In unusual same-owner repository arrangements, independently confirm the PR's head repository before writing.
-- `metadata`, `creation`, `parent_candidates`: current-branch evidence only. Repository-qualified metadata is accepted only for the target repository. Remote prefixes are normalized for comparison; ancestry and target branch existence still need corroboration.
+- `metadata`, `creation`, `creation_checkouts`, `parent_candidates`: current-branch parent evidence. Creation includes its reflog timestamp. For a new PR without an explicit base, a `HEAD`/`@` creation source triggers a search of the main and registered linked worktrees' HEAD reflogs, including retained logs for unavailable worktree paths. A checkout must name the current branch, match the creation timestamp exactly, and have both old and new HEAD equal the creation SHA. Detached-HEAD/hash sources are excluded. Matching entries include their source and reflog path; ambiguous sources remain warnings. Repository-qualified metadata is accepted only for the target repository. Remote prefixes are normalized for comparison; ancestry and target branch existence still need corroboration.
 - `base`: a proposed branch, its live GitHub SHA, merge-base, ancestry checks, local-parent unpublished count, scoped commits/files, and a full diff command. SHA-based commands avoid stale tracking refs and ambiguous local branch names.
 - `warnings`: unresolved evidence, missing objects/history, conflicting hints, or unpublished parent commits. Resolve these before the proposal. A candidate in `base` is not permission to publish or proof of a correct parent.
 
@@ -17,7 +17,9 @@ The helper never ranks every branch by nearest merge-base. That can select a sib
 
 ## Happy path / stop rule
 
-For a new PR, current-branch metadata and `branch: Created from <parent>` agree, the live remote parent exists, the creation commit belongs to both head and parent history, and the parent does not already contain HEAD. With no warnings, use this scope for the proposal and stop discovery.
+For a new PR, accept either agreeing current-branch metadata and `branch: Created from <parent>`, or a `Created from HEAD`/`@` entry correlated with an unambiguous creation-time HEAD checkout. Any supplied metadata must agree. The live remote parent must exist, the creation commit must belong to both head and parent history, and the parent must not already contain HEAD. With no warnings, use this scope for the proposal and stop discovery.
+
+Checkout correlation is deliberately exact, not a search for the latest checkout or the nearest branch. Expired logs, renamed branches, detached creation, worktree creation without a named-source checkout, and operations spanning different timestamp seconds may still require metadata or manual confirmation. These reflogs are evidence, not a permanent parent relationship.
 
 An existing PR supplies the authoritative base even when the original branch parent differs. An explicit requested base takes priority but changing an existing PR's target must be disclosed and approved.
 

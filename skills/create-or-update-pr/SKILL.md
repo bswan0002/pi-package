@@ -43,10 +43,10 @@ Use this priority order:
 
 1. Explicit user-requested base, subject to approval.
 2. Existing PR base. Explain conflicting stack evidence; do not silently retarget.
-3. Current-branch metadata (`gh-merge-base`, `vscode-merge-base`, `github-pr-base-branch`) and branch creation reflog, corroborated by live remote branch existence and ancestry.
+3. Current-branch metadata (`gh-merge-base`, `vscode-merge-base`, `github-pr-base-branch`) and branch creation reflog, including a creation-time HEAD checkout correlation when the source is `HEAD`/`@`, corroborated by live remote branch existence and ancestry.
 4. Only if evidence is missing/conflicting: targeted worktree/stack investigation or a question to the user. Do not dump all branches/configuration by default.
 
-**Stop rule:** for a new PR, when normalized metadata and creation source identify the same parent, the creation commit is in both head and remote-parent history, and no warnings remain, use that parent for the proposal. Do not keep scanning unrelated branches. Existing PR metadata or an explicit base does not need this inference exercise.
+**Stop rule:** for a new PR, when normalized metadata and creation source identify the same parent, or the helper resolves a `HEAD`/`@` creation source through an unambiguous creation-time HEAD checkout with no conflicting metadata, the creation commit is in both head and remote-parent history, and no warnings remain, use that parent for the proposal. Do not keep scanning unrelated branches. Existing PR metadata or an explicit base does not need this inference exercise.
 
 A single hint, expired reflog, rebase, missing/deleted parent, or conflicting candidates needs manual corroboration or clarification. Do not select descendants simply because they share a recent merge-base. Do not fall back to `main` or `HEAD~1` without evidence. Do not use `--base` merely to suppress uncertainty; reserve it for user-requested or manually confirmed choices.
 
