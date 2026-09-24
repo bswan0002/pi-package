@@ -22,6 +22,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 - [`confluence-export`](./skills/confluence-export) — fetches Atlassian Confluence Cloud pages and saves them as Markdown.
 - [`pr-review`](./skills/pr-review) — performs a PR-style review of the current branch.
 - [`qq`](./skills/qq) — answers questions using only readonly project inspection.
+- [`writing-for-agents`](./skills/writing-for-agents) — guides writing skills, `AGENTS.md` / `CLAUDE.md`, and other agent-facing documents. From [Matt Pocock’s skills](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents); replaces `write-a-skill`.
 
 ## Install locally
 
