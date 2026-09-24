@@ -83,7 +83,7 @@ test("SSE preserves transcript updates and priority payload without Lite or iden
   const update = inputs.findIndex((item) => item.includes("Later instructions"));
   const nextUser = inputs.findIndex((item) => item.includes("Next question"));
   assert.ok(firstUser >= 0 && update > firstUser && nextUser > update);
-  assert.match(JSON.stringify(captured.body), /second/);
+  assert.deepEqual(captured.body.tools.map((tool) => tool.name), ["second"]);
   await streamSimple(model, context, { apiKey: token, transport: "sse", maxRetries: 0 }).result();
   assert.equal(captured.body.service_tier, undefined);
   assert.equal(captured.headers.get("originator"), "pi");
