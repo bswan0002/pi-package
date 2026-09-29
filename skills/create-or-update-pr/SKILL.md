@@ -72,13 +72,13 @@ Use the user-designated site for other Jira instances. If lookup fails, say so a
 
 Title format: `JIRA-1234: Description`. Choose natural wording informed by the branch name or ticket summary, but make the actual diff authoritative. A comments-only PR must not claim to fix runtime behavior.
 
-Start the body with the Jira URL, e.g. `https://apptio.atlassian.net/browse/CLDYFE-4489`, then a blank line and the description.
+If the repository's PR template has a clear Jira/ticket section (such as “What are the relevant tickets?”), put the full Jira URL there and follow the template's section order. Use that section as the single home for the ticket link. Otherwise, start the body with the Jira URL, e.g. `https://apptio.atlassian.net/browse/CLDYFE-4489`, then a blank line and the description.
 
 Write a brief, conversational description of what changed and why it matters. Cut everything unnecessary. Focus on outcomes, bugs fixed, and relevant business logic—not file names or implementation details. Include a quick root-cause explanation when useful and supported. Preserve useful human-written context, links, and required repository template content when updating; show any proposed removal in the complete draft.
 
 Example title: `CLDYFE-4489: Explain additional reporting requests`
 
-Example body:
+Example body when there is no template ticket section:
 
 > https://apptio.atlassian.net/browse/CLDYFE-4489
 >
