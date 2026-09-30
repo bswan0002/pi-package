@@ -26,19 +26,19 @@
     "test": "node --test tests/*.test.mjs"
   },
   "peerDependencies": {
-    "@earendil-works/pi-ai": ">=0.87.1",
-    "@earendil-works/pi-coding-agent": ">=0.87.1",
-    "@earendil-works/pi-tui": ">=0.87.1"
+    "@earendil-works/pi-ai": ">=0.99.2",
+    "@earendil-works/pi-coding-agent": ">=0.99.2",
+    "@earendil-works/pi-tui": ">=0.99.2"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "0.87.1",
-    "@earendil-works/pi-coding-agent": "0.87.1",
-    "@earendil-works/pi-tui": "0.87.1",
+    "@earendil-works/pi-ai": "0.99.2",
+    "@earendil-works/pi-coding-agent": "0.99.2",
+    "@earendil-works/pi-tui": "0.99.2",
     "@types/node": "^24.0.0",
     "typescript": "6.0.3"
   },
   "dependencies": {
-    "@howaboua/pi-codex-conversion": "3.0.37",
+    "@howaboua/pi-codex-conversion": "3.0.41",
     "@shikijs/cli": "^4.0.2",
     "diff": "^9.0.0",
     "glob": "^13.0.6",

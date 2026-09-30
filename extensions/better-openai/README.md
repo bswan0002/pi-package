@@ -35,9 +35,9 @@ Footer modes in this package are intentionally limited to:
 
 ## Models and fast mode
 
-Requires Pi 0.87.1 or newer and uses Codex Conversion 3.0.37. The transport consumes transcript-native prompt and tool updates directly, preserving their chronological placement. Restart Pi after updating this package.
+Requires Pi 0.99.2 or newer and uses Codex Conversion 3.0.41. The transport consumes transcript-native prompt and tool updates directly, preserving their chronological placement. Restart Pi after updating this package.
 
-GPT-6 Astra, Sol, and Luna support `/fast` where available. The custom Codex transport preserves Pi's refreshable model catalog rather than replacing it with a bundled list. This keeps model availability, reasoning levels, tool capabilities, context limits, and pricing metadata up to date. Conversion-only model aliases are not injected; add custom models through Pi's `models.json` if needed.
+GPT-6 Astra, Sol, and Luna, plus GPT-6.1 Sol, support `/fast` where available. The custom Codex transport preserves Pi's refreshable model catalog rather than replacing it with a bundled list. This keeps model availability, reasoning levels, tool capabilities, context limits, and pricing metadata up to date. Conversion-only model aliases are not injected; add custom models through Pi's `models.json` if needed.
 
 If a GPT-6 model is missing from `/model`, run `pi update --models`, then restart Pi. Account access and server-side fast-mode availability still apply.
 
