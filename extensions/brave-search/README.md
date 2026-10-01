@@ -2,6 +2,11 @@
 
 Adds a `brave_search` tool that lets pi search the web using the [Brave Search API](https://api.search.brave.com/app/documentation/web-search/get-started).
 
+This is a fallback for non-Codex models when hosted Codex search is unavailable.
+Codex models use the bundled `web_run` tool (`tools.web__run` in Code/Notebook).
+Brave is removed from ordinary Pi and nested tool surfaces on Codex routes,
+including renamed Codex providers, and restored when switching away.
+
 ## Setup
 
 The extension reads your API key from the environment:

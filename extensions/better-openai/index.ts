@@ -5,15 +5,12 @@
  * a custom transport that requests service_tier=priority without changing client identity.
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { CONFIG_BASENAME, STATUS_KEY } from "./src/identity";
+import { CONFIG_BASENAME, STATUS_KEY, RESET_STATUS_KEY } from "./src/identity";
 import { formatTokens, sanitizeStatusText, truncateToWidth, visibleWidth } from "./src/format";
 import {
   DEFAULT_CONFIG,
-  DEFAULT_IMAGE_CONFIG,
   DEFAULT_SUPPORTED_MODELS,
   FOOTER_MODES,
-  IMAGE_OUTPUT_FORMATS,
-  IMAGE_SAVE_MODES,
   configPaths,
   type ResolvedConfig,
   type SupportedModel,
@@ -31,11 +28,11 @@ import {
   formatPercent,
   formatResetCountdown,
   formatUsageSnapshot,
+  formatUsageResets,
   parseUsageSnapshot,
   readCodexAuth,
   requestCodexUsage,
 } from "./src/usage";
-import { registerOpenAIImage, _imageTest } from "./src/image";
 import { registerFastCodexProvider } from "./src/provider";
 import { conversionOwnsFast } from "../shared/codex-conversion";
 import { setBetterOpenAIState } from "../shared/better-openai-state";
@@ -143,7 +140,7 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
 
   function setActive(ctx: ExtensionContext, next: boolean): void {
     if (conversionOwnsFast(pi, ctx)) {
-      pi.sendUserMessage("/codex openai", { expandPromptTemplates: true });
+      pi.sendUserMessage("/codex fast", { expandPromptTemplates: true });
       return;
     }
     const nextConfig = refresh(ctx);
@@ -287,8 +284,6 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
       "",
       formatUsageDebug(ctx),
       "",
-      `Image enabled: ${cfg.image.enabled}`,
-      `Image default save: ${cfg.image.defaultSave}`,
       `Config: ${cfg.configPath}`,
     ].join("\n");
   }
@@ -299,7 +294,7 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
   }
 
   pi.registerCommand(COMMAND, {
-    description: "Toggle standalone fast mode, or open conversion OpenAI settings",
+    description: "Toggle OpenAI fast mode",
     handler: async (args, ctx) => {
       const arg = args.trim().toLowerCase();
       if (!arg) return setActive(ctx, !desiredActive);
@@ -380,42 +375,6 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
         description: "Include compact reset countdowns and local reset times.",
       },
       {
-        id: "image.enabled",
-        label: "Image tool",
-        currentValue: String(cfg.image.enabled),
-        values: ["true", "false"],
-        description: "Allow the openai_image tool to make image requests.",
-      },
-      {
-        id: "image.defaultModel",
-        label: "Image model",
-        currentValue: cfg.image.defaultModel,
-        values: ["gpt-5.5", "gpt-5.4", "gpt-5.2", "gpt-5"],
-        description:
-          "Mainline model used for image generation when current model is not openai-codex.",
-      },
-      {
-        id: "image.defaultSave",
-        label: "Image save",
-        currentValue: cfg.image.defaultSave,
-        values: [...IMAGE_SAVE_MODES],
-        description: "Where generated images are saved by default.",
-      },
-      {
-        id: "image.outputFormat",
-        label: "Image format",
-        currentValue: cfg.image.outputFormat,
-        values: [...IMAGE_OUTPUT_FORMATS],
-        description: "Generated image file format.",
-      },
-      {
-        id: "image.timeoutMs",
-        label: "Image timeout",
-        currentValue: String(cfg.image.timeoutMs),
-        values: ["30000", "60000", "120000", "180000", "300000"],
-        description: "Image request timeout in milliseconds.",
-      },
-      {
         id: "debug",
         label: "Debug info",
         currentValue: "open",
@@ -472,18 +431,6 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
       const footer = isRecord(current.footer) ? current.footer : {};
       footer.mode = rawValue;
       current.footer = footer;
-    } else if (id.startsWith("image.")) {
-      const image = isRecord(current.image) ? current.image : {};
-      const key = id.slice("image.".length);
-      image[key] =
-        key === "timeoutMs"
-          ? num
-          : rawValue === "true"
-            ? true
-            : rawValue === "false"
-              ? false
-              : rawValue;
-      current.image = image;
     }
     writeConfig(cfg.configPath, current);
     const next = refresh(ctx);
@@ -558,7 +505,6 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
     },
   });
 
-  registerOpenAIImage(pi, config);
 
   function installFooter(_ctx: ExtensionContext): void {
     // Intentionally disabled in this package: the style extension owns the footer.
@@ -590,6 +536,7 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
     if (cfg.footer.mode === "off") {
       setBetterOpenAIState({ fastLabel: undefined });
       setStatus(ctx, undefined);
+      ctx.ui.setStatus(RESET_STATUS_KEY, undefined);
       return;
     }
 
@@ -604,6 +551,8 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
         ? formatUsageSnapshot(usageSnapshot, cfg.usage)
         : undefined;
     setStatus(ctx, usage);
+    ctx.ui.setStatus(RESET_STATUS_KEY,
+      usage && usageSnapshot && cfg.usage.showResetTimes ? formatUsageResets(usageSnapshot) : undefined);
   }
 
   pi.on("session_start", (_event, ctx) => {
@@ -693,7 +642,6 @@ export const _test = {
   CONFIG_BASENAME,
   DEFAULT_SUPPORTED_MODELS,
   DEFAULT_CONFIG,
-  DEFAULT_IMAGE_CONFIG,
   SERVICE_TIER,
   configPaths,
   parseModelKey,
@@ -706,5 +654,4 @@ export const _test = {
   formatPercent,
   formatUsageSnapshot,
   readCodexAuth,
-  imageTest: _imageTest,
 };

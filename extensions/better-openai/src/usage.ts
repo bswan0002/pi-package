@@ -198,6 +198,15 @@ export function formatUsageSnapshot(
   }).join(" | ");
 }
 
+/** Internal reset metadata for the footer's inline conversion quota labels. */
+export function formatUsageResets(snapshot: UsageSnapshot): string | undefined {
+  const resets = snapshot.windows.flatMap((window) => {
+    const reset = formatResetCountdown(window.resetInSeconds);
+    return reset ? [`${window.label} ↺ ${reset}`] : [];
+  });
+  return resets.length ? resets.join(" | ") : undefined;
+}
+
 export function formatWindowDuration(seconds: number): string {
   const parts: string[] = [];
   let remaining = seconds;

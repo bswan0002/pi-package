@@ -11,7 +11,7 @@ const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-age
 const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { fsCache: false });
 const { hasCodexConversion, conversionOwnsFast, visibleExtensionStatuses, registerCompatibleTool } = await jiti.import("../extensions/shared/codex-conversion.ts");
-const { STATUS_KEY } = await jiti.import("../extensions/better-openai/src/identity.ts");
+const { STATUS_KEY, RESET_STATUS_KEY } = await jiti.import("../extensions/better-openai/src/identity.ts");
 const { touchedFiles } = await jiti.import("../extensions/post-edit/touched-files.ts");
 const { default: postEdit } = await jiti.import("../extensions/post-edit/index.ts");
 const { getCodeModeExtensionToolSnapshot } = await import("@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js");
@@ -147,6 +147,29 @@ test("quota deduplication tracks actual status presence and preserves unrelated 
   assert.deepEqual(visibleExtensionStatuses(statuses), [...statuses]);
 });
 
+test("reset countdowns survive conversion status without duplicating standalone usage", () => {
+  const statuses = new Map([[STATUS_KEY, "7d: 84% ↺ 1d18h"], [RESET_STATUS_KEY, "7d ↺ 1d18h"]]);
+  assert.deepEqual(visibleExtensionStatuses(statuses), [[STATUS_KEY, "7d: 84% ↺ 1d18h"]]);
+  statuses.set("codex-adapter", "Codex adapter • weekly: 84% left");
+  assert.deepEqual(visibleExtensionStatuses(statuses), [["codex-adapter", "Codex adapter • weekly: 84% left · 1d18h ↺"]]);
+  assert.equal(statuses.get("codex-adapter"), "Codex adapter • weekly: 84% left", "rendering must not mutate conversion's status");
+  statuses.set("codex-adapter", "");
+  assert.ok(visibleExtensionStatuses(statuses).some(([key]) => key === STATUS_KEY));
+  assert.ok(!visibleExtensionStatuses(statuses).some(([key]) => key === RESET_STATUS_KEY));
+});
+
+test("inline quota resets preserve ANSI, omit unavailable windows, and follow settings changes", () => {
+  const adapter = "\x1b[2mCodex adapter • 5h: 80% left • weekly: 32% left\x1b[22m";
+  const statuses = new Map([["codex-adapter", adapter], [RESET_STATUS_KEY, "5h ↺ 1h0m | 7d ↺ 1d18h"]]);
+  assert.deepEqual(visibleExtensionStatuses(statuses), [["codex-adapter", "\x1b[2mCodex adapter • 5h: 80% left · 1h0m ↺ • weekly: 32% left · 1d18h ↺\x1b[22m"]]);
+  statuses.set(RESET_STATUS_KEY, "7d ↺ 1d18h");
+  assert.equal(visibleExtensionStatuses(statuses)[0][1], "\x1b[2mCodex adapter • 5h: 80% left • weekly: 32% left · 1d18h ↺\x1b[22m");
+  statuses.set(RESET_STATUS_KEY, "Secondary ↺ 1d18h | 2h ↺ 1h0m");
+  assert.deepEqual(visibleExtensionStatuses(statuses), [["codex-adapter", adapter]], "unknown durations must not be attached to a guessed quota");
+  statuses.delete(RESET_STATUS_KEY);
+  assert.deepEqual(visibleExtensionStatuses(statuses), [["codex-adapter", adapter]]);
+});
+
 test("custom tools remain normal Pi tools and compose with conversion through the public API", async () => {
   const { pi, fire, tools } = harness();
   let capturedContext;
@@ -264,7 +287,7 @@ test("Better OpenAI delegates fast controls and preserves standalone preferences
   assert.equal(await fire("before_provider_request", request, ctx), undefined);
   assert.equal(getBetterOpenAIState().fastLabel, undefined);
   await commands.get("fast").handler("", ctx);
-  assert.deepEqual(sent, [["/codex openai", { expandPromptTemplates: true }]]);
+  assert.deepEqual(sent, [["/codex fast", { expandPromptTemplates: true }]]);
   assert.equal(request.payload.service_tier, "auto");
 
   // Switch away from the adapter. The saved standalone preference resumes.
@@ -288,15 +311,13 @@ test("Better OpenAI delegates fast controls and preserves standalone preferences
 test("all package custom tools are offered to Code/Notebook without replacing their Pi registrations", async () => {
   const { registerAskUserQuestionTool } = await jiti.import("../extensions/ask-user-question/ask-user-question.ts");
   const { default: braveSearch } = await jiti.import("../extensions/brave-search/index.ts");
-  const { registerOpenAIImage } = await jiti.import("../extensions/better-openai/src/image.ts");
   const { pi, fire, tools } = harness();
   pi.registerCommand = () => {};
   pi.registerMessageRenderer = () => {};
   registerAskUserQuestionTool(pi);
   braveSearch(pi);
-  registerOpenAIImage(pi, () => assert.fail("registration must not resolve config or perform requests"));
-  const nested = getCodeModeExtensionToolSnapshot(pi, undefined).tools;
-  const expected = ["ask_user_question", "brave_search", "openai_image"];
+  const nested = getCodeModeExtensionToolSnapshot(pi, { model: { provider: "anthropic", api: "anthropic-messages" } }, true).tools;
+  const expected = ["ask_user_question", "brave_search"];
   assert.deepEqual(tools.map((tool) => tool.name).sort(), expected);
   assert.deepEqual(nested.map((tool) => tool.topLevelName).sort(), expected);
   assert.equal(nested.find((tool) => tool.topLevelName === "ask_user_question").blocking, true);

@@ -1,6 +1,6 @@
-import { registerCompatibleTool } from "../shared/codex-conversion";
+import { isCodexModel, registerCompatibleTool } from "../shared/codex-conversion";
 import { StringEnum, Type } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const BRAVE_SEARCH_ENDPOINT = "https://api.search.brave.com/res/v1/web/search";
 const DEFAULT_RESULT_COUNT = 5;
@@ -106,15 +106,16 @@ export default function (pi: ExtensionAPI) {
 	registerCompatibleTool(pi, {
 		name: "brave_search",
 		label: "Brave Search",
-		description: "Search the web using the Brave Search API. Requires BRAVE_SEARCH_API_KEY in the environment.",
+		description: "Web search fallback for non-Codex models using the Brave Search API. Requires BRAVE_SEARCH_API_KEY.",
 		promptSnippet: "Search the web using Brave Search API",
 		promptGuidelines: [
-			"Use brave_search when the user asks for current web information, documentation, facts, or search results.",
+			"On non-Codex models, use brave_search as a fallback when Codex web search is unavailable.",
 			"Use brave_search results as citations: include source URLs when answering from web search results.",
 		],
 		parameters: BraveSearchParams,
 
-		async execute(_toolCallId, params, signal) {
+		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+			if (isCodexModel(ctx)) throw new Error("Use web_run (tools.web__run in Code/Notebook) on Codex models.");
 			const apiKey = process.env.BRAVE_SEARCH_API_KEY;
 			if (!apiKey) {
 				throw new Error("Missing BRAVE_SEARCH_API_KEY environment variable.");
@@ -166,5 +167,24 @@ export default function (pi: ExtensionAPI) {
 				},
 			};
 		},
-	});
+	}, { isActive: (ctx) => ctx?.model !== undefined && !isCodexModel(ctx) });
+
+	// The broker gates nested calls; ordinary Pi also needs its active tool list
+	// updated. Let conversion project the nested tool instead of exposing it twice.
+	let removedForCodex = false;
+	function sync(_event: unknown, ctx: ExtensionContext) {
+		const active = pi.getActiveTools();
+		if (isCodexModel(ctx)) {
+			if (active.includes("brave_search")) {
+				removedForCodex = true;
+				pi.setActiveTools(active.filter((name) => name !== "brave_search"));
+			}
+		} else if (ctx.model && removedForCodex && !active.includes("exec")) {
+			removedForCodex = false;
+			pi.setActiveTools([...new Set([...active, "brave_search"])]);
+		}
+	}
+	pi.on("session_start", sync);
+	pi.on("model_select", sync);
+	pi.on("before_agent_start", sync);
 }

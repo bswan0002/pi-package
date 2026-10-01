@@ -4,7 +4,7 @@ import test from "node:test";
 const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
 const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { fsCache: false });
-const { parseUsageSnapshot, formatUsageSnapshot } = await jiti.import("../extensions/better-openai/src/usage.ts");
+const { parseUsageSnapshot, formatUsageSnapshot, formatUsageResets } = await jiti.import("../extensions/better-openai/src/usage.ts");
 
 test("usage windows follow their actual durations, regardless of slot order", () => {
   const weekly = { used_percent: 16, limit_window_seconds: 604800, reset_after_seconds: 335711 };
@@ -21,6 +21,15 @@ test("usage windows follow their actual durations, regardless of slot order", ()
   assert.equal(format(parse({ primary_window: { used_percent: 1, limit_window_seconds: 5400 } })), "1h30m: 99%");
   assert.equal(format(parse(null)), "Usage unavailable");
   assert.equal(formatUsageSnapshot(parse({ primary_window: weekly }), { showResetTimes: false }), "7d: 84%");
+});
+
+test("conversion's inline reset metadata retains durations without repeating percentages", () => {
+  const snapshot = parseUsageSnapshot({ rate_limit: {
+    primary_window: { used_percent: 20, limit_window_seconds: 18000, reset_after_seconds: 3600 },
+    secondary_window: { used_percent: 16, limit_window_seconds: 604800, reset_after_seconds: 151200 },
+  } }, "gpt-6-luna");
+  assert.equal(formatUsageResets(snapshot), "5h ↺ 1h0m | 7d ↺ 1d18h");
+  assert.equal(formatUsageResets(parseUsageSnapshot({ rate_limit: { primary_window: { used_percent: 2 } } }, "gpt-6-luna")), undefined);
 });
 
 

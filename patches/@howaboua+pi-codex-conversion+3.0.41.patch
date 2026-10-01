@@ -174,3 +174,30 @@ index 6ff2d7e..9c153e2 100644
          contextManagement: plan.contextManagementMode,
          compaction: plan.nativeCompaction,
          usageStatus: state.usageStatus,
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
+@@ -179,6 +179,23 @@
+         getArgumentCompletions: (prefix) => CODEX_COMMAND_COMPLETIONS.filter((item) => item.startsWith(prefix.trim().toLowerCase())).map((value) => ({ label: value, value })),
+         handler: async (args, ctx) => {
+             const arg = args.trim().toLowerCase();
++            // pi-package's /fast uses conversion's normal persistence and lifecycle.
++            if (arg === "fast") {
++                const override = process.env.PI_CODEX_FAST?.trim().toLowerCase();
++                if (["1", "0", "true", "false"].includes(override ?? "")) {
++                    ctx.ui.notify("Fast mode is pinned by PI_CODEX_FAST; unset it and restart to use /fast.", "warning");
++                    return;
++                }
++                const trusted = ctx.isProjectTrusted();
++                const scope = hasFolderCodexConversionConfig(ctx.cwd, trusted) ? "folder" : "global";
++                const config = scope === "folder"
++                    ? readLayeredCodexConversionConfig({ cwd: ctx.cwd, projectTrusted: true })
++                    : readCodexConversionConfig();
++                const next = { ...config, openai: { ...config.openai, fast: !config.openai.fast } };
++                if (saveAndApply(ctx, scope, next))
++                    ctx.ui.notify(`Fast mode ${next.openai.fast ? "on" : "off"}${ctx.isIdle() ? "." : " (pending idle)."}`, "info");
++                return;
++            }
+             if (arg === "usage analyse") {
+                 await startUsageAnalysis(pi, ctx);
+                 return;

@@ -7,8 +7,10 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 ### Extensions
 
 - [`ask-user-question`](./extensions/ask-user-question) — adds an `ask_user_question` tool for structured TUI clarifying questions. Based on [juicesharp/rpiv-ask-user-question](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question).
-- [`better-openai`](./extensions/better-openai) — adds OpenAI fast mode, Codex usage status, and OpenAI image generation. Ported from [mattleong/pi-better-openai](https://github.com/mattleong/pi-better-openai), with footer integration adapted for this package.
-- [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY`.
+- [`better-openai`](./extensions/better-openai) — adds standalone OpenAI fast mode and Codex usage/reset countdowns. Ported from [mattleong/pi-better-openai](https://github.com/mattleong/pi-better-openai), with footer integration adapted for this package.
+- [`brave-search`](./extensions/brave-search) — Brave API search fallback for non-Codex models. Requires `BRAVE_SEARCH_API_KEY`.
+- [`codex-web-run`](./extensions/codex-web-run) — bundles `@howaboua/pi-codex-web-run` for hosted web search and page navigation.
+- [`codex-imagegen`](./extensions/codex-imagegen) — bundles `@howaboua/pi-codex-imagegen` for hosted image generation/editing.
 - [`diff`](./extensions/diff) — Shiki-highlighted Pi `write`/`edit` diffs and conversion `apply_patch` display entries, including Code/Notebook calls. Based on [buddingnewinsights/pi-diff](https://github.com/buddingnewinsights/pi-diff).
 - [`post-edit`](./extensions/post-edit) — runs project-configured commands after agent edits when `.pi/post-edit.json` exists.
 - [`screenshot-picker`](./extensions/screenshot-picker) — stages screenshots for the next prompt. Use `/ss` or `Ctrl+Shift+S`; clear with `/ss-clear`. Based on [Graffioh/pi-screenshots-picker](https://github.com/Graffioh/pi-screenshots-picker).
@@ -25,15 +27,16 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 
 ## Codex conversion compatibility
 
-This package loads its pinned `@howaboua/pi-codex-conversion` dependency through `extensions/codex-conversion`. **Remove the separately installed conversion package from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. The global copy in an already-running Pi process is not changed by `npm ci` here.
+This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, and `@howaboua/pi-codex-imagegen` dependencies through local extension loaders. **Remove separately installed copies of all three from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
 `npm ci` applies the tracked patch in `patches/` via `patch-package`. Install scripts must be enabled. Patch failures fail installation rather than silently dropping the integration. See [patch maintenance](./patches/README.md).
 
 - When conversion is loaded, it owns the Codex provider and connection lifecycle, regardless of extension load order. Without it, Better OpenAI installs its standalone transport at session startup.
-- On conversion-owned routes, `/fast` opens `/codex openai` rather than maintaining a second fast-mode setting. Use conversion's `PI_CODEX_FAST` override for startup configuration; this package's `--fast` remains standalone-only. Other supported routes retain the standalone toggle.
+- `/fast` toggles conversion's own fast setting on conversion-owned routes, without opening settings or maintaining a second preference. The patch routes this through conversion's save/apply lifecycle: trusted folder scope is preserved and busy runs apply when idle. A valid `PI_CODEX_FAST` environment override pins the setting; unset it and restart to use the toggle. This package's `--fast` remains standalone-only. Other supported routes retain the standalone toggle.
 - Conversion's resolved fast state appears beside the model in our custom footer, not in the conversion status row. Conversion still controls the setting and request service tier.
-- The style footer hides our quota row only while a nonempty `codex-adapter` status is displayed, restoring it when that status disappears.
-- `ask_user_question`, `brave_search`, and `openai_image` are available inside Code/Notebook as well as ordinary Pi. Questions remain blocking interactions.
+- The style footer adds Better OpenAI's reset countdowns directly beside conversion's quotas (e.g. `weekly: 32% left · 1d18h ↺`). Hiding conversion's status restores the full usage/countdown row.
+- Hosted `web_run` and `imagegen` tools compose as `tools.web__run` and `tools.image_gen__imagegen` inside Code/Notebook. `ask_user_question` remains blocking. `brave_search` is offered only on non-Codex models, including in Code/Notebook; renamed Codex transports also use hosted search.
+- The old `openai_image` tool, `/openai-image` command, and Better OpenAI `image` settings are removed. Existing `image` config sections are ignored; use the bundled companion's imagegen tool instead. Images save beneath the workspace in `.pi/openai-codex-images`.
 - Post-edit observes direct and nested patch results, including partial failures, alongside Pi `edit`/`write` results and the existing Git-status fallback.
 - Conversion owns execution and its tool renderers. Our diff extension subscribes to its display broker: completed patches appear at turn end, with file snapshots captured inside conversion's existing mutation queues. New/deleted files and multiple nested edits retain their actual before/after contents, even after session reload. Renames appear as deletion/addition of the respective paths. Partial failures retain conversion's recovery instructions alongside observed changes.
 - Collapsed patch entries show small per-file previews; expand tools to see more (up to 150 diff rows per file). Wide terminals use split view; narrow ones use unified/wrapped rows. Snapshot reads are bounded to 80 KB per file and 1 MB per side per call; binary/unreadable/oversized files show an omission notice. Unsupported patch forms and old entries without snapshots retain a clearly labeled submitted-patch fallback.
@@ -59,6 +62,10 @@ pi -e ~/Dev/pi-package
 After updating this checkout, run `npm ci` again and restart pi. Extensions load
 dependencies from this directory; stale dependencies can drop tool definitions
 even when the globally installed pi is up to date.
+
+The bundled hosted tools require Node.js 22.19 or newer and Codex authentication
+(`/login openai-codex`). They can also use Codex credentials while chatting with
+another provider; Brave is the non-Codex fallback when hosted search is unavailable.
 
 ## Shared config
 

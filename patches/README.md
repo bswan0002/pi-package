@@ -5,7 +5,7 @@ The patch targets the shipped **dist JavaScript and declarations** of conversion
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
-Two display-only changes:
+Display integration and a fast-mode toggle:
 
 - Capture bounded before/after file snapshots inside the existing patch mutation
   queue, including failed executions, and carry them through the display broker.
@@ -17,6 +17,10 @@ Two display-only changes:
   synchronization and omit the duplicate fast label from conversion's status.
   The bundled loader bridges this event into the custom footer's existing state
   store. Settings, environment overrides and request service tier stay upstream.
+- Add an internal `/codex fast` command used by `/fast`. It toggles conversion's
+  persisted `openai.fast` preference through the existing save/apply path, retaining
+  trusted folder scope, idle deferral, transport resets, and footer synchronization.
+  A valid `PI_CODEX_FAST` override blocks the toggle with an explicit warning.
 
 `npm ci` runs `patch-package --error-on-fail`. To regenerate after editing the
 installed dependency, normally run:
@@ -39,5 +43,5 @@ For visual verification, remove the separate conversion installation from Pi's
 enabled configuration, restart Pi with this package, and ask for edits to the
 untracked `diff-preview-demo.ts` using Structured and Code/Notebook modes. Check
 token colors on added/removed lines, expansion, resizing, and the model-adjacent
-fast label while toggling `/codex openai`. Automated ANSI assertions do not
+fast label while toggling `/fast` and `/codex openai`. Automated ANSI assertions do not
 replace this terminal check. Keep the disposable demo out of commits.
