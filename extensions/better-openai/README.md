@@ -13,6 +13,16 @@ Ported from and attributed to [mattleong/pi-better-openai](https://github.com/ma
 - Usage is exposed as an extension status row below the custom footer. Labels follow each API window’s `limit_window_seconds`, not its primary/secondary position; absent windows are omitted, and missing durations get neutral labels. For example, `5h: 100% ↺ 4h24m | 7d: 97% ↺ 2d6h`.
 - Fast mode is surfaced in the custom prompt box model metadata instead of taking over the footer.
 
+## Alongside Codex conversion
+
+The full conversion extension owns the Codex provider whenever loaded, including its transport configuration, catalog, cache warming, and connection cleanup. Better OpenAI waits until session startup before installing a standalone transport, so either extension load order works. Merely having conversion installed as a dependency does not enable its extension.
+
+For Codex routes (including renamed providers), and OpenAI Responses routes currently using the full adapter toolset, `/fast` opens conversion's `/codex openai` settings. Conversion 3.0.41 has no public fast-toggle API; we do not write its config behind its back or claim to have toggled it. Its statusline owns the fast indicator. Use `PI_CODEX_FAST=1` or `0` to override its setting at startup. Our `--fast`, persisted preference, and settings toggle apply only to standalone routes.
+
+Other supported routes keep the ordinary toggle. Model changes and adapter scope changes are checked before requests. The style footer suppresses our quota row only while conversion's `codex-adapter` status is actually present; turning that status off restores our display.
+
+`openai_image` is also registered with conversion's public Code/Notebook tool API.
+
 ## Auth
 
 Uses OpenAI Codex OAuth credentials from pi/model registry or `~/.pi/agent/auth.json`. If missing, run:

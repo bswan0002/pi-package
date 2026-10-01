@@ -42,7 +42,6 @@
     "@shikijs/cli": "^4.0.2",
     "diff": "^9.0.0",
     "glob": "^13.0.6",
-    "shiki": "^4.0.2",
-    "web-tree-sitter": "0.27.0"
+    "shiki": "^4.0.2"
   }
 }

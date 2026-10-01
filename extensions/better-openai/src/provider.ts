@@ -1,3 +1,4 @@
+import { hasCodexConversion } from "../../shared/codex-conversion";
 import type { ExtensionAPI, ProviderConfig } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_CODEX_CONVERSION_CONFIG } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config.js";
 import {
@@ -40,19 +41,26 @@ export function registerFastCodexProvider(
       }
     },
   };
-  registerOpenAICodexCustomProvider(providerAPI, {
-    getConfig: () => ({
-      executionMode: "normal",
-      // Priority is injected by index.ts's before_provider_request handler.
-      // The transport no longer uses openai.fast to change routing identity.
-      openai: DEFAULT_CODEX_CONVERSION_CONFIG.openai,
-      compaction: DEFAULT_CODEX_CONVERSION_CONFIG.compaction,
-    }),
-    useResponsesLite: () => false,
+  // All extension commands/providers exist by session_start, regardless of factory load order.
+  // Conversion owns its transport even in voice-only mode or while using a different model.
+  let ownsTransport = false;
+  pi.on("session_start", () => {
+    if (hasCodexConversion(pi) || ownsTransport) return;
+    registerOpenAICodexCustomProvider(providerAPI, {
+      getConfig: () => ({
+        executionMode: "normal",
+        // Priority is injected by index.ts's before_provider_request handler.
+        // The transport no longer uses openai.fast to change routing identity.
+        openai: DEFAULT_CODEX_CONVERSION_CONFIG.openai,
+        compaction: DEFAULT_CODEX_CONVERSION_CONFIG.compaction,
+      }),
+      useResponsesLite: () => false,
+    });
+    ownsTransport = true;
   });
 
   pi.on("model_select", (event, ctx) => {
-    if (event.previousModel?.provider === "openai-codex") {
+    if (ownsTransport && event.previousModel?.provider === "openai-codex") {
       closeOpenAICodexWebSocketSessions(ctx.sessionManager.getSessionId());
     }
   });
@@ -60,14 +68,14 @@ export function registerFastCodexProvider(
   // Codex cannot honor Pi's one-token cache-warming cap. An idle generation
   // would spend quota and could disturb the live WebSocket continuation.
   pi.on("cache_warming_decision", (_event, ctx) => {
-    if (ctx.model?.provider === "openai-codex") return { action: "stop" };
+    if (ownsTransport && ctx.model?.provider === "openai-codex") return { action: "stop" };
   });
 
   pi.on("session_shutdown", () => {
-    closeOpenAICodexWebSocketSessions();
+    if (ownsTransport) closeOpenAICodexWebSocketSessions();
   });
 
   return {
-    reset: closeOpenAICodexWebSocketSessions,
+    reset: (sessionId) => { if (ownsTransport) closeOpenAICodexWebSocketSessions(sessionId); },
   };
 }

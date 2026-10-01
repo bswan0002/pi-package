@@ -1,3 +1,4 @@
+import { visibleExtensionStatuses } from "../shared/codex-conversion";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type {
 	ExtensionAPI,
@@ -306,7 +307,7 @@ export default function (pi: ExtensionAPI) {
 					const statusRows = () => {
 						const extensionStatuses = footerData.getExtensionStatuses?.();
 						if (!extensionStatuses?.size) return [] as string[];
-						const text = Array.from(extensionStatuses.entries())
+						const text = visibleExtensionStatuses(extensionStatuses)
 							.sort(([a], [b]) => String(a).localeCompare(String(b)))
 							.map(([, value]) => sanitizeStatusText(String(value)))
 							.filter(Boolean)

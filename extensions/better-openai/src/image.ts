@@ -1,3 +1,4 @@
+import { registerCompatibleTool } from "../../shared/codex-conversion";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -632,7 +633,7 @@ export function registerOpenAIImage(
     },
   });
 
-  pi.registerTool({
+  registerCompatibleTool(pi, {
     name: OPENAI_IMAGE_TOOL,
     label: "OpenAI image",
     description:

@@ -11,7 +11,6 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 - [`brave-search`](./extensions/brave-search) — adds a `brave_search` tool backed by the Brave Search API. Requires `BRAVE_SEARCH_API_KEY`.
 - [`diff`](./extensions/diff) — replaces pi's `write` and `edit` rendering with Shiki-highlighted diffs. Based on [buddingnewinsights/pi-diff](https://github.com/buddingnewinsights/pi-diff).
 - [`post-edit`](./extensions/post-edit) — runs project-configured commands after agent edits when `.pi/post-edit.json` exists.
-- [`readonly-git-permissions`](./extensions/readonly-git-permissions) — blocks non-readonly git operations unless confirmed.
 - [`screenshot-picker`](./extensions/screenshot-picker) — stages screenshots for the next prompt. Use `/ss` or `Ctrl+Shift+S`; clear with `/ss-clear`. Based on [Graffioh/pi-screenshots-picker](https://github.com/Graffioh/pi-screenshots-picker).
 - [`sounds`](./extensions/sounds) — plays configurable macOS sounds on pi and extension events.
 - [`style`](./extensions/style) — installs the custom editor/statusline UI. Use `/pr-refresh` to refresh PR/git footer state. Based on [lmilojevicc/pi-zentui](https://github.com/lmilojevicc/pi-zentui).
@@ -23,6 +22,19 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 - [`pr-review`](./skills/pr-review) — performs a PR-style review of the current branch.
 - [`qq`](./skills/qq) — answers questions using only readonly project inspection.
 - [`writing-for-agents`](./skills/writing-for-agents) — guides writing skills, `AGENTS.md` / `CLAUDE.md`, and other agent-facing documents. From [Matt Pocock’s skills](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents); replaces `write-a-skill`.
+
+## Codex conversion compatibility
+
+The full `@howaboua/pi-codex-conversion` extension is optional. Its library is bundled for transport and integration APIs; installing this package does not enable the full adapter.
+
+- When conversion is loaded, it owns the Codex provider and connection lifecycle, regardless of extension load order. Without it, Better OpenAI installs its standalone transport at session startup.
+- On conversion-owned routes, `/fast` opens `/codex openai` rather than maintaining a second fast-mode setting. Use conversion's `PI_CODEX_FAST` override for startup configuration; this package's `--fast` remains standalone-only. Other supported routes retain the standalone toggle.
+- The style footer hides our quota row only while a nonempty `codex-adapter` status is displayed, restoring it when that status disappears.
+- `ask_user_question`, `brave_search`, and `openai_image` are available inside Code/Notebook as well as ordinary Pi. Questions remain blocking interactions.
+- Post-edit observes direct and nested patch results, including partial failures, alongside Pi `edit`/`write` results and the existing Git-status fallback.
+- Conversion owns rendering for its replacement tools, including `apply_patch`; our diff renderer continues to serve Pi's `edit`/`write` tools. Screenshot staging, sounds, and the custom editor/footer remain independent.
+
+The old Git permission guard has been removed. There is no replacement approval gate in this package; stale `piPackage.readonlyGitPermissions` settings and its sound-event entries can be deleted.
 
 ## Install locally
 
@@ -56,20 +68,12 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
         "~/screenshots"
       ]
     },
-    "readonlyGitPermissions": {
-      "explainer": {
-        "enabled": true,
-        "provider": "openai-codex",
-        "model": "gpt-6-luna",
-        "autoAllowReadOnly": false
-      }
-    },
     "sounds": {
       "piEvents": {
         "agent_end": "/System/Library/Sounds/Glass.aiff"
       },
       "extensionEvents": {
-        "readonly-git-permissions:confirm-needed": "/System/Library/Sounds/Ping.aiff"
+        "post-edit:failed": "/System/Library/Sounds/Ping.aiff"
       }
     }
   }
@@ -83,7 +87,7 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 | Package target                                             | primary | may work       | Personal workflow targets macOS.                                         |
 | screenshot-picker                                          | yes     | partial/yes    | Linux paths and `xdg-open` exist; thumbnails depend on terminal support. |
 | sounds                                                     | yes     | no/unsupported | Uses `afplay`.                                                           |
-| style/diff/post-edit/readonly-git-permissions/brave-search | yes     | likely         | Mostly Node/pi behavior; external tools may vary.                        |
+| style/diff/post-edit/brave-search | yes     | likely         | Mostly Node/pi behavior; external tools may vary.                        |
 
 ## External dependencies
 
@@ -96,7 +100,6 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 | confluence-export        | `ATLASSIAN_EMAIL`, `ATLASSIAN_API_KEY`, `curl`, `python3`, `pandoc`               | Environment variables required.                         |
 | diff                     | Shiki npm dependencies                                                            | No major system tool expected.                           |
 | post-edit                | project-configured commands                                                       | Runs whatever `.pi/post-edit.json` asks for.             |
-| readonly-git-permissions | `git`                                                                             | Intercepts `bash` git invocations.                       |
 | screenshot-picker        | macOS `defaults`, macOS `open`, Linux `xdg-open`, terminal image protocol support | Image previews need capable terminals.                   |
 | sounds                   | macOS `afplay`                                                                    | Configurable sounds are macOS-targeted.                  |
 | style                    | `git`, optional `gh`                                                              | GitHub PR footer segment uses GitHub CLI when available. |

@@ -13,7 +13,7 @@ Config lives under `piPackage.sounds` in global `~/.pi/agent/settings.json`, wit
       },
       "extensionEvents": {
         "ask-user-question:started": "/System/Library/Sounds/Hero.aiff",
-        "readonly-git-permissions:confirm-needed": "/System/Library/Sounds/Ping.aiff"
+        "post-edit:failed": "/System/Library/Sounds/Ping.aiff"
       }
     }
   }

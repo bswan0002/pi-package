@@ -1,3 +1,4 @@
+import { registerCompatibleTool } from "../shared/codex-conversion";
 import { StringEnum, Type } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
@@ -102,7 +103,7 @@ function resultToText(result: BraveWebResult, index: number) {
 }
 
 export default function (pi: ExtensionAPI) {
-	pi.registerTool({
+	registerCompatibleTool(pi, {
 		name: "brave_search",
 		label: "Brave Search",
 		description: "Search the web using the Brave Search API. Requires BRAVE_SEARCH_API_KEY in the environment.",

@@ -37,6 +37,7 @@ import {
 } from "./src/usage";
 import { registerOpenAIImage, _imageTest } from "./src/image";
 import { registerFastCodexProvider } from "./src/provider";
+import { conversionOwnsFast } from "../shared/codex-conversion";
 import { setBetterOpenAIState } from "../shared/better-openai-state";
 
 const COMMAND = "fast";
@@ -137,10 +138,14 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
   }
 
   function applyDesiredFastState(ctx: ExtensionContext, cfg = config(ctx)): void {
-    active = desiredActive && supportsFast(ctx, cfg.supportedModels);
+    active = !conversionOwnsFast(pi, ctx) && desiredActive && supportsFast(ctx, cfg.supportedModels);
   }
 
   function setActive(ctx: ExtensionContext, next: boolean): void {
+    if (conversionOwnsFast(pi, ctx)) {
+      pi.sendUserMessage("/codex openai", { expandPromptTemplates: true });
+      return;
+    }
     const nextConfig = refresh(ctx);
     const wasActive = active;
     desiredActive = next;
@@ -271,7 +276,8 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
   function formatDebugStatus(ctx: ExtensionContext): string {
     const cfg = config(ctx);
     return [
-      `Fast desired: ${desiredActive}`,
+      `Fast owner: ${conversionOwnsFast(pi, ctx) ? "Codex conversion (/codex openai)" : "Better OpenAI"}`,
+      `Standalone fast desired: ${desiredActive}`,
       `Fast active: ${active}`,
       `Current model: ${currentModelKey(ctx)}`,
       `Supported model: ${supportsFast(ctx, cfg.supportedModels)}`,
@@ -293,7 +299,7 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
   }
 
   pi.registerCommand(COMMAND, {
-    description: "Toggle OpenAI fast mode",
+    description: "Toggle standalone fast mode, or open conversion OpenAI settings",
     handler: async (args, ctx) => {
       const arg = args.trim().toLowerCase();
       if (!arg) return setActive(ctx, !desiredActive);
@@ -326,8 +332,8 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
       {
         id: "fast.enabled",
         label: "Fast mode",
-        currentValue: String(desiredActive),
-        values: ["true", "false"],
+        currentValue: conversionOwnsFast(pi, ctx) ? "Managed by /codex openai" : String(desiredActive),
+        values: conversionOwnsFast(pi, ctx) ? undefined : ["true", "false"],
         description: `Request OpenAI fast mode. Activates for supported models: ${modelList(cfg.supportedModels)}.`,
       },
       {
@@ -444,6 +450,10 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
     const bool = rawValue === "true";
     const num = Number(rawValue);
     if (id === "fast.enabled") {
+      if (conversionOwnsFast(pi, ctx)) {
+        ctx.ui.notify("Fast mode is managed by /codex openai.", "info");
+        return;
+      }
       const wasActive = active;
       desiredActive = bool;
       applyDesiredFastState(ctx, cfg);
@@ -569,6 +579,7 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
 
   function updateFooter(ctx: ExtensionContext): void {
     const cfg = config(ctx);
+    applyDesiredFastState(ctx, cfg);
 
     // Never install a replacement footer from this extension. The pi-package style
     // extension owns the footer and renders extension statuses on an extra row, so
@@ -583,7 +594,7 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
     }
 
     const fast =
-      active && supportsFast(ctx, cfg.supportedModels)
+      !conversionOwnsFast(pi, ctx) && active && supportsFast(ctx, cfg.supportedModels)
         ? `${ctx.model?.id ?? "model"} fast`
         : undefined;
     setBetterOpenAIState({ fastLabel: fast ? "fast" : undefined });
@@ -598,11 +609,16 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     const nextConfig = refresh(ctx);
     desiredActive = nextConfig.persistState ? nextConfig.desiredActive : false;
-    if (pi.getFlag(FLAG) === true) desiredActive = true;
+    if (pi.getFlag(FLAG) === true) {
+      desiredActive = true;
+      if (conversionOwnsFast(pi, ctx)) {
+        ctx.ui.notify("--fast applies to standalone routes. Configure conversion fast mode with /codex openai or PI_CODEX_FAST.", "info");
+      }
+    }
     applyDesiredFastState(ctx, nextConfig);
     if (desiredActive !== nextConfig.desiredActive || active !== nextConfig.active)
       persist(nextConfig);
-    if (desiredActive && !active) {
+    if (desiredActive && !active && !conversionOwnsFast(pi, ctx)) {
       ctx.ui.notify(
         `Fast mode requested, but ${currentModelKey(ctx)} is unsupported. It will activate automatically when you switch to a supported model: ${modelList(nextConfig.supportedModels)}.`,
         "warning",
@@ -639,9 +655,11 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
       fastCodexProvider.reset(ctx.sessionManager.getSessionId());
       persist(cfg);
       ctx.ui.notify(
-        active
-          ? stateText(ctx, desiredActive, active, cfg.supportedModels)
-          : `Fast mode inactive for unsupported model ${currentModelKey(ctx)}.`,
+        conversionOwnsFast(pi, ctx)
+          ? "Fast mode is managed by Codex conversion (/codex openai)."
+          : active
+            ? stateText(ctx, desiredActive, active, cfg.supportedModels)
+            : `Fast mode inactive for unsupported model ${currentModelKey(ctx)}.`,
         active ? "info" : "warning",
       );
     }
@@ -660,7 +678,9 @@ export default function betterOpenAI(pi: ExtensionAPI): void {
 
   pi.on("before_provider_request", (event, ctx) => {
     const nextConfig = config(ctx);
-    if (!active || !supportsFast(ctx, nextConfig.supportedModels) || !isRecord(event.payload))
+    // Adapter scope can change through /codex without a model_select event.
+    applyDesiredFastState(ctx, nextConfig);
+    if (conversionOwnsFast(pi, ctx) || !active || !supportsFast(ctx, nextConfig.supportedModels) || !isRecord(event.payload))
       return;
     lastInjectedAt = Date.now();
     lastInjectedModel = currentModelKey(ctx);
