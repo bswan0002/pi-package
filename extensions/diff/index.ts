@@ -27,9 +27,9 @@ import { extname, relative } from "node:path";
 import { loadPiPackageConfig } from "../shared/config";
 
 import { createHighlighter, type Highlighter } from "shiki";
-import { registerApplyPatchDisplay, type ApplyPatchDisplayData } from "@howaboua/pi-codex-conversion/apply-patch-display";
-import { Text, truncateToWidth } from "@earendil-works/pi-tui";
-import { createWriteTool, createEditTool } from "@earendil-works/pi-coding-agent";
+import { registerApplyPatchDisplay, type ApplyPatchDisplayData, type ApplyPatchDisplayOptions } from "@howaboua/pi-codex-conversion/apply-patch-display";
+import { MouseRegion, Text, truncateToWidth } from "@earendil-works/pi-tui";
+import { createWriteTool, createEditTool, keyText } from "@earendil-works/pi-coding-agent";
 import * as Diff from "diff";
 import type { BundledLanguage, BundledTheme } from "shiki";
 
@@ -1504,18 +1504,23 @@ function patchDisplayComponent(data: ApplyPatchDisplayData, expanded: boolean, t
 		render(width: number): string[] {
 			if (width === cachedWidth) return cached;
 			if (width < 1) return [];
-			const lines: string[] = [];
-			const text = (value: string) => lines.push(...new Text(value, 0, 0).render(width));
+			const dc = resolveDiffColors(theme);
+			const lines: string[] = [""];
+			// Inset prose like Pi's tool blocks, without shrinking the diff columns.
+			const inset = width >= 3 ? 1 : 0;
+			const text = (value: string) => lines.push(...new Text(value, 0, 0)
+				.render(width - inset * 2).map((line) => " ".repeat(inset) + line));
 			const partial = data.details?.status === "partial_failure";
 			const failed = data.isError || partial;
-			text(theme.fg(failed ? "error" : "toolTitle", theme.bold(
+			text(theme.fg("dim", "• ") + theme.fg(failed ? "error" : "toolTitle", theme.bold(
 				`apply_patch · ${partial ? "partially failed" : failed ? "failed" : "applied"}`,
 			)));
+			text(theme.fg("muted", `  click to ${expanded ? "collapse" : "expand"} · ${keyText("app.tools.expand")} toggle all`));
 			// Never hide recovery instructions or claim attempted edits were applied.
-			if (data.error || data.content) text(theme.fg(failed ? "error" : "muted", safe(data.error || data.content || "")));
+			if ((failed || expanded) && (data.error || data.content)) text(theme.fg(failed ? "error" : "muted", safe(data.error || data.content || "")));
 			if (data.error && data.content && data.error !== data.content) text(safe(data.content));
 			if (data.details?.status === "partial_failure" && data.details.failedTargets?.length) text(theme.fg("error", `Failed: ${safe(data.details.failedTargets.join(", "))}`));
-			const dc = resolveDiffColors(theme);
+			lines.push("");
 			let budget = expanded ? Number.POSITIVE_INFINITY : MAX_PREVIEW_LINES;
 			for (const file of files ?? []) {
 				const state = file.before === undefined || file.after === undefined ? "snapshot unavailable"
@@ -1544,8 +1549,31 @@ function patchDisplayComponent(data: ApplyPatchDisplayData, expanded: boolean, t
 			cachedWidth = width;
 			// Core diff gutters can exceed extremely narrow widths. Always honor Pi's
 			// component contract, including wide Unicode and wrapped continuations.
-			return cached = lines.map((line) => truncateToWidth(line, width, ""));
+			return cached = lines.map((line) => bgLine(truncateToWidth(line, width, ""), width));
 		},
+	};
+}
+
+function createPatchEntryRenderer(): ApplyPatchDisplayOptions["render"] {
+	// Pi rebuilds entry components on invalidation. Preserve local clicks until
+	// the global expansion option changes, then let that option take precedence.
+	const expansion = new WeakMap<object, { globalExpanded: boolean; expanded: boolean }>();
+	return (entry, options, theme) => {
+		if (!entry.data) return undefined;
+		const previous = expansion.get(entry);
+		const state = previous?.globalExpanded === options.expanded
+			? previous : { globalExpanded: options.expanded, expanded: options.expanded };
+		expansion.set(entry, state);
+		let child = patchDisplayComponent(entry.data, state.expanded, theme);
+		return new MouseRegion({
+			render: (width) => child.render(width),
+			invalidate: () => child.invalidate(),
+		}, (event) => {
+			if (event.type !== "click" || event.button !== "left" || event.shift || event.alt || event.ctrl) return undefined;
+			state.expanded = !state.expanded;
+			child = patchDisplayComponent(entry.data!, state.expanded, theme);
+			return { handled: true, render: true };
+		});
 	};
 }
 
@@ -1557,6 +1585,7 @@ export const __testing = {
 	renderUnified,
 	prepareHighlighting,
 	patchDisplayComponent,
+	createPatchEntryRenderer,
 };
 
 export default async function diffRendererExtension(pi: any): Promise<void> {
@@ -1564,8 +1593,7 @@ export default async function diffRendererExtension(pi: any): Promise<void> {
 	applyDiffPalette();
 	registerApplyPatchDisplay(pi, {
 		customType: "pi-package:apply-patch-diff",
-		render: (entry, options, theme) => entry.data
-			? patchDisplayComponent(entry.data, options.expanded, theme) : undefined,
+		render: createPatchEntryRenderer(),
 	});
 	await prepareHighlighting();
 

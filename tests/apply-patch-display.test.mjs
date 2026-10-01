@@ -227,3 +227,62 @@ test("snapshot limits and failed native calls never alter execution errors", asy
   assert.equal(h.entries[1].data.files[0].before, null);
   assert.equal(h.entries[1].data.files[0].after, null);
 });
+
+test("patch entries click-toggle, survive host rebuilds, and respect the global expansion toggle", async () => {
+  await renderer.prepareHighlighting();
+  const renderEntry = renderer.createPatchEntryRenderer();
+  const entry = { data: { input: "", isError: false, source: "nested", toolCallId: "click",
+    content: "Applied patch successfully\nChanged files: 1",
+    files: [{ path: "demo.ts", before: null, after: Array.from({ length: 30 }, (_, i) => `const n${i} = ${i};`).join("\n") }],
+  } };
+  const click = { type: "click", button: "left", x: 1, y: 0, screenX: 1, screenY: 0,
+    width: 80, height: 40, shift: false, alt: false, ctrl: false };
+  let component = renderEntry(entry, { expanded: false }, theme);
+  const collapsed = component.render(80);
+  assert.match(strip(collapsed.join("\n")), /click to expand/);
+  assert.doesNotMatch(strip(collapsed.join("\n")), /Changed files:/);
+  for (const ignored of [{ button: "right" }, { type: "wheel" }, { type: "drag" }, { shift: true }]) {
+    assert.equal(component.handleMouse({ ...click, ...ignored }), undefined);
+    assert.deepEqual(component.render(80), collapsed);
+  }
+  assert.deepEqual(component.handleMouse(click), { handled: true, render: true });
+  const expanded = component.render(80);
+  assert.ok(expanded.length > collapsed.length);
+  assert.match(strip(expanded.join("\n")), /click to collapse/);
+  assert.match(strip(expanded.join("\n")), /Changed files: 1/);
+  component.invalidate();
+  assert.deepEqual(component.render(80), expanded);
+  component = renderEntry(entry, { expanded: false }, theme);
+  assert.deepEqual(component.render(80), expanded, "host rebuild preserves local expansion");
+  component = renderEntry(entry, { expanded: true }, theme);
+  component.handleMouse(click);
+  assert.deepEqual(component.render(80), collapsed);
+  assert.deepEqual(renderEntry(entry, { expanded: true }, theme).render(80), collapsed);
+  assert.deepEqual(renderEntry(entry, { expanded: false }, theme).render(80), collapsed);
+  assert.deepEqual(renderEntry(entry, { expanded: true }, theme).render(80), expanded);
+  assert.deepEqual(renderEntry({ ...entry }, { expanded: false }, theme).render(80), collapsed, "different entries have independent expansion");
+});
+
+test("header, summary, file labels and diff share a full-width background", async () => {
+  await renderer.prepareHighlighting();
+  const data = { input: "", isError: true, source: "direct", toolCallId: "background",
+    error: "Recovery: read the failed file", files: [{ path: "demo.ts", before: 'const n = "old";\n', after: 'const n = "new";\n' }],
+  };
+  const component = renderer.patchDisplayComponent(data, true, theme);
+  const plain = component.render(80).map(strip);
+  assert.equal(plain[0].trim(), "", "header has top padding");
+  assert.match(plain[1], /^ • apply_patch/);
+  assert.match(plain[2], /^   click to collapse/);
+  const recoveryRow = plain.findIndex((line) => line.includes("Recovery:"));
+  assert.match(plain[recoveryRow], /^ Recovery:/);
+  assert.equal(plain[recoveryRow + 1].trim(), "", "header has bottom padding");
+  assert.match(plain[recoveryRow + 2], /^ demo.ts/);
+  for (const width of [1, 4, 30, 80, 180]) {
+    const lines = component.render(width);
+    const background = lines[0].match(/^\x1b\[48;2;[\d;]+m/)?.[0];
+    assert.ok(background);
+    assert.ok(lines.every((line) => line.startsWith(background)));
+    assert.ok(lines.every((line) => visibleWidth(line) === width), `background fills width ${width}`);
+    assert.ok(new Set(lines.join("\n").match(/\x1b\[48;2;[\d;]+m/g)).size >= 3, "addition/removal tints remain distinct from the shell");
+  }
+});
