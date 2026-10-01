@@ -1,0 +1,176 @@
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
+index 44214d7..eff1286 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
+@@ -5,6 +5,12 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY, buildExtraToolsOnlyStatusText } from ".
+ export function syncAdapter(pi, ctx, state) {
+     state.availableToolNames = pi.getAllTools().map((tool) => tool.name);
+     const plan = resolveCodexRuntimePlanForState(ctx, state);
++    // pi-package's custom model footer owns only the fast indicator.
++    // Publish resolved runtime state (including env/config overrides), not a toggle.
++    pi.events.emit("pi-package:codex-fast-state", {
++        active: isAdapterRuntime(plan) && Boolean(plan.effectiveOpenAICodex),
++        fast: Boolean(state.config.openai.fast),
++    });
+     reconcileExternalToolLoadout(state, pi.getActiveTools());
+     const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
+         ? getCodeModeExtensionToolSnapshot(pi, ctx, true)
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
+index 4c1f5e7..8d3e38c 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
+@@ -1,6 +1,13 @@
+ import type { EntryRenderer, ExtensionAPI } from "@earendil-works/pi-coding-agent";
+ import type { ApplyPatchToolDetails } from "./tools/apply-patch/render-state.js";
++export interface ApplyPatchDisplayFile {
++    path: string;
++    before?: string | null;
++    after?: string | null;
++    unavailable?: string;
++}
+ export interface ApplyPatchDisplayData {
++    files?: ApplyPatchDisplayFile[];
+     toolCallId: string;
+     input: string;
+     details?: ApplyPatchToolDetails | undefined;
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts
+index 4c41c35..c5b5efa 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts
+@@ -1,10 +1,12 @@
+ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
++import type { ApplyPatchDisplayFile } from "../../apply-patch-display.js";
+ import { type ApplyPatchToolDetails } from "./render-state.js";
+ export interface CapturedApplyPatchOutcome {
++    files?: ApplyPatchDisplayFile[];
+     content?: string | undefined;
+     details?: ApplyPatchToolDetails | undefined;
+     error?: string | undefined;
+-    isError: boolean;
++    isError?: boolean;
+ }
+ export declare function shouldCompactApplyPatchDisplay(toolCallId?: string, executionStarted?: boolean): boolean;
+ export declare function recordApplyPatchDisplayInput(toolCallId: string, input: string): void;
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.js
+index ed72cc2..2dd9726 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.js
+@@ -145,6 +145,7 @@ function collectApplyPatchDisplayData(event, captured) {
+             {
+                 toolCallId: event.toolCallId,
+                 input,
++                ...(captured.get(event.toolCallId)?.files ? { files: captured.get(event.toolCallId).files } : {}),
+                 ...(isApplyPatchToolDetails(event.details)
+                     ? { details: event.details }
+                     : {}),
+@@ -183,6 +184,7 @@ function collectApplyPatchDisplayData(event, captured) {
+             {
+                 toolCallId: trace.id,
+                 input,
++                ...(call?.files ? { files: call.files } : {}),
+                 ...(details ? { details } : {}),
+                 ...(content ? { content } : {}),
+                 ...(error ? { error } : {}),
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-snapshots.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-snapshots.js
+new file mode 100644
+index 0000000..9c202a1
+--- /dev/null
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-snapshots.js
+@@ -0,0 +1,49 @@
++import { open } from "node:fs/promises";
++import { constants } from "node:fs";
++
++// Display-only, bounded reads. Never let a preview change execution or failure semantics.
++const MAX_FILE_BYTES = 80_000;
++const MAX_TOTAL_BYTES = 1_000_000;
++export async function captureDisplayFiles(paths) {
++    const files = [];
++    let remaining = MAX_TOTAL_BYTES;
++    for (const path of paths) {
++        let handle;
++        try {
++            handle = await open(path, constants.O_RDONLY | constants.O_NONBLOCK);
++            const stat = await handle.stat();
++            if (!stat.isFile() || stat.size > Math.min(MAX_FILE_BYTES, remaining)) {
++                files.push({ path, unavailable: "Diff omitted: non-regular file or snapshot size limit" });
++                continue;
++            }
++            const buffer = Buffer.alloc(Math.min(MAX_FILE_BYTES, remaining) + 1);
++            let bytesRead = 0;
++            while (bytesRead < buffer.length) {
++                const chunk = await handle.read(buffer, bytesRead, buffer.length - bytesRead, bytesRead);
++                if (!chunk.bytesRead) break;
++                bytesRead += chunk.bytesRead;
++            }
++            remaining -= bytesRead;
++            const content = buffer.subarray(0, bytesRead).toString("utf8");
++            if (bytesRead > MAX_FILE_BYTES || remaining < 0 || content.includes("\0")) {
++                files.push({ path, unavailable: "Diff omitted: binary file or snapshot size limit" });
++            } else {
++                files.push({ path, content });
++            }
++        } catch (error) {
++            files.push(error?.code === "ENOENT" ? { path, content: null } : { path, unavailable: "Diff omitted: snapshot unreadable" });
++        } finally {
++            await handle?.close().catch(() => {});
++        }
++    }
++    return files;
++}
++
++export function pairDisplayFiles(before, after) {
++    return before.map((file, index) => ({
++        path: file.path,
++        ...(file.unavailable || after[index]?.unavailable
++            ? { unavailable: file.unavailable || after[index].unavailable }
++            : { before: file.content, after: after[index].content }),
++    }));
++}
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
+index 2c4edc2..d69fb9a 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
+@@ -1,4 +1,5 @@
+ import { Type } from "typebox";
++import { captureDisplayFiles, pairDisplayFiles } from "./display-snapshots.js";
+ import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
+ import { Container, Text } from "@earendil-works/pi-tui";
+ import { parsePatchActions } from "../../patch/parser.js";
+@@ -150,7 +151,23 @@ export function createApplyPatchTool(options = {}) {
+             setApplyPatchRenderState(toolCallId, typedParams.patchText, ctx.cwd);
+             let result;
+             try {
+-                result = await withTouchedFileMutationQueues(ctx.cwd, typedParams.patchText, () => executePatchWithRust({ cwd: ctx.cwd, patchText: typedParams.patchText, signal, customRustBinariesDir: options.customRustBinariesDir }));
++                result = await withTouchedFileMutationQueues(ctx.cwd, typedParams.patchText, async () => {
++                    // Capture inside the existing mutation queue, before another nested
++                    // patch can overwrite this call's result. Tool results stay unchanged.
++                    const paths = shouldCompactApplyPatchDisplay(toolCallId, true)
++                        ? touchedPatchPaths(ctx.cwd, typedParams.patchText) : [];
++                    let before;
++                    try { before = await captureDisplayFiles(paths); } catch { /* display only */ }
++                    try {
++                        return await executePatchWithRust({ cwd: ctx.cwd, patchText: typedParams.patchText, signal, customRustBinariesDir: options.customRustBinariesDir });
++                    } finally {
++                        try {
++                            if (before?.length) recordApplyPatchDisplayOutcome(toolCallId, {
++                                files: pairDisplayFiles(before, await captureDisplayFiles(paths)),
++                            });
++                        } catch { /* display only: preserve original return value or error */ }
++                    }
++                });
+             }
+             catch (error) {
+                 if (error instanceof ExecutePatchError) {
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
+index 6ff2d7e..9c153e2 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
+@@ -12,7 +12,7 @@ export function renderCodexStatus(ctx, state, plan) {
+         mode: plan.kind,
+         useOnAllModels: config.scope.allProviders === "on",
+         additionalProvider: plan.configuredProvider,
+-        fast: plan.effectiveOpenAICodex && config.openai.fast,
++        fast: false, // displayed by pi-package's custom model footer
+         contextManagement: plan.contextManagementMode,
+         compaction: plan.nativeCompaction,
+         usageStatus: state.usageStatus,

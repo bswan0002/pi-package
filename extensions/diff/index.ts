@@ -15,7 +15,7 @@
  *   • Unified (stacked)    — write tool overwrites
  *
  * Performance:
- *   • Singleton Shiki highlighter (managed by @shikijs/cli)
+ *   • Shared Shiki highlighter, prepared at extension startup
  *   • LRU memo cache per highlighted block
  *   • Large-diff fallback (skip highlighting, still show diff)
  *   • Async rendering with invalidate() for non-blocking preview
@@ -26,7 +26,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { extname, relative } from "node:path";
 import { loadPiPackageConfig } from "../shared/config";
 
-import { codeToANSI } from "@shikijs/cli";
+import { createHighlighter, type Highlighter } from "shiki";
+import { registerApplyPatchDisplay, type ApplyPatchDisplayData } from "@howaboua/pi-codex-conversion/apply-patch-display";
+import { Text, truncateToWidth } from "@earendil-works/pi-tui";
+import { createWriteTool, createEditTool } from "@earendil-works/pi-coding-agent";
 import * as Diff from "diff";
 import type { BundledLanguage, BundledTheme } from "shiki";
 
@@ -842,9 +845,16 @@ function lang(fp: string): BundledLanguage | undefined {
 // Shiki ANSI cache + pre-warm
 // ---------------------------------------------------------------------------
 
-// Pre-warm the Shiki singleton (loads WASM grammars + theme) so the first
-// diff render doesn't pay the ~200-500ms startup cost.
-codeToANSI("", "typescript", THEME).catch(() => {});
+// Entry renderers are synchronous and have no invalidate/requestRender callback.
+// Load grammars once at extension startup, then share synchronous highlighting
+// and layout with the existing asynchronous edit/write renderers.
+let highlighter: Highlighter | undefined;
+let highlightReady: Promise<void> | undefined;
+function prepareHighlighting(): Promise<void> {
+	return highlightReady ??= createHighlighter({
+		themes: [THEME], langs: [...new Set(Object.values(EXT_LANG))],
+	}).then((value) => { highlighter = value; }).catch(() => {});
+}
 
 const _cache = new Map<string, string[]>();
 
@@ -860,6 +870,11 @@ function _touch(k: string, v: string[]): string[] {
 }
 
 async function hlBlock(code: string, language: BundledLanguage | undefined): Promise<string[]> {
+	await prepareHighlighting();
+	return hlBlockSync(code, language);
+}
+
+function hlBlockSync(code: string, language: BundledLanguage | undefined): string[] {
 	if (!code) return [""];
 	if (!language || code.length > MAX_HL_CHARS) return code.split("\n");
 
@@ -868,8 +883,16 @@ async function hlBlock(code: string, language: BundledLanguage | undefined): Pro
 	if (hit) return _touch(k, hit);
 
 	try {
-		const ansi = normalizeShikiContrast(await codeToANSI(code, language, THEME));
-		const out = (ansi.endsWith("\n") ? ansi.slice(0, -1) : ansi).split("\n");
+		if (!highlighter) return code.split("\n");
+		const out = highlighter.codeToTokens(code, { lang: language, theme: THEME }).tokens.map((line) =>
+			normalizeShikiContrast(line.map((token) => {
+				const color = token.color ? hexToFgAnsi(token.color) ?? "" : "";
+				const style = token.fontStyle ?? 0;
+				const open = `${style & 1 ? "\x1b[3m" : ""}${style & 2 ? "\x1b[1m" : ""}${style & 4 ? "\x1b[4m" : ""}`;
+				const close = `${style & 1 ? "\x1b[23m" : ""}${style & 2 ? "\x1b[22m" : ""}${style & 4 ? "\x1b[24m" : ""}`;
+				return `${color}${open}${token.content}${close}\x1b[39m`;
+			}).join("")),
+		);
 		return _touch(k, out);
 	} catch {
 		return code.split("\n");
@@ -1142,13 +1165,21 @@ async function renderUnified(
 	dc: DiffColors = DEFAULT_DIFF_COLORS,
 	width?: number,
 ): Promise<string> {
+	await prepareHighlighting();
+	return renderUnifiedSync(diff, language, max, dc, width);
+}
+
+function renderUnifiedSync(
+	diff: ParsedDiff, language: BundledLanguage | undefined, max = MAX_RENDER_LINES,
+	dc: DiffColors = DEFAULT_DIFF_COLORS, width?: number,
+): string {
 	if (!diff.lines.length) return "";
 
 	const vis = diff.lines.slice(0, max);
 	const tw = width ?? termW();
 	const nw = Math.max(2, String(Math.max(...vis.map((l) => l.oldNum ?? l.newNum ?? 0), 0)).length);
 	const gw = nw + 3; // line number + sign + two-cell padding
-	const cw = Math.max(20, tw - gw);
+	const cw = Math.max(1, tw - gw);
 	const hasFullContent = diff.fullOldContent !== undefined && diff.fullNewContent !== undefined;
 	const hlChars = hasFullContent ? diff.fullOldContent!.length + diff.fullNewContent!.length : diff.chars;
 	const canHL = hlChars <= MAX_HL_CHARS && vis.length <= MAX_RENDER_LINES;
@@ -1162,10 +1193,10 @@ async function renderUnified(
 		if (l.type === "ctx" || l.type === "add") newSrc.push(l.content);
 	}
 	const [oldHL, newHL] = canHL
-		? await Promise.all([
-				hlBlock(hasFullContent ? diff.fullOldContent! : oldSrc.join("\n"), language),
-				hlBlock(hasFullContent ? diff.fullNewContent! : newSrc.join("\n"), language),
-			])
+		? [
+				hlBlockSync(hasFullContent ? diff.fullOldContent! : oldSrc.join("\n"), language),
+				hlBlockSync(hasFullContent ? diff.fullNewContent! : newSrc.join("\n"), language),
+			]
 		: [oldSrc, newSrc];
 	const oldLineHL = (line: DiffLine, fallbackIndex: number) =>
 		canHL && hasFullContent && line.oldNum !== null
@@ -1195,7 +1226,7 @@ async function renderUnified(
 		const padBg = bodyBg || BG_BASE;
 		const gutter = `${gutterBg}${lnum(num, nw, numFg, "")}${signFg}${sign}${RST}${padBg}  ${RST}`;
 		const contGutter = `${gutterBg}${" ".repeat(nw + 1)}${padBg}  ${RST}`;
-		const rows = wrapAnsi(tabs(body), cw, adaptiveWrapRows(), bodyBg);
+		const rows = wrapAnsi(tabs(body), cw, adaptiveWrapRows(tw), bodyBg);
 		out.push(`${gutter}${rows[0]}${RST}`);
 		for (let r = 1; r < rows.length; r++) out.push(`${contGutter}${rows[r]}${RST}`);
 	}
@@ -1280,8 +1311,16 @@ async function renderSplit(
 	dc: DiffColors = DEFAULT_DIFF_COLORS,
 	width?: number,
 ): Promise<string> {
+	await prepareHighlighting();
+	return renderSplitSync(diff, language, max, dc, width);
+}
+
+function renderSplitSync(
+	diff: ParsedDiff, language: BundledLanguage | undefined, max = MAX_PREVIEW_LINES,
+	dc: DiffColors = DEFAULT_DIFF_COLORS, width?: number,
+): string {
 	const tw = width ?? termW();
-	if (!shouldUseSplit(diff, tw, max)) return renderUnified(diff, language, max, dc, tw);
+	if (!shouldUseSplit(diff, tw, max)) return renderUnifiedSync(diff, language, max, dc, tw);
 	if (!diff.lines.length) return "";
 
 	// Build rows
@@ -1328,10 +1367,10 @@ async function renderSplit(
 		if (r.right && r.right.type !== "sep") rightSrc.push(r.right.content);
 	}
 	const [leftHL, rightHL] = canHL
-		? await Promise.all([
-				hlBlock(hasFullContent ? diff.fullOldContent! : leftSrc.join("\n"), language),
-				hlBlock(hasFullContent ? diff.fullNewContent! : rightSrc.join("\n"), language),
-			])
+		? [
+				hlBlockSync(hasFullContent ? diff.fullOldContent! : leftSrc.join("\n"), language),
+				hlBlockSync(hasFullContent ? diff.fullNewContent! : rightSrc.join("\n"), language),
+			]
 		: [leftSrc, rightSrc];
 	const leftLineHL = (line: DiffLine, fallbackIndex: number) =>
 		canHL && hasFullContent && line.oldNum !== null
@@ -1449,28 +1488,88 @@ async function renderSplit(
 // Extension
 // ---------------------------------------------------------------------------
 
+// Snapshots belong to the persisted display entry, never to today's filesystem.
+// This also makes resumed sessions and multiple patches in one notebook cell safe.
+function patchDisplayComponent(data: ApplyPatchDisplayData, expanded: boolean, theme: any) {
+	const safe = (value: string) => value.replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "�");
+	const files = data.files?.map((file) => ({
+		...file,
+		diff: !file.unavailable && file.before !== undefined && file.after !== undefined
+			? parseDiff(safe(file.before ?? ""), safe(file.after ?? ""), 3, true) : undefined,
+	}));
+	let cachedWidth = -1;
+	let cached: string[] = [];
+	return {
+		invalidate() { cachedWidth = -1; },
+		render(width: number): string[] {
+			if (width === cachedWidth) return cached;
+			if (width < 1) return [];
+			const lines: string[] = [];
+			const text = (value: string) => lines.push(...new Text(value, 0, 0).render(width));
+			const partial = data.details?.status === "partial_failure";
+			const failed = data.isError || partial;
+			text(theme.fg(failed ? "error" : "toolTitle", theme.bold(
+				`apply_patch · ${partial ? "partially failed" : failed ? "failed" : "applied"}`,
+			)));
+			// Never hide recovery instructions or claim attempted edits were applied.
+			if (data.error || data.content) text(theme.fg(failed ? "error" : "muted", safe(data.error || data.content || "")));
+			if (data.error && data.content && data.error !== data.content) text(safe(data.content));
+			if (data.details?.status === "partial_failure" && data.details.failedTargets?.length) text(theme.fg("error", `Failed: ${safe(data.details.failedTargets.join(", "))}`));
+			const dc = resolveDiffColors(theme);
+			let budget = expanded ? Number.POSITIVE_INFINITY : MAX_PREVIEW_LINES;
+			for (const file of files ?? []) {
+				const state = file.before === undefined || file.after === undefined ? "snapshot unavailable"
+					: file.before === null && file.after !== null ? "created"
+					: file.after === null && file.before !== null ? "deleted"
+					: file.before === file.after ? "unchanged" : "changed";
+				text(`${theme.fg("accent", safe(file.path))} · ${state}${file.diff ? ` ${summarize(file.diff.added, file.diff.removed)}` : ""}`);
+				if (!file.diff) {
+					text(theme.fg("muted", safe(file.unavailable ?? "Diff snapshot unavailable")));
+					continue;
+				}
+				if (!file.diff.lines.length) continue;
+				const max = expanded ? MAX_RENDER_LINES : Math.min(12, budget);
+				if (max <= 0) { text(theme.fg("muted", "… expand to view diff")); continue; }
+				const rendered = renderSplitSync(file.diff, lang(file.path), max, dc, width);
+				lines.push(...rendered.split("\n"));
+				budget -= Math.min(max, file.diff.lines.length);
+			}
+			if (!files?.length) {
+				text(theme.fg("muted", "Snapshot unavailable; submitted patch (not proof of applied changes):"));
+				const input = safe(data.input).split("\n");
+				const max = expanded ? MAX_RENDER_LINES : 12;
+				text(input.slice(0, max).join("\n"));
+				if (input.length > max) text(theme.fg("muted", `… ${input.length - max} more lines`));
+			}
+			cachedWidth = width;
+			// Core diff gutters can exceed extremely narrow widths. Always honor Pi's
+			// component contract, including wide Unicode and wrapped continuations.
+			return cached = lines.map((line) => truncateToWidth(line, width, ""));
+		},
+	};
+}
+
 export const __testing = {
 	normalizeShikiContrast,
 	parseCombinedEditDiff,
 	parseDiff,
 	renderSplit,
 	renderUnified,
+	prepareHighlighting,
+	patchDisplayComponent,
 };
 
-export default function diffRendererExtension(pi: any): void {
+export default async function diffRendererExtension(pi: any): Promise<void> {
 	// Apply diff theme palette from settings/presets before rendering
 	applyDiffPalette();
+	registerApplyPatchDisplay(pi, {
+		customType: "pi-package:apply-patch-diff",
+		render: (entry, options, theme) => entry.data
+			? patchDisplayComponent(entry.data, options.expanded, theme) : undefined,
+	});
+	await prepareHighlighting();
 
-	let createWriteTool: any, createEditTool: any, TextComponent: any;
-	try {
-		const sdk = require("@earendil-works/pi-coding-agent");
-		createWriteTool = sdk.createWriteTool;
-		createEditTool = sdk.createEditTool;
-		TextComponent = require("@earendil-works/pi-tui").Text;
-	} catch {
-		return;
-	}
-	if (!createWriteTool || !createEditTool || !TextComponent) return;
+	const TextComponent = Text;
 
 	const cwd = process.cwd();
 	const home = process.env.HOME ?? "";
@@ -1533,7 +1632,7 @@ export default function diffRendererExtension(pi: any): void {
 				old = null;
 			}
 
-			const result = await origWrite.execute(tid, params, sig, upd, ctx);
+			const result = await origWrite.execute(tid, params, sig, upd);
 			const content = params.content ?? "";
 
 			// Store in details — the only custom field TUI preserves in renderResult
@@ -1712,7 +1811,7 @@ export default function diffRendererExtension(pi: any): void {
 		async execute(tid: string, params: any, sig: any, upd: any, ctx: any) {
 			const fp = params.path ?? params.file_path ?? "";
 			const operations = getEditOperations(params);
-			const result = await origEdit.execute(tid, params, sig, upd, ctx);
+			const result = await origEdit.execute(tid, params, sig, upd);
 
 			if (operations.length === 0) return result;
 

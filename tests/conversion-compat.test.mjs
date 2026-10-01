@@ -15,6 +15,11 @@ const { STATUS_KEY } = await jiti.import("../extensions/better-openai/src/identi
 const { touchedFiles } = await jiti.import("../extensions/post-edit/touched-files.ts");
 const { default: postEdit } = await jiti.import("../extensions/post-edit/index.ts");
 const { getCodeModeExtensionToolSnapshot } = await import("@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js");
+const { registerConversionFastDisplay, setBetterOpenAIState, getBetterOpenAIState: fastDisplay, onBetterOpenAIStateChange } = await jiti.import("../extensions/shared/better-openai-state.ts");
+const { renderCodexStatus } = await import("@howaboua/pi-codex-conversion/dist/ui/status.js");
+const { syncAdapter } = await import("@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js");
+const { ALL_CODEX_ADAPTER_TOOL_NAMES } = await import("@howaboua/pi-codex-conversion/dist/adapter/activation/runtime-plan.js");
+const { DEFAULT_CODEX_CONVERSION_CONFIG } = await import("@howaboua/pi-codex-conversion/dist/adapter/activation/config.js");
 const protocol = await import("@howaboua/pi-codex-conversion/dist/tools/code-mode/preflight-protocol.js");
 
 function harness() {
@@ -42,6 +47,71 @@ function harness() {
 }
 
 const codexModel = { provider: "openai-codex", api: "openai-codex-responses", id: "gpt-6-luna" };
+
+test("conversion fast state appears in the custom footer without competing with standalone state", async () => {
+  const { pi, fire } = harness();
+  let redraws = 0;
+  const unsubscribe = onBetterOpenAIStateChange(() => redraws++);
+  const dispose = registerConversionFastDisplay(pi);
+  setBetterOpenAIState({ fastLabel: "fast" });
+  pi.events.emit("pi-package:codex-fast-state", { active: true, fast: false });
+  assert.equal(fastDisplay().fastLabel, undefined);
+  pi.events.emit("pi-package:codex-fast-state", { active: true, fast: true });
+  assert.equal(fastDisplay().fastLabel, "fast");
+  setBetterOpenAIState({ fastLabel: undefined });
+  assert.equal(fastDisplay().fastLabel, "fast", "Better OpenAI refresh cannot erase conversion's enabled state");
+  pi.events.emit("pi-package:codex-fast-state", { active: true, fast: false });
+  assert.equal(fastDisplay().fastLabel, undefined);
+  setBetterOpenAIState({ fastLabel: "fast" });
+  pi.events.emit("pi-package:codex-fast-state", { active: false, fast: true });
+  assert.equal(fastDisplay().fastLabel, "fast", "leaving conversion restores standalone display");
+  assert.ok(redraws >= 4);
+  await fire("session_shutdown");
+  dispose();
+  unsubscribe();
+  setBetterOpenAIState({ fastLabel: undefined });
+  pi.events.emit("pi-package:codex-fast-state", { active: true, fast: true });
+  assert.equal(fastDisplay().fastLabel, undefined);
+});
+
+test("conversion status keeps usage and mode but no longer duplicates fast", () => {
+  let status;
+  renderCodexStatus({ hasUI: true, model: codexModel, ui: {
+    setStatus: (_key, value) => { status = value; }, theme: { fg: (_role, value) => value },
+  } }, {
+    config: { ui: { statusLine: true }, scope: { allProviders: "off" }, openai: { fast: true, verbosity: "medium" } },
+    usageStatus: { fiveHourUsageLeft: 80 },
+  }, { kind: "notebook", effectiveOpenAICodex: true });
+  assert.match(status, /notebook mode/);
+  assert.match(status, /80% left/);
+  assert.doesNotMatch(status, /\bfast\b/);
+});
+
+test("real adapter synchronization publishes effective fast state across model/config changes", () => {
+  const { pi } = harness();
+  const dispose = registerConversionFastDisplay(pi);
+  let activeTools = ["read", "edit", "write", "bash"];
+  pi.getActiveTools = () => activeTools;
+  pi.setActiveTools = (names) => { activeTools = names; };
+  pi.getAllTools = () => [...ALL_CODEX_ADAPTER_TOOL_NAMES, "read", "edit", "write", "bash"].map((name) => ({ name }));
+  const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
+  config.openai.fast = true;
+  config.scope.allProviders = "off";
+  const state = { config, executionMode: "notebook" };
+  const ctx = { model: codexModel, hasUI: false };
+  try {
+    syncAdapter(pi, ctx, state);
+    assert.equal(fastDisplay().fastLabel, "fast");
+    config.openai.fast = false;
+    syncAdapter(pi, ctx, state);
+    assert.equal(fastDisplay().fastLabel, undefined);
+    config.openai.fast = true;
+    syncAdapter(pi, ctx, state);
+    assert.equal(fastDisplay().fastLabel, "fast");
+    syncAdapter(pi, { ...ctx, model: { provider: "anthropic", api: "anthropic-messages", id: "claude" } }, state);
+    assert.equal(fastDisplay().fastLabel, undefined);
+  } finally { dispose(); }
+});
 
 test("fast ownership follows loaded extension and current route, not installation", () => {
   let commands = [];
