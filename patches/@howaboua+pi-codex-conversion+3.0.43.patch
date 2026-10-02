@@ -1,5 +1,5 @@
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-index 44214d7..eff1286 100644
+index 2997a16..8393c3e 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 @@ -5,6 +5,12 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY, buildExtraToolsOnlyStatusText } from ".
@@ -15,6 +15,28 @@ index 44214d7..eff1286 100644
      reconcileExternalToolLoadout(state, pi.getActiveTools());
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, true)
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
+index d2643f3..06b242f 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
+@@ -24,7 +24,7 @@ export const REALTIME_V3_VOICES = [
+ export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
+ export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
+ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+-    executionMode: "normal",
++    executionMode: "notebook",
+     voiceFeaturesOnly: false,
+     prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
+     scope: { allProviders: "off", additionalProviders: [] },
+@@ -51,7 +51,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+         historyStorage: "local",
+         shareSubagentContext: false,
+         idleNotesRollover: false,
+-        method: "pi",
++        method: "v2",
+         v2UserMessageRetention: 64,
+     },
+     notebook: { maxHeapMiB: 4_096, plainCommandOutput: false },
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
 index 4c1f5e7..8d3e38c 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
@@ -161,21 +183,8 @@ index 2c4edc2..d69fb9a 100644
              }
              catch (error) {
                  if (error instanceof ExecutePatchError) {
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-index 6ff2d7e..9c153e2 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-@@ -12,7 +12,7 @@ export function renderCodexStatus(ctx, state, plan) {
-         mode: plan.kind,
-         useOnAllModels: config.scope.allProviders === "on",
-         additionalProvider: plan.configuredProvider,
--        fast: plan.effectiveOpenAICodex && config.openai.fast,
-+        fast: false, // displayed by pi-package's custom model footer
-         contextManagement: plan.contextManagementMode,
-         compaction: plan.nativeCompaction,
-         usageStatus: state.usageStatus,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-index 236c230..cfcec93 100644
+index 1c2a81e..cdf4768 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 @@ -179,6 +179,23 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
@@ -202,25 +211,205 @@ index 236c230..cfcec93 100644
              if (arg === "usage analyse") {
                  await startUsageAnalysis(pi, ctx);
                  return;
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index 8f3b570..9d97019 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-@@ -24,7 +24,7 @@ export const REALTIME_V3_VOICES = [
- export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
- export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
- export const DEFAULT_CODEX_CONVERSION_CONFIG = {
--    executionMode: "normal",
-+    executionMode: "notebook",
-     voiceFeaturesOnly: false,
-     prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
-     scope: { allProviders: "off", additionalProviders: [] },
-@@ -50,7 +50,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
-         continuity: "compaction",
-         historyStorage: "local",
-         shareSubagentContext: false,
--        method: "pi",
-+        method: "v2",
-         v2UserMessageRetention: 64,
-     },
-     notebook: { maxHeapMiB: 4_096, plainCommandOutput: false },
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
+index 6ff2d7e..9c153e2 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
+@@ -12,7 +12,7 @@ export function renderCodexStatus(ctx, state, plan) {
+         mode: plan.kind,
+         useOnAllModels: config.scope.allProviders === "on",
+         additionalProvider: plan.configuredProvider,
+-        fast: plan.effectiveOpenAICodex && config.openai.fast,
++        fast: false, // displayed by pi-package's custom model footer
+         contextManagement: plan.contextManagementMode,
+         compaction: plan.nativeCompaction,
+         usageStatus: state.usageStatus,
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
+index 3ae1d33..b6a6600 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
+@@ -23,6 +23,10 @@ export declare class CodexVoiceController {
+     get status(): string;
+     get active(): boolean;
+     get activeMode(): CodexVoiceMode | undefined;
++    get dictationState(): "idle" | "connecting" | "listening" | "transcribing" | "unavailable";
++    onDictationStateChange(listener: (state: string) => void): () => void;
++    private dictationListeners;
++    private publishDictationState;
+     get inputMuted(): boolean;
+     onInputMuteChange(listener: (muted: boolean) => void): () => void;
+     setInputMuted(muted: boolean): boolean;
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
+index 0f00ea3..187e323 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
+@@ -72,6 +72,20 @@ export class CodexVoiceController {
+     get activeMode() {
+         return this.runtime.announcedMode;
+     }
++    dictationListeners = new Set();
++    get dictationState() {
++        const state = this.runtime.state;
++        if (state.type === "connecting" && state.mode === "dictation") return "connecting";
++        if (state.type === "dictation") return this.runtime.voiceStatus.startsWith("transcribing") ? "transcribing" : "listening";
++        return this.active ? "unavailable" : "idle";
++    }
++    onDictationStateChange(listener) {
++        this.dictationListeners.add(listener);
++        return () => this.dictationListeners.delete(listener);
++    }
++    publishDictationState() {
++        for (const listener of this.dictationListeners) listener(this.dictationState);
++    }
+     get inputMuted() {
+         return (this.runtime.state.type === "conversation" &&
+             this.runtime.state.session.microphoneMuted);
+@@ -173,6 +187,7 @@ export class CodexVoiceController {
+             onStatus: (status) => this.renderStatus(status),
+         });
+         const activePrompt = Array.from(this.activePrompts.values()).at(-1);
++        this.renderCurrentStatus();
+         if (session && activePrompt)
+             session.announcePrompt(activePrompt);
+         return session;
+@@ -197,6 +212,7 @@ export class CodexVoiceController {
+         this.runtime.voiceStatus = "";
+         this.runtime.inputTooQuiet = false;
+         this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
++        this.publishDictationState();
+         await closePromise;
+         await this.messages.waitForDelegations();
+         if (wasMuted)
+@@ -206,6 +222,7 @@ export class CodexVoiceController {
+             this.messages.voiceStopped(endedMode);
+     }
+     async finishDictation(options) {
++        if (this.dictationState === "transcribing") return;
+         this.runtime.startGeneration += 1;
+         const session = this.runtime.state.type === "dictation"
+             ? this.runtime.state.session
+@@ -218,6 +235,7 @@ export class CodexVoiceController {
+             await this.stop(options);
+             return;
+         }
++        this.renderStatus("transcribing…");
+         await session.finish();
+         if (this.currentSession() !== session)
+             return;
+@@ -231,6 +249,7 @@ export class CodexVoiceController {
+         this.runtime.voiceStatus = "";
+         this.runtime.inputTooQuiet = false;
+         this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
++        this.publishDictationState();
+         this.messages.voiceStopped(endedMode);
+     }
+     agentStarted() {
+@@ -334,6 +353,7 @@ export class CodexVoiceController {
+         this.runtime.voiceStatus = "";
+         this.runtime.inputTooQuiet = false;
+         this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
++        this.publishDictationState();
+         this.runtime.context?.ui.notify(message, "error");
+         if (wasMuted)
+             for (const listener of this.inputMuteListeners)
+@@ -369,6 +389,11 @@ export class CodexVoiceController {
+         this.renderCurrentStatus();
+     }
+     renderCurrentStatus() {
++        this.publishDictationState();
++        if (["connecting", "listening", "transcribing"].includes(this.dictationState)) {
++            this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
++            return;
++        }
+         renderVoiceStatus(this.runtime.context, this.runtime.voiceStatus, this.inputMuted, this.runtime.inputTooQuiet);
+     }
+ }
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
+index bf4419f..8028308 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
+@@ -4,6 +4,7 @@ import { resolveVoiceHelperBinary } from "./binary.js";
+ import { buildVoiceSetupInstructions } from "./setup.js";
+ import { registerCodexVoiceShortcuts } from "./shortcuts.js";
+ import { codexVoiceSetupMessage } from "./ui.js";
++import { registerDictationButton } from "./dictation-button.js";
+ export function createCodexVoiceControls(options) {
+     const { pi, state, voice, lanVoice } = options;
+     const requestSetup = async (ctx, retryCommand, force, mode) => {
+@@ -64,6 +65,7 @@ export function createCodexVoiceControls(options) {
+         }
+         ctx.ui.notify(`Realtime microphone ${muted ? "muted" : "unmuted"}`, "info");
+     };
++    registerDictationButton(pi, voice, (ctx) => toggle("dictation", ctx));
+     registerCodexVoiceShortcuts(pi, state.config, () => state.config, {
+         startDictation: (ctx) => start("dictation", ctx),
+         finishDictation: (ctx) => stop(ctx),
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/dictation-button.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/dictation-button.js
+new file mode 100644
+index 0000000..e8fb3bd
+--- /dev/null
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/dictation-button.js
+@@ -0,0 +1,63 @@
++import { MouseRegion, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
++
++const KEY = "codex-dictation-button";
++const labels = {
++    idle: "\uf130 Dictate",
++    connecting: "◌ Connecting…",
++    listening: "■ Stop · Listening",
++    transcribing: "◌ Transcribing…",
++    unavailable: "\uf130 Realtime active",
++};
++
++// One persistent widget; status updates request a render without replacing it.
++export function registerDictationButton(pi, voice, toggle) {
++    let context;
++    let requestRender = () => {};
++    let pending = false;
++    const unsubscribe = voice.onDictationStateChange(() => requestRender());
++    const install = (_event, ctx) => {
++        context = ctx;
++        if (!ctx.hasUI) return;
++        ctx.ui.setWidget(KEY, (tui, theme) => {
++            requestRender = () => tui.requestRender();
++            let left = 0;
++            let right = 0;
++            return new MouseRegion({
++                invalidate() {},
++                render(width) {
++                    const state = voice.dictationState;
++                    const label = pending && state === "idle" ? "◌ Connecting…" : labels[state];
++                    const button = truncateToWidth(` ${label} `, width, "");
++                    const size = visibleWidth(button);
++                    left = Math.max(0, width - size);
++                    right = left + size;
++                    const color = state === "listening" ? "success" : state === "idle" ? "accent" : "muted";
++                    return [" ".repeat(left) + theme.bg("toolPendingBg", theme.fg(color, button))];
++                },
++            }, (event) => {
++                if (event.type !== "click" || event.button !== "left" || event.y !== 0 ||
++                    event.x < left || event.x >= right || event.shift || event.alt || event.ctrl) return;
++                if (!pending && ["idle", "listening"].includes(voice.dictationState)) {
++                    pending = true;
++                    tui.requestRender();
++                    const current = context;
++                    void Promise.resolve().then(() => toggle(current)).catch((error) => {
++                        current.ui.notify(error instanceof Error ? error.message : String(error), "error");
++                    }).finally(() => {
++                        pending = false;
++                        requestRender();
++                    });
++                }
++                return { handled: true, render: true };
++            });
++        }, { placement: "aboveEditor" });
++    };
++    pi.on("session_start", install);
++    pi.on("session_switch", install);
++    pi.on("session_shutdown", () => {
++        unsubscribe();
++        context?.ui.setWidget(KEY, undefined);
++        context = undefined;
++        requestRender = () => {};
++    });
++}

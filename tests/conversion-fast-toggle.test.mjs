@@ -32,7 +32,8 @@ test("patched fast toggle persists, respects scope and applies through conversio
       model: {provider: 'openai-codex', api: 'openai-codex-responses', id: 'gpt-6-luna'},
       isProjectTrusted: () => true, isIdle: () => true,
       ui: {notify: (message, level) => notices.push({message, level}), custom: () => assert.fail('must not open settings')} };
-    registerCodexCommand(pi, state, {}, {}, (config, _ctx, previous) => applied.push({fast: config.openai.fast, previous: previous.openai.fast}));
+    const voice = {onDictationStateChange: () => () => {}};
+    registerCodexCommand(pi, state, voice, {}, (config, _ctx, previous) => applied.push({fast: config.openai.fast, previous: previous.openai.fast}));
     const toggle = () => commands.get('codex').handler('fast', ctx);
     await toggle();
     assert.equal(state.config.openai.fast, true);
