@@ -1,17 +1,26 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-3.0.42, which its exports and our extension loader execute. Upstream `src/` is
+3.0.43, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
-The 3.0.42 refresh preserves the existing patch behavior and upstream MCP
-namespace guidance/recovery fixes. Development checks use Pi 1.0.0; the existing
-`>=0.99.2` peer ranges still admit both versions. Pi 1.0.0 defaults to fullscreen;
+The 3.0.43 refresh preserves all existing patches, including the dictation
+button, and upstream MCP discovery and realtime voice fixes. Conversion and
+the hosted companions now require Pi 1.0.0+, matching this package's peer ranges
+and development checks. Pi 1.0.0 defaults to fullscreen;
 this package leaves that choice to the host (`--tui-mode regular` restores normal
 scrollback).
 
 Recommended defaults, display integration, and a fast-mode toggle:
+
+- A right-aligned dictation button above the editor replaces dictation's footer
+  status. It uses the Nerd Font microphone (`U+F130`), so configure a Nerd Font
+  in your terminal. Connecting, listening/stop, and transcribing states follow
+  the voice controller (including hotkeys); transition clicks are ignored.
+  Realtime voice retains its footer status and disables the dictation button.
+  Clicks require Pi's fullscreen mode and do not request editor focus. Regular
+  mode still displays state and retains the existing dictation hotkey.
 
 - Default to Notebook execution and Compact V2 in conversion's config contract.
   Normalization and fresh installs inherit these choices; explicit global and
@@ -40,7 +49,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@3.0.42` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@3.0.43` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 

@@ -30,6 +30,8 @@ Cloudability API, query, and staging skills now live in [cloudability/cldy-ui-sk
 
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, and `@howaboua/pi-codex-imagegen` dependencies through local extension loaders. **Remove separately installed copies of all three from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
+Pi **1.0.0 or newer** is required by this package and its bundled Codex dependencies.
+
 `npm ci` applies the tracked patch in `patches/` via `patch-package`. Install scripts must be enabled. Patch failures fail installation rather than silently dropping the integration. See [patch maintenance](./patches/README.md).
 
 Recommended defaults are **Notebook mode** and **Compact V2** (`executionMode:
