@@ -201,3 +201,22 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command
              if (arg === "usage analyse") {
                  await startUsageAnalysis(pi, ctx);
                  return;
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
+@@ -24,6 +24,6 @@
+ export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
+ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+-    executionMode: "normal",
++    executionMode: "notebook",
+     voiceFeaturesOnly: false,
+     prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
+     scope: { allProviders: "off", additionalProviders: [] },
+@@ -52,6 +52,6 @@
+         historyStorage: "local",
+         shareSubagentContext: false,
+-        method: "pi",
++        method: "v2",
+         v2UserMessageRetention: 64,
+     },
+     notebook: { maxHeapMiB: 4_096, plainCommandOutput: false },

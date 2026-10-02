@@ -276,7 +276,8 @@ test("header, summary, file labels and diff share a full-width background", asyn
   const recoveryRow = plain.findIndex((line) => line.includes("Recovery:"));
   assert.match(plain[recoveryRow], /^ Recovery:/);
   assert.equal(plain[recoveryRow + 1].trim(), "", "header has bottom padding");
-  assert.match(plain[recoveryRow + 2], /^ demo.ts/);
+  assert.match(plain[recoveryRow + 2], /^   demo.ts/);
+  assert.equal(plain[recoveryRow + 3].trim(), "", "file label has bottom padding");
   for (const width of [1, 4, 30, 80, 180]) {
     const lines = component.render(width);
     const background = lines[0].match(/^\x1b\[48;2;[\d;]+m/)?.[0];
@@ -284,5 +285,30 @@ test("header, summary, file labels and diff share a full-width background", asyn
     assert.ok(lines.every((line) => line.startsWith(background)));
     assert.ok(lines.every((line) => visibleWidth(line) === width), `background fills width ${width}`);
     assert.ok(new Set(lines.join("\n").match(/\x1b\[48;2;[\d;]+m/g)).size >= 3, "addition/removal tints remain distinct from the shell");
+  }
+});
+
+test("each filename aligns with the tool title and has blank rows above and below", async () => {
+  await renderer.prepareHighlighting();
+  const data = { input: "", isError: false, source: "nested", toolCallId: "multi-file-spacing",
+    files: [
+      { path: "first.ts", before: "const a = 1;\n", after: "const a = 2;\n" },
+      { path: "second.ts", before: null, after: "const b = 3;\n" },
+      { path: "third.ts", unavailable: "Diff omitted: snapshot unreadable" },
+    ],
+  };
+  for (const expanded of [false, true]) {
+    const component = renderer.patchDisplayComponent(data, expanded, theme);
+    const plain = component.render(100).map(strip);
+    const titleColumn = plain.find(line => line.includes("apply_patch")).indexOf("apply_patch");
+    for (const file of data.files) {
+      const row = plain.findIndex(line => line.includes(file.path));
+      assert.equal(plain[row].indexOf(file.path), titleColumn);
+      assert.equal(plain[row - 1].trim(), "", "blank row above filename");
+      assert.equal(plain[row + 1].trim(), "", "blank row below filename");
+    }
+    for (const width of [1, 4, 12, 30, 80, 180]) {
+      assert.ok(component.render(width).every(line => visibleWidth(line) === width));
+    }
   }
 });

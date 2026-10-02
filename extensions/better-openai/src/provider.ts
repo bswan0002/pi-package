@@ -52,7 +52,8 @@ export function registerFastCodexProvider(
         // Priority is injected by index.ts's before_provider_request handler.
         // The transport no longer uses openai.fast to change routing identity.
         openai: DEFAULT_CODEX_CONVERSION_CONFIG.openai,
-        compaction: DEFAULT_CODEX_CONVERSION_CONFIG.compaction,
+        // The standalone overlay retains Pi compaction; bundled conversion owns V2.
+        compaction: { ...DEFAULT_CODEX_CONVERSION_CONFIG.compaction, method: "pi" },
       }),
       useResponsesLite: () => false,
     });

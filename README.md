@@ -31,6 +31,11 @@ This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-w
 
 `npm ci` applies the tracked patch in `patches/` via `patch-package`. Install scripts must be enabled. Patch failures fail installation rather than silently dropping the integration. See [patch maintenance](./patches/README.md).
 
+Recommended defaults are **Notebook mode** and **Compact V2** (`executionMode:
+"notebook"`, `compaction.method: "v2"`). New installs need no settings changes.
+Existing explicit global or trusted project preferences still take precedence;
+missing settings inherit these defaults. Change them with `/codex` if desired.
+
 - When conversion is loaded, it owns the Codex provider and connection lifecycle, regardless of extension load order. Without it, Better OpenAI installs its standalone transport at session startup.
 - `/fast` toggles conversion's own fast setting on conversion-owned routes, without opening settings or maintaining a second preference. The patch routes this through conversion's save/apply lifecycle: trusted folder scope is preserved and busy runs apply when idle. A valid `PI_CODEX_FAST` environment override pins the setting; unset it and restart to use the toggle. This package's `--fast` remains standalone-only. Other supported routes retain the standalone toggle.
 - Conversion's resolved fast state appears beside the model in our custom footer, not in the conversion status row. Conversion still controls the setting and request service tier.

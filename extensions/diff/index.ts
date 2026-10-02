@@ -1508,8 +1508,11 @@ function patchDisplayComponent(data: ApplyPatchDisplayData, expanded: boolean, t
 			const lines: string[] = [""];
 			// Inset prose like Pi's tool blocks, without shrinking the diff columns.
 			const inset = width >= 3 ? 1 : 0;
-			const text = (value: string) => lines.push(...new Text(value, 0, 0)
-				.render(width - inset * 2).map((line) => " ".repeat(inset) + line));
+			const text = (value: string, extraInset = 0) => {
+				const padding = Math.min(inset + extraInset, Math.floor((width - 1) / 2));
+				lines.push(...new Text(value, 0, 0)
+					.render(width - padding * 2).map((line) => " ".repeat(padding) + line));
+			};
 			const partial = data.details?.status === "partial_failure";
 			const failed = data.isError || partial;
 			text(theme.fg("dim", "• ") + theme.fg(failed ? "error" : "toolTitle", theme.bold(
@@ -1523,11 +1526,13 @@ function patchDisplayComponent(data: ApplyPatchDisplayData, expanded: boolean, t
 			lines.push("");
 			let budget = expanded ? Number.POSITIVE_INFINITY : MAX_PREVIEW_LINES;
 			for (const file of files ?? []) {
+				if (lines.at(-1) !== "") lines.push("");
 				const state = file.before === undefined || file.after === undefined ? "snapshot unavailable"
 					: file.before === null && file.after !== null ? "created"
 					: file.after === null && file.before !== null ? "deleted"
 					: file.before === file.after ? "unchanged" : "changed";
-				text(`${theme.fg("accent", safe(file.path))} · ${state}${file.diff ? ` ${summarize(file.diff.added, file.diff.removed)}` : ""}`);
+				text(`${theme.fg("accent", safe(file.path))} · ${state}${file.diff ? ` ${summarize(file.diff.added, file.diff.removed)}` : ""}`, 2);
+				lines.push("");
 				if (!file.diff) {
 					text(theme.fg("muted", safe(file.unavailable ?? "Diff snapshot unavailable")));
 					continue;

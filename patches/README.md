@@ -5,7 +5,11 @@ The patch targets the shipped **dist JavaScript and declarations** of conversion
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
-Display integration and a fast-mode toggle:
+Recommended defaults, display integration, and a fast-mode toggle:
+
+- Default to Notebook execution and Compact V2 in conversion's config contract.
+  Normalization and fresh installs inherit these choices; explicit global and
+  trusted folder settings remain authoritative. Other defaults stay upstream.
 
 - Capture bounded before/after file snapshots inside the existing patch mutation
   queue, including failed executions, and carry them through the display broker.
