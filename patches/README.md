@@ -18,7 +18,11 @@ Recommended defaults, display integration, and a fast-mode toggle:
   status. It uses the Nerd Font microphone (`U+F130`), so configure a Nerd Font
   in your terminal. Connecting, listening/stop, and transcribing states follow
   the voice controller (including hotkeys); transition clicks are ignored.
-  Realtime voice retains its footer status and disables the dictation button.
+  A Nerd Font waveform (`U+F147D`) Voice chat button sits beside Dictate and
+  toggles the existing realtime conversation, becoming Stop chat while active.
+  Realtime voice retains its footer status. The modes disable one another,
+  and both buttons ignore clicks during connecting/reconnecting or a pending
+  start/stop action. Hotkey and controller transitions update both controls.
   Clicks require Pi's fullscreen mode and do not request editor focus. Regular
   mode still displays state and retains the existing dictation hotkey.
 
