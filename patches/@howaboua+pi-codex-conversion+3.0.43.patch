@@ -225,13 +225,14 @@ index 6ff2d7e..9c153e2 100644
          compaction: plan.nativeCompaction,
          usageStatus: state.usageStatus,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
-index 3ae1d33..b6a6600 100644
+index 3ae1d33..71c5d72 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
-@@ -23,6 +23,10 @@ export declare class CodexVoiceController {
+@@ -23,6 +23,11 @@ export declare class CodexVoiceController {
      get status(): string;
      get active(): boolean;
      get activeMode(): CodexVoiceMode | undefined;
++    get realtimeState(): "idle" | "connecting" | "active" | "unavailable";
 +    get dictationState(): "idle" | "connecting" | "listening" | "transcribing" | "unavailable";
 +    onDictationStateChange(listener: (state: string) => void): () => void;
 +    private dictationListeners;
@@ -240,14 +241,21 @@ index 3ae1d33..b6a6600 100644
      onInputMuteChange(listener: (muted: boolean) => void): () => void;
      setInputMuted(muted: boolean): boolean;
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
-index 0f00ea3..187e323 100644
+index 0f00ea3..8c15504 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
-@@ -72,6 +72,20 @@ export class CodexVoiceController {
+@@ -72,6 +72,28 @@ export class CodexVoiceController {
      get activeMode() {
          return this.runtime.announcedMode;
      }
 +    dictationListeners = new Set();
++    get realtimeState() {
++        const state = this.runtime.state;
++        if (state.type === "connecting" && state.mode === "realtime") return "connecting";
++        if (state.type === "reconnecting") return "connecting";
++        if (state.type === "conversation") return "active";
++        return this.active ? "unavailable" : "idle";
++    }
 +    get dictationState() {
 +        const state = this.runtime.state;
 +        if (state.type === "connecting" && state.mode === "dictation") return "connecting";
@@ -259,12 +267,13 @@ index 0f00ea3..187e323 100644
 +        return () => this.dictationListeners.delete(listener);
 +    }
 +    publishDictationState() {
++        // Shared voice-control invalidation: realtime transitions notify too.
 +        for (const listener of this.dictationListeners) listener(this.dictationState);
 +    }
      get inputMuted() {
          return (this.runtime.state.type === "conversation" &&
              this.runtime.state.session.microphoneMuted);
-@@ -173,6 +187,7 @@ export class CodexVoiceController {
+@@ -173,6 +195,7 @@ export class CodexVoiceController {
              onStatus: (status) => this.renderStatus(status),
          });
          const activePrompt = Array.from(this.activePrompts.values()).at(-1);
@@ -272,7 +281,7 @@ index 0f00ea3..187e323 100644
          if (session && activePrompt)
              session.announcePrompt(activePrompt);
          return session;
-@@ -197,6 +212,7 @@ export class CodexVoiceController {
+@@ -197,6 +220,7 @@ export class CodexVoiceController {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -280,7 +289,7 @@ index 0f00ea3..187e323 100644
          await closePromise;
          await this.messages.waitForDelegations();
          if (wasMuted)
-@@ -206,6 +222,7 @@ export class CodexVoiceController {
+@@ -206,6 +230,7 @@ export class CodexVoiceController {
              this.messages.voiceStopped(endedMode);
      }
      async finishDictation(options) {
@@ -288,7 +297,7 @@ index 0f00ea3..187e323 100644
          this.runtime.startGeneration += 1;
          const session = this.runtime.state.type === "dictation"
              ? this.runtime.state.session
-@@ -218,6 +235,7 @@ export class CodexVoiceController {
+@@ -218,6 +243,7 @@ export class CodexVoiceController {
              await this.stop(options);
              return;
          }
@@ -296,7 +305,7 @@ index 0f00ea3..187e323 100644
          await session.finish();
          if (this.currentSession() !== session)
              return;
-@@ -231,6 +249,7 @@ export class CodexVoiceController {
+@@ -231,6 +257,7 @@ export class CodexVoiceController {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -304,7 +313,7 @@ index 0f00ea3..187e323 100644
          this.messages.voiceStopped(endedMode);
      }
      agentStarted() {
-@@ -334,6 +353,7 @@ export class CodexVoiceController {
+@@ -334,6 +361,7 @@ export class CodexVoiceController {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -312,7 +321,7 @@ index 0f00ea3..187e323 100644
          this.runtime.context?.ui.notify(message, "error");
          if (wasMuted)
              for (const listener of this.inputMuteListeners)
-@@ -369,6 +389,11 @@ export class CodexVoiceController {
+@@ -369,6 +397,11 @@ export class CodexVoiceController {
          this.renderCurrentStatus();
      }
      renderCurrentStatus() {
@@ -325,7 +334,7 @@ index 0f00ea3..187e323 100644
      }
  }
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
-index bf4419f..8028308 100644
+index bf4419f..4ada918 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
 @@ -4,6 +4,7 @@ import { resolveVoiceHelperBinary } from "./binary.js";
@@ -340,16 +349,16 @@ index bf4419f..8028308 100644
          }
          ctx.ui.notify(`Realtime microphone ${muted ? "muted" : "unmuted"}`, "info");
      };
-+    registerDictationButton(pi, voice, (ctx) => toggle("dictation", ctx));
++    registerDictationButton(pi, voice, (ctx) => toggle("dictation", ctx), (ctx) => toggle("realtime", ctx));
      registerCodexVoiceShortcuts(pi, state.config, () => state.config, {
          startDictation: (ctx) => start("dictation", ctx),
          finishDictation: (ctx) => stop(ctx),
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/dictation-button.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/dictation-button.js
 new file mode 100644
-index 0000000..e8fb3bd
+index 0000000..450fd5d
 --- /dev/null
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/dictation-button.js
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,83 @@
 +import { MouseRegion, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 +
 +const KEY = "codex-dictation-button";
@@ -361,42 +370,62 @@ index 0000000..e8fb3bd
 +    unavailable: "\uf130 Realtime active",
 +};
 +
-+// One persistent widget; status updates request a render without replacing it.
-+export function registerDictationButton(pi, voice, toggle) {
++const realtimeLabels = {
++    idle: "\udb85\udc7d Voice chat",
++    connecting: "◌ Connecting chat…",
++    active: "■ Stop chat",
++    unavailable: "\udb85\udc7d Dictation active",
++};
++
++// One persistent widget; both modes share a transition guard and invalidation.
++export function registerDictationButton(pi, voice, toggle, toggleRealtime) {
 +    let context;
 +    let requestRender = () => {};
-+    let pending = false;
++    let pending;
 +    const unsubscribe = voice.onDictationStateChange(() => requestRender());
 +    const install = (_event, ctx) => {
 +        context = ctx;
 +        if (!ctx.hasUI) return;
 +        ctx.ui.setWidget(KEY, (tui, theme) => {
 +            requestRender = () => tui.requestRender();
-+            let left = 0;
-+            let right = 0;
++            let regions = [];
 +            return new MouseRegion({
 +                invalidate() {},
 +                render(width) {
-+                    const state = voice.dictationState;
-+                    const label = pending && state === "idle" ? "◌ Connecting…" : labels[state];
-+                    const button = truncateToWidth(` ${label} `, width, "");
-+                    const size = visibleWidth(button);
-+                    left = Math.max(0, width - size);
-+                    right = left + size;
-+                    const color = state === "listening" ? "success" : state === "idle" ? "accent" : "muted";
-+                    return [" ".repeat(left) + theme.bg("toolPendingBg", theme.fg(color, button))];
++                    const controls = [{ mode: "dictation", state: voice.dictationState, labels, action: toggle }];
++                    if (toggleRealtime) controls.push({ mode: "realtime", state: voice.realtimeState, labels: realtimeLabels, action: toggleRealtime });
++                    const buttons = controls.map(control => ({ ...control, text: ` ${pending?.mode === control.mode
++                        ? pending.stopping ? "◌ Stopping…" : control.labels.connecting
++                        : control.labels[control.state]} ` }));
++                    const total = buttons.reduce((size, button) => size + visibleWidth(button.text), buttons.length - 1);
++                    let offset = Math.max(0, width - total);
++                    let line = " ".repeat(offset);
++                    regions = [];
++                    for (const button of buttons) {
++                        const text = truncateToWidth(button.text, Math.max(0, width - offset), "");
++                        const right = offset + visibleWidth(text);
++                        regions.push({ ...button, left: offset, right });
++                        const color = pending ? "muted" : ["listening", "active"].includes(button.state) ? "success" : button.state === "idle" ? "accent" : "muted";
++                        line += theme.bg("toolPendingBg", theme.fg(color, text));
++                        offset = right;
++                        if (offset < width && button !== buttons.at(-1)) { line += " "; offset++; }
++                    }
++                    return [line];
 +                },
 +            }, (event) => {
 +                if (event.type !== "click" || event.button !== "left" || event.y !== 0 ||
-+                    event.x < left || event.x >= right || event.shift || event.alt || event.ctrl) return;
-+                if (!pending && ["idle", "listening"].includes(voice.dictationState)) {
-+                    pending = true;
++                    event.shift || event.alt || event.ctrl) return;
++                const button = regions.find(region => event.x >= region.left && event.x < region.right);
++                if (!button) return;
++                const state = button.mode === "dictation" ? voice.dictationState : voice.realtimeState;
++                if (!pending && ["idle", "listening", "active"].includes(state)) {
++                    pending = { mode: button.mode, stopping: state !== "idle" };
 +                    tui.requestRender();
 +                    const current = context;
-+                    void Promise.resolve().then(() => toggle(current)).catch((error) => {
++                    void Promise.resolve().then(() => button.action(current)).catch((error) => {
 +                        current.ui.notify(error instanceof Error ? error.message : String(error), "error");
 +                    }).finally(() => {
-+                        pending = false;
++                        pending = undefined;
 +                        requestRender();
 +                    });
 +                }
