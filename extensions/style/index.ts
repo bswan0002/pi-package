@@ -11,6 +11,7 @@ import { getBetterOpenAIState, onBetterOpenAIStateChange } from "../shared/bette
 import { type PolishedTuiConfig, colorize, ensureConfigExists, loadConfig } from "./config";
 import { type GitHubPrInfo, type GitStatusSummary, emptyGitStatus, readGitStatus } from "./git";
 import { type RuntimeInfo, readRuntimeInfo } from "./runtime";
+import { createProjectRefresh } from "./project-refresh";
 import { PolishedEditor, patchUserMessageComponent } from "./ui";
 
 type FooterState = GitStatusSummary & {
@@ -189,8 +190,7 @@ export default function (pi: ExtensionAPI) {
 
 	let currentConfig: PolishedTuiConfig = loadConfig();
 	let requestFooterRender: (() => void) | undefined;
-	let projectRefreshInFlight = false;
-	let projectRefreshPending = false;
+	let projectRefresh: ReturnType<typeof createProjectRefresh> | undefined;
 
 	const refresh = () => requestFooterRender?.();
 
@@ -203,39 +203,15 @@ export default function (pi: ExtensionAPI) {
 		state.costLabel = buildCostLabel(totals);
 	};
 
-	const refreshProjectState = async (ctx: ExtensionContext) => {
-		const [gitStatus, runtime] = await Promise.all([
-			readGitStatus(ctx.cwd),
-			readRuntimeInfo(ctx.cwd),
-		]);
-		Object.assign(state, gitStatus);
-		state.runtime = runtime;
-	};
-
-	const scheduleProjectRefresh = (ctx: ExtensionContext) => {
-		if (projectRefreshInFlight) {
-			projectRefreshPending = true;
-			return;
-		}
-
-		projectRefreshInFlight = true;
-		void refreshProjectState(ctx).finally(() => {
-			projectRefreshInFlight = false;
-			refresh();
-			if (projectRefreshPending) {
-				projectRefreshPending = false;
-				scheduleProjectRefresh(ctx);
-			}
-		});
-	};
-
 	const installFooter = (ctx: ExtensionContext) => {
 		syncState(ctx);
+		const cwd = ctx.cwd;
+		const owner = projectRefresh;
 
 		ctx.ui.setFooter((tui, theme, footerData) => {
 			requestFooterRender = () => tui.requestRender();
 			const unsubscribeBranch = footerData.onBranchChange(() => {
-				scheduleProjectRefresh(ctx);
+				owner?.schedule();
 				tui.requestRender();
 			});
 			const separator = colorize(theme, currentConfig.colors.separator, " | ");
@@ -251,7 +227,7 @@ export default function (pi: ExtensionAPI) {
 					const cwdLabel = colorize(
 						theme,
 						currentConfig.colors.cwdText,
-						formatCwdLabel(ctx.cwd, currentConfig.icons.cwd),
+						formatCwdLabel(cwd, currentConfig.icons.cwd),
 					);
 					const branch = state.branch;
 					const contextUsage = ctx.getContextUsage();
@@ -386,12 +362,26 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	const installUi = (ctx: ExtensionContext) => {
+		projectRefresh?.dispose();
+		projectRefresh = undefined;
+		requestFooterRender = undefined;
+		if (!ctx.hasUI) return;
+		projectRefresh = createProjectRefresh(
+			ctx.cwd,
+			(cwd) => Promise.all([readGitStatus(cwd), readRuntimeInfo(cwd)]),
+			([gitStatus, runtime]) => {
+				Object.assign(state, gitStatus);
+				state.runtime = runtime;
+				refresh();
+			},
+			(error) => console.error("Style project refresh failed:", error),
+		);
 		ensureConfigExists();
 		currentConfig = loadConfig();
 		patchUserMessageComponent(ctx.ui.theme);
 		installFooter(ctx);
 		installEditor(ctx);
-		scheduleProjectRefresh(ctx);
+		projectRefresh.schedule();
 		refresh();
 	};
 
@@ -399,11 +389,17 @@ export default function (pi: ExtensionAPI) {
 		installUi(ctx);
 	});
 
+	pi.on("session_shutdown", () => {
+		projectRefresh?.dispose();
+		projectRefresh = undefined;
+		requestFooterRender = undefined;
+	});
+
 	pi.registerCommand("pr-refresh", {
 		description: "Refresh the GitHub PR status in the style footer",
 		handler: async (_args, ctx) => {
-			await refreshProjectState(ctx);
-			refresh();
+			const owner = projectRefresh;
+			if (!owner || !(await owner.refresh()) || owner !== projectRefresh) return;
 			const pr = state.pullRequest;
 			ctx.ui.notify(
 				pr
@@ -415,38 +411,44 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("agent_start", async (_event, ctx) => {
+		if (!ctx.hasUI) return;
 		state.busy = true;
 		syncState(ctx);
 		refresh();
 	});
 
 	pi.on("agent_end", async (_event, ctx) => {
+		if (!ctx.hasUI) return;
 		state.busy = false;
 		syncState(ctx);
-		scheduleProjectRefresh(ctx);
+		projectRefresh?.schedule();
 		refresh();
 	});
 
 	pi.on("model_select", async (_event, ctx) => {
+		if (!ctx.hasUI) return;
 		syncState(ctx);
 		refresh();
 	});
 
 	pi.on("message_end", async (_event, ctx) => {
+		if (!ctx.hasUI) return;
 		syncState(ctx);
-		scheduleProjectRefresh(ctx);
+		projectRefresh?.schedule();
 		refresh();
 	});
 
 	pi.on("tool_execution_end", async (_event, ctx) => {
+		if (!ctx.hasUI) return;
 		syncState(ctx);
-		scheduleProjectRefresh(ctx);
+		projectRefresh?.schedule();
 		refresh();
 	});
 
 	pi.on("session_compact", async (_event, ctx) => {
+		if (!ctx.hasUI) return;
 		syncState(ctx);
-		scheduleProjectRefresh(ctx);
+		projectRefresh?.schedule();
 		refresh();
 	});
 }
