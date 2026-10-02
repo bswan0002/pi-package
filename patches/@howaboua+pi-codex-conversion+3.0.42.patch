@@ -175,9 +175,10 @@ index 6ff2d7e..9c153e2 100644
          compaction: plan.nativeCompaction,
          usageStatus: state.usageStatus,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
+index 236c230..cfcec93 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-@@ -179,6 +179,23 @@
+@@ -179,6 +179,23 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
          getArgumentCompletions: (prefix) => CODEX_COMMAND_COMPLETIONS.filter((item) => item.startsWith(prefix.trim().toLowerCase())).map((value) => ({ label: value, value })),
          handler: async (args, ctx) => {
              const arg = args.trim().toLowerCase();
@@ -202,9 +203,11 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command
                  await startUsageAnalysis(pi, ctx);
                  return;
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
+index 8f3b570..9d97019 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-@@ -24,6 +24,6 @@
+@@ -24,7 +24,7 @@ export const REALTIME_V3_VOICES = [
+ export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
  export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
  export const DEFAULT_CODEX_CONVERSION_CONFIG = {
 -    executionMode: "normal",
@@ -212,7 +215,8 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/
      voiceFeaturesOnly: false,
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -52,6 +52,6 @@
+@@ -50,7 +50,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+         continuity: "compaction",
          historyStorage: "local",
          shareSubagentContext: false,
 -        method: "pi",

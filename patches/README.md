@@ -1,9 +1,15 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-3.0.41, which its exports and our extension loader execute. Upstream `src/` is
+3.0.42, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+The 3.0.42 refresh preserves the existing patch behavior and upstream MCP
+namespace guidance/recovery fixes. Development checks use Pi 1.0.0; the existing
+`>=0.99.2` peer ranges still admit both versions. Pi 1.0.0 defaults to fullscreen;
+this package leaves that choice to the host (`--tui-mode regular` restores normal
+scrollback).
 
 Recommended defaults, display integration, and a fast-mode toggle:
 
@@ -34,7 +40,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@3.0.41` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@3.0.42` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 
