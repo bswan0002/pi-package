@@ -8,6 +8,12 @@ The extension is globally installable, but inactive unless the current project h
 .pi/post-edit.json
 ```
 
+## Change tracking
+
+Tracks successful Pi `edit`/`write` results and conversion `apply_patch` outcomes, both directly and inside Code/Notebook. Patch partial failures still contribute any reported changed paths. Nested completion hooks use conversion's public broker and work in either extension load order; they are inert without the full extension.
+
+Git-status comparison remains a fallback for shell edits. It is not a content snapshot: a shell edit to an already-dirty file can leave its status unchanged and escape detection. Direct patch/file-tool tracking does not have that limitation.
+
 ## Example
 
 ```json

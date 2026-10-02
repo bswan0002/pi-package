@@ -1,6 +1,8 @@
+import { registerCodeModeToolCompletion } from "@howaboua/pi-codex-conversion/code-mode-hooks";
+import { touchedFiles, resultDetails, resultIsError } from "./touched-files";
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
-import { isEditToolResult, isWriteToolResult, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { EVENTS as SHARED_EVENTS } from "../shared/events";
 
 const CONFIG_PATH = ".pi/post-edit.json";
@@ -286,16 +288,19 @@ export default function (pi: ExtensionAPI) {
 		startingGitStatus = await getGitStatus(pi, ctx.cwd).catch(() => undefined);
 	});
 
-	pi.on("tool_result", (event, ctx) => {
-		if (event.isError) return undefined;
-		if (!isEditToolResult(event) && !isWriteToolResult(event)) return undefined;
-
-		const filePath = event.input.path;
-		if (typeof filePath === "string") {
-			toolTouchedFiles.add(normalizeRelativePath(filePath, ctx.cwd));
+	function track(toolName: string, input: unknown, details: unknown, isError: boolean, cwd: string) {
+		for (const file of touchedFiles(toolName, input, details, isError)) {
+			toolTouchedFiles.add(normalizeRelativePath(file, cwd));
 		}
+	}
 
-		return undefined;
+	pi.on("tool_result", (event, ctx) => {
+		track(event.toolName, event.input, event.details, event.isError, ctx.cwd);
+	});
+
+	registerCodeModeToolCompletion(pi, (call) => {
+		track(call.toolName, call.input, resultDetails(call.result),
+			call.status === "error" || resultIsError(call.result), call.cwd);
 	});
 
 	pi.on("agent_end", async (_event, ctx) => {

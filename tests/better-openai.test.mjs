@@ -11,13 +11,15 @@ const { registerFastCodexProvider } = await jiti.import("../extensions/better-op
 const { DEFAULT_SUPPORTED_MODELS, DEFAULT_CONFIG } = await jiti.import("../extensions/better-openai/src/config.ts");
 const { composeModelProvider, validateExtensionProvider } = await import(new URL("./core/provider-composer.js", import.meta.resolve("@earendil-works/pi-coding-agent")));
 
-function setup() {
+function setup(commands = []) {
   const registrations = [];
   const handlers = new Map();
   const controller = registerFastCodexProvider({
+    getCommands: () => commands,
     registerProvider: (...args) => registrations.push(args),
     on: (event, handler) => handlers.set(event, handler),
   });
+  handlers.get("session_start")();
   return { registrations, handlers, controller };
 }
 
@@ -98,4 +100,30 @@ test("GPT-6 defaults include both providers without persisting an allowlist snap
     for (const tier of ["astra", "sol", "luna"]) assert.ok(DEFAULT_SUPPORTED_MODELS.includes(`${provider}/gpt-6-${tier}`));
   }
   assert.equal(DEFAULT_CONFIG.supportedModels, undefined);
+});
+
+test("loaded conversion owns the provider even without an active Codex model/status", () => {
+  const { registrations, handlers, controller } = setup([{ name: "codex", source: "extension" }]);
+  assert.equal(registrations.length, 0);
+  assert.equal(handlers.get("cache_warming_decision")({}, { model }), undefined);
+  controller.reset("fixture");
+  handlers.get("model_select")({ previousModel: model }, { sessionManager: { getSessionId: () => "fixture" } });
+  handlers.get("session_shutdown")();
+});
+
+test("provider ownership is decided after all factories, independently of load order", () => {
+  for (const conversionFirst of [true, false]) {
+    const commands = conversionFirst ? [{ name: "codex", source: "extension" }] : [];
+    const handlers = new Map();
+    const registrations = [];
+    registerFastCodexProvider({
+      getCommands: () => commands,
+      on: (event, handler) => handlers.set(event, handler),
+      registerProvider: (...args) => registrations.push(args),
+    });
+    assert.equal(registrations.length, 0);
+    if (!conversionFirst) commands.push({ name: "codex", source: "extension" });
+    handlers.get("session_start")();
+    assert.equal(registrations.length, 0);
+  }
 });

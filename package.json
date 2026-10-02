@@ -22,6 +22,7 @@
     ]
   },
   "scripts": {
+    "postinstall": "patch-package --error-on-fail",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs"
   },
@@ -39,10 +40,12 @@
   },
   "dependencies": {
     "@howaboua/pi-codex-conversion": "3.0.41",
+    "@howaboua/pi-codex-imagegen": "0.0.8",
+    "@howaboua/pi-codex-web-run": "0.0.5",
     "@shikijs/cli": "^4.0.2",
     "diff": "^9.0.0",
     "glob": "^13.0.6",
-    "shiki": "^4.0.2",
-    "web-tree-sitter": "0.27.0"
+    "patch-package": "8.0.1",
+    "shiki": "^4.0.2"
   }
 }

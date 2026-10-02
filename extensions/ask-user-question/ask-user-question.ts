@@ -1,3 +1,4 @@
+import { registerCompatibleTool } from "../shared/codex-conversion";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { EVENTS } from "../shared/events";
 import { QuestionnaireSession } from "./state/questionnaire-session";
@@ -31,7 +32,7 @@ export function buildItemsForQuestion(question: QuestionData): WrappingSelectIte
 }
 
 export function registerAskUserQuestionTool(pi: ExtensionAPI): void {
-	pi.registerTool({
+	registerCompatibleTool(pi, {
 		name: "ask_user_question",
 		label: "Ask User Question",
 		description: `Ask the user one or more structured questions during execution. Use when you need to:
