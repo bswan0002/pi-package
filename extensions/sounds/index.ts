@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { loadPiPackageConfig, hasSoundsConfig, bootstrapGlobalSoundsConfig } from "../shared/config";
 import { EVENTS } from "../shared/events";
 
@@ -34,7 +34,10 @@ export default function (pi: ExtensionAPI) {
 	for (const [eventName, soundPath] of Object.entries(sounds.piEvents ?? {})) {
 		if (typeof soundPath !== "string") continue;
 		try {
-			pi.on(eventName as any, async () => playSound(pi, soundPath));
+			pi.on(eventName as any, async (_event: unknown, ctx: ExtensionContext) => {
+				if (!ctx.hasUI) return;
+				await playSound(pi, soundPath);
+			});
 		} catch {
 			// Ignore unsupported event names.
 		}
