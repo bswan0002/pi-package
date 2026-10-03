@@ -65,7 +65,7 @@ test("bundled companions load in either order and Brave follows the model in all
     const { createEventBus } = await import(join(sdk, 'core/event-bus.js'));
     const { getCodeModeExtensionToolSnapshot } = await import('@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js');
     const { DEFAULT_CODEX_CONVERSION_CONFIG } = await import('@howaboua/pi-codex-conversion/dist/adapter/activation/config.js');
-    const paths = ['codex-conversion', 'codex-web-run', 'codex-imagegen', 'brave-search', 'better-openai'].map(p => join(process.cwd(), 'extensions', p, 'index.ts'));
+    const paths = ['codex-conversion', 'codex-web-run', 'codex-imagegen', 'browser', 'brave-search', 'better-openai'].map(p => join(process.cwd(), 'extensions', p, 'index.ts'));
     for (const order of [paths, [...paths].reverse()]) {
       const events = createEventBus();
       const loaded = await loadExtensions(order, process.env.PI_CODING_AGENT_DIR, events);
@@ -74,6 +74,8 @@ test("bundled companions load in either order and Brave follows the model in all
       const names = tools.map(t => t.name);
       assert.equal(names.filter(n => n === 'web_run').length, 1);
       assert.equal(names.filter(n => n === 'imagegen').length, 1);
+      assert.equal(names.filter(n => n === 'browser').length, 1);
+      assert.equal(loaded.extensions.filter(e => e.commands.has('browser')).length, 1);
       assert.ok(!names.includes('openai_image'));
       assert.ok(!loaded.extensions.some(e => e.commands.has('openai-image')));
       let active = [...names, 'read', 'edit', 'write', 'bash'];
@@ -102,6 +104,7 @@ test("bundled companions load in either order and Brave follows the model in all
           assert.equal(nested.some(t => t.topLevelName === 'brave_search'), !codex);
           assert.ok(nested.some(t => t.topLevelName === 'web_run'));
           assert.ok(nested.some(t => t.topLevelName === 'imagegen'));
+          assert.ok(nested.some(t => t.topLevelName === 'browser'));
           assert.equal(active.includes('brave_search'), mode === 'normal' && !codex);
           if (codex) await assert.rejects(
             () => brave.tools.get('brave_search').definition.execute('blocked', {query: 'test'}, undefined, undefined, ctx), /Use web_run/);

@@ -9,6 +9,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 - [`ask-user-question`](./extensions/ask-user-question) — adds an `ask_user_question` tool for structured TUI clarifying questions. Based on [juicesharp/rpiv-ask-user-question](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question).
 - [`better-openai`](./extensions/better-openai) — adds standalone OpenAI fast mode and Codex usage/reset countdowns. Ported from [mattleong/pi-better-openai](https://github.com/mattleong/pi-better-openai), with footer integration adapted for this package.
 - [`brave-search`](./extensions/brave-search) — Brave API search fallback for non-Codex models. Requires `BRAVE_SEARCH_API_KEY`.
+- [`browser`](./extensions/browser) — bundles `@howaboua/pi-browser` for logged-in browser inspection and interaction through CDP in ordinary Pi and Code/Notebook.
 - [`codex-web-run`](./extensions/codex-web-run) — bundles `@howaboua/pi-codex-web-run` for hosted web search and page navigation.
 - [`codex-imagegen`](./extensions/codex-imagegen) — bundles `@howaboua/pi-codex-imagegen` for hosted image generation/editing.
 - [`diff`](./extensions/diff) — Shiki-highlighted Pi `write`/`edit` diffs and conversion `apply_patch` display entries, including Code/Notebook calls. Based on [buddingnewinsights/pi-diff](https://github.com/buddingnewinsights/pi-diff).
@@ -28,7 +29,7 @@ Cloudability API, query, and staging skills now live in [cloudability/cldy-ui-sk
 
 ## Codex conversion compatibility
 
-This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, and `@howaboua/pi-codex-imagegen` dependencies through local extension loaders. **Remove separately installed copies of all three from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Global copies in an already-running Pi process are not changed by `npm ci` here.
+This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser` dependencies through local extension loaders. **Remove separately installed copies of all four from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
 Pi **1.0.0 or newer** is required by this package and its bundled Codex dependencies.
 
@@ -44,6 +45,7 @@ missing settings inherit these defaults. Change them with `/codex` if desired.
 - Conversion's resolved fast state appears beside the model in our custom footer, not in the conversion status row. Conversion still controls the setting and request service tier.
 - The style footer adds Better OpenAI's reset countdowns directly beside conversion's quotas (e.g. `weekly: 32% left · 1d18h ↺`). Hiding conversion's status restores the full usage/countdown row.
 - Hosted `web_run` and `imagegen` tools compose as `tools.web__run` and `tools.image_gen__imagegen` inside Code/Notebook. `ask_user_question` remains blocking. `brave_search` is offered only on non-Codex models, including in Code/Notebook; renamed Codex transports also use hosted search.
+- Browser composes as `tools.browser` in Code/Notebook. Enable remote debugging in Chrome at `chrome://inspect/#remote-debugging`, then restart Pi and begin with `await tools.browser("help")`. See [browser setup](./extensions/browser/README.md); no browser settings are changed automatically.
 - The old `openai_image` tool, `/openai-image` command, and Better OpenAI `image` settings are removed. Existing `image` config sections are ignored; use the bundled companion's imagegen tool instead. Images save beneath the workspace in `.pi/openai-codex-images`.
 - Post-edit observes direct and nested patch results, including partial failures, alongside Pi `edit`/`write` results and the existing Git-status fallback.
 - Conversion owns execution and its tool renderers. Our diff extension subscribes to its display broker: completed patches appear at turn end, with file snapshots captured inside conversion's existing mutation queues. New/deleted files and multiple nested edits retain their actual before/after contents, even after session reload. Renames appear as deletion/addition of the respective paths. Partial failures retain conversion's recovery instructions alongside observed changes.
@@ -116,6 +118,7 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 | ask-user-question        | None                                                                              | Uses pi's interactive TUI.                               |
 | better-openai            | OpenAI Codex OAuth                                                                | Use `/login openai-codex`; powers usage and image generation. |
 | brave-search             | `BRAVE_SEARCH_API_KEY`                                                            | Environment variable required.                           |
+| browser                  | Node.js 22.19+, Chrome-family browser with CDP enabled; optional SSH/SCP          | Logged-in browser control, not desktop control.          |
 | confluence-export        | `ATLASSIAN_EMAIL`, `ATLASSIAN_API_KEY`, `curl`, `python3`, `pandoc`               | Environment variables required.                         |
 | diff                     | Shiki npm dependencies                                                            | No major system tool expected.                           |
 | post-edit                | project-configured commands                                                       | Runs whatever `.pi/post-edit.json` asks for.             |
