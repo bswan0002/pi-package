@@ -47,6 +47,12 @@ Recommended defaults, display integration, and a fast-mode toggle:
   persisted `openai.fast` preference through the existing save/apply path, retaining
   trusted folder scope, idle deferral, transport resets, and footer synchronization.
   A valid `PI_CODEX_FAST` override blocks the toggle with an explicit warning.
+- Carry each known quota window's reset timestamp through Conversion's usage
+  status and display compact countdowns next to its percentages. Duration, not
+  primary/secondary position, identifies 5h and weekly windows. Unknown windows
+  are not guessed. Reset timestamps accept seconds/milliseconds and relative
+  reset durations. Countdown text updates on normal status renders; no extra
+  polling or timer is introduced. The same cached response supplies both values.
 
 `npm ci` runs `patch-package --error-on-fail`. To regenerate after editing the
 installed dependency, normally run:

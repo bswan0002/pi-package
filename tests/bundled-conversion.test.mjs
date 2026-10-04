@@ -66,7 +66,7 @@ test("bundled companions load in either order and Brave follows the model in all
     const { getCodeModeExtensionToolSnapshot } = await import('@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js');
     const { DEFAULT_CODEX_CONVERSION_CONFIG } = await import('@howaboua/pi-codex-conversion/dist/adapter/activation/config.js');
     const { createPiCodeModeBridge } = await import('@howaboua/pi-codex-conversion/dist/adapter/code-mode/pi-tools.js');
-    const paths = ['codex-conversion', 'codex-web-run', 'codex-imagegen', 'browser', 'brave-search', 'better-openai', 'ask-user-question'].map(p => join(process.cwd(), 'extensions', p, 'index.ts'));
+    const paths = ['codex-conversion', 'codex-web-run', 'codex-imagegen', 'browser', 'brave-search', 'fast', 'ask-user-question'].map(p => join(process.cwd(), 'extensions', p, 'index.ts'));
     for (const order of [paths, [...paths].reverse()]) {
       const events = createEventBus();
       const loaded = await loadExtensions(order, process.env.PI_CODING_AGENT_DIR, events);

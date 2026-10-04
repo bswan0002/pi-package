@@ -7,7 +7,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 ### Extensions
 
 - [`ask-user-question`](./extensions/ask-user-question) — adds an `ask_user_question` tool for structured TUI clarifying questions. Based on [juicesharp/rpiv-ask-user-question](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question).
-- [`better-openai`](./extensions/better-openai) — adds standalone OpenAI fast mode and Codex usage/reset countdowns. Ported from [mattleong/pi-better-openai](https://github.com/mattleong/pi-better-openai), with footer integration adapted for this package.
+- [`fast`](./extensions/fast) — provider-neutral /fast shortcut; Codex Conversion owns fast mode and inline usage/reset countdowns.
 - [`brave-search`](./extensions/brave-search) — Brave API search fallback for non-Codex models. Requires `BRAVE_SEARCH_API_KEY`.
 - [`browser`](./extensions/browser) — bundles `@howaboua/pi-browser` for logged-in browser inspection and interaction through CDP in ordinary Pi and Code/Notebook.
 - [`codex-web-run`](./extensions/codex-web-run) — bundles `@howaboua/pi-codex-web-run` for hosted web search and page navigation.
@@ -40,10 +40,11 @@ Recommended defaults are **Notebook mode** and **Compact V2** (`executionMode:
 Existing explicit global or trusted project preferences still take precedence;
 missing settings inherit these defaults. Change them with `/codex` if desired.
 
-- When conversion is loaded, it owns the Codex provider and connection lifecycle, regardless of extension load order. Without it, Better OpenAI installs its standalone transport at session startup.
-- `/fast` toggles conversion's own fast setting on conversion-owned routes, without opening settings or maintaining a second preference. The patch routes this through conversion's save/apply lifecycle: trusted folder scope is preserved and busy runs apply when idle. A valid `PI_CODEX_FAST` environment override pins the setting; unset it and restart to use the toggle. This package's `--fast` remains standalone-only. Other supported routes retain the standalone toggle.
+- Conversion owns the Codex provider and connection lifecycle. The `/fast` extension only dispatches commands; it never installs a transport or injects request options.
+- The tiny provider-neutral `/fast` extension toggles conversion's own fast setting on conversion-owned routes, without opening settings or maintaining a second preference. The patch routes this through conversion's save/apply lifecycle: trusted folder scope is preserved and busy runs apply when idle. A valid `PI_CODEX_FAST` environment override pins the setting; unset it and restart to use the toggle. Unsupported integrations warn without changing settings.
 - Conversion's resolved fast state appears beside the model in our custom footer, not in the conversion status row. Conversion still controls the setting and request service tier.
-- The style footer adds Better OpenAI's reset countdowns directly beside conversion's quotas (e.g. `weekly: 32% left · 1d18h ↺`). Hiding conversion's status restores the full usage/countdown row.
+- Conversion's status includes reset countdowns directly beside its quotas (e.g. `weekly: 32% left · 1d18h ↺`), using the same cached usage response and existing refresh cadence. There is no separate usage fetcher or fallback row.
+- Better OpenAI is removed, including `/openai-usage`, `/openai-settings`, and `--fast`. Its old `pi-better-openai.json` files are ignored; no standalone preference is imported. Use Conversion's settings or `PI_CODEX_FAST` for startup defaults.
 - Hosted `web_run` and `imagegen` tools compose as `tools.web__run` and `tools.image_gen__imagegen` inside Code/Notebook. `ask_user_question` remains blocking. `brave_search` is offered only on non-Codex models, including in Code/Notebook; renamed Codex transports also use hosted search.
 - Browser composes as `tools.browser` in Code/Notebook. Enable remote debugging in Chrome at `chrome://inspect/#remote-debugging`, then restart Pi and begin with `await tools.browser("help")`. See [browser setup](./extensions/browser/README.md); no browser settings are changed automatically.
 - The old `openai_image` tool, `/openai-image` command, and Better OpenAI `image` settings are removed. Existing `image` config sections are ignored; use the bundled companion's imagegen tool instead. Images save beneath the workspace in `.pi/openai-codex-images`.
@@ -116,7 +117,6 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 | Extension                | Optional/required tools                                                           | Notes                                                    |
 | ------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | ask-user-question        | None                                                                              | Uses pi's interactive TUI.                               |
-| better-openai            | OpenAI Codex OAuth                                                                | Use `/login openai-codex`; powers usage and image generation. |
 | brave-search             | `BRAVE_SEARCH_API_KEY`                                                            | Environment variable required.                           |
 | browser                  | Node.js 22.19+, Chrome-family browser with CDP enabled; optional SSH/SCP          | Logged-in browser control, not desktop control.          |
 | confluence-export        | `ATLASSIAN_EMAIL`, `ATLASSIAN_API_KEY`, `curl`, `python3`, `pandoc`               | Environment variables required.                         |

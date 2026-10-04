@@ -8,7 +8,7 @@ Based on and attributed to [lmilojevicc/pi-zentui](https://github.com/lmilojevic
 
 - Polished prompt box with model/provider/thinking metadata.
 - Custom footer with cwd, branch, git status, PR, runtime, context, token, and cost info.
-- Extension status row below the footer for package integrations such as Better OpenAI usage.
+- Extension status row below the footer for package integrations such as Codex Conversion quotas and reset countdowns.
 - Framed user messages.
 
 ## Commands

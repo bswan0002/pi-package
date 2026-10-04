@@ -442,3 +442,88 @@ index 0000000..450fd5d
 +        requestRender = () => {};
 +    });
 +}
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
+@@ -53,8 +53,12 @@
+         return undefined;
+     const usedPercent = numberValue(value["used_percent"]);
+     const limitWindowSeconds = numberValue(value["limit_window_seconds"]);
+-    const windowMinutes = numberValue(value["window_minutes"]) ?? (limitWindowSeconds === undefined ? undefined : Math.ceil(limitWindowSeconds / 60));
+-    const resetsAt = numberValue(value["resets_at"]) ?? numberValue(value["reset_at"]);
++    const windowMinutes = numberValue(value["window_minutes"]) ?? (limitWindowSeconds === undefined ? undefined : limitWindowSeconds / 60);
++    const resetTimestamp = numberValue(value["resets_at"]) ?? numberValue(value["reset_at"]);
++    const resetAfter = numberValue(value["reset_after_seconds"]);
++    const resetsAt = resetTimestamp === undefined
++        ? (resetAfter === undefined ? undefined : Date.now() / 1000 + Math.max(0, resetAfter))
++        : (resetTimestamp > 100_000_000_000 ? resetTimestamp / 1000 : resetTimestamp);
+     return usedPercent === undefined && windowMinutes === undefined && resetsAt === undefined ? undefined : { usedPercent, windowMinutes, resetsAt };
+ }
+ function parseRateLimit(value) {
+@@ -91,13 +95,16 @@
+ }
+ export function codexUsageStatus(snapshot) {
+     const limit = snapshot.limits.find(({ limitId }) => limitId === "codex");
++    const windowFor = (minutes) => [limit?.primary, limit?.secondary].find(({ windowMinutes } = {}) => windowMinutes === minutes);
+     const usageLeft = (minutes) => {
+-        const window = [limit?.primary, limit?.secondary].find(({ windowMinutes } = {}) => windowMinutes === minutes);
++        const window = windowFor(minutes);
+         return window?.usedPercent === undefined ? undefined : 100 - Math.max(0, Math.min(100, window.usedPercent));
+     };
+     return {
+         fiveHourUsageLeft: usageLeft(FIVE_HOUR_WINDOW_MINUTES),
+         weeklyUsageLeft: usageLeft(WEEKLY_WINDOW_MINUTES),
++        fiveHourResetsAt: windowFor(FIVE_HOUR_WINDOW_MINUTES)?.resetsAt,
++        weeklyResetsAt: windowFor(WEEKLY_WINDOW_MINUTES)?.resetsAt,
+     };
+ }
+ export function parseCodexRateLimitResetConsumePayload(payload) {
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts
+@@ -18,6 +18,8 @@
+     raw: unknown;
+ }
+ export interface CodexUsageStatus {
++    fiveHourResetsAt?: number | undefined;
++    weeklyResetsAt?: number | undefined;
+     fiveHourUsageLeft?: number | undefined;
+     weeklyUsageLeft?: number | undefined;
+ }
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
+@@ -7,6 +7,22 @@
+ }
+ export function buildExtraToolsOnlyStatusText(tools, theme) {
+     return formatStatusText(` • extra tools${tools.length > 0 ? `: ${tools.join(", ")}` : ""}`, theme);
++}
++// Compact reset countdowns use the same cached response as the percentages.
++function quotaStatus(label, left, resetsAt) {
++    if (left === undefined) return undefined;
++    let reset = "";
++    if (typeof resetsAt === "number" && Number.isFinite(resetsAt)) {
++        const seconds = Math.max(0, Math.round(resetsAt - Date.now() / 1000));
++        const days = Math.floor(seconds / 86400);
++        const hours = Math.floor((seconds % 86400) / 3600);
++        const minutes = Math.floor((seconds % 3600) / 60);
++        const countdown = days ? `${days}d${hours}h`
++            : hours ? `${hours}h${minutes}m`
++            : minutes ? `${minutes}m` : `${seconds}s`;
++        reset = ` · ${countdown} ↺`;
++    }
++    return `${label}: ${Math.round(left)}% left${reset}`;
+ }
+ export function buildStatusText(options, theme) {
+     const extras = [
+@@ -18,8 +34,8 @@
+             : undefined,
+         options.compaction ? "compact v2" : undefined,
+         options.fast ? "fast" : undefined,
+-        options.usageStatus?.fiveHourUsageLeft === undefined ? undefined : `5h: ${Math.round(options.usageStatus.fiveHourUsageLeft)}% left`,
+-        options.usageStatus?.weeklyUsageLeft === undefined ? undefined : `weekly: ${Math.round(options.usageStatus.weeklyUsageLeft)}% left`,
++        quotaStatus("5h", options.usageStatus?.fiveHourUsageLeft, options.usageStatus?.fiveHourResetsAt),
++        quotaStatus("weekly", options.usageStatus?.weeklyUsageLeft, options.usageStatus?.weeklyResetsAt),
+     ]
+         .filter(Boolean)
+         .join(" • ");
