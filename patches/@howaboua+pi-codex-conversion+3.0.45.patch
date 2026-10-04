@@ -1,5 +1,5 @@
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-index 2997a16..8393c3e 100644
+index c902c28..fef228e 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 @@ -5,6 +5,12 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY, buildExtraToolsOnlyStatusText } from ".
@@ -14,9 +14,9 @@ index 2997a16..8393c3e 100644
 +    });
      reconcileExternalToolLoadout(state, pi.getActiveTools());
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
-         ? getCodeModeExtensionToolSnapshot(pi, ctx, true)
+         ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index d2643f3..06b242f 100644
+index f2ab2b9..7747f29 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 @@ -24,7 +24,7 @@ export const REALTIME_V3_VOICES = [
@@ -28,8 +28,8 @@ index d2643f3..06b242f 100644
      voiceFeaturesOnly: false,
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -51,7 +51,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
-         historyStorage: "local",
+@@ -52,7 +52,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+         notesTreeHandoff: true,
          shareSubagentContext: false,
          idleNotesRollover: false,
 -        method: "pi",

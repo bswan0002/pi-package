@@ -15,6 +15,9 @@ test("fresh conversion installs default to Notebook and Compact V2", async (t) =
   assert.equal(DEFAULT_CODEX_CONVERSION_CONFIG.executionMode, "notebook");
   assert.equal(config.executionMode, "notebook");
   assert.equal(config.compaction.method, "v2");
+  assert.equal(config.compaction.notesTreeHandoff, true);
+  assert.equal(config.compaction.shareSubagentContext, false);
+  assert.equal(normalizeCodexConversionConfig({ compaction: { notesTreeHandoff: false } }).compaction.notesTreeHandoff, false);
   assert.equal(normalizeCodexConversionConfig({}).compaction.method, "v2");
   const plan = resolveCodexRuntimePlan({ model: { provider: "openai-codex", api: "openai-codex-responses", id: "gpt-6-luna" } }, config);
   assert.equal(plan.kind, "notebook");

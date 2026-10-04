@@ -32,15 +32,15 @@
     "@earendil-works/pi-tui": ">=1.0.0"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "1.0.1",
-    "@earendil-works/pi-coding-agent": "1.0.1",
-    "@earendil-works/pi-tui": "1.0.1",
+    "@earendil-works/pi-ai": "1.0.2",
+    "@earendil-works/pi-coding-agent": "1.0.2",
+    "@earendil-works/pi-tui": "1.0.2",
     "@types/node": "^24.0.0",
     "typescript": "6.0.3"
   },
   "dependencies": {
     "@howaboua/pi-browser": "0.0.6",
-    "@howaboua/pi-codex-conversion": "3.0.43",
+    "@howaboua/pi-codex-conversion": "3.0.45",
     "@howaboua/pi-codex-imagegen": "0.0.9",
     "@howaboua/pi-codex-web-run": "0.0.6",
     "@shikijs/cli": "^4.0.2",

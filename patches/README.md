@@ -1,14 +1,17 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-3.0.43, which its exports and our extension loader execute. Upstream `src/` is
+3.0.45, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
-The 3.0.43 refresh preserves all existing patches, including the dictation
-button, and upstream MCP discovery and realtime voice fixes. Conversion and
-the hosted companions now require Pi 1.0.0+, matching this package's peer ranges
-and development checks. Pi 1.0.0 defaults to fullscreen;
+The 3.0.45 refresh preserves all existing patches, including the dictation
+and realtime Voice chat buttons, diff snapshots, and fast-mode integration.
+Upstream automatic Pi tool imports prefer explicit registrations; existing tool
+gates and blocking question behavior remain authoritative. The refresh also
+preserves upstream notes/history attachment and the new `notesTreeHandoff` default.
+Conversion and the hosted companions require Pi 1.0.0+, matching this package's
+peer ranges and development checks on Pi 1.0.2. Pi 1.0.0 defaults to fullscreen;
 this package leaves that choice to the host (`--tui-mode regular` restores normal
 scrollback).
 
@@ -53,7 +56,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@3.0.43` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@3.0.45` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 

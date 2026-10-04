@@ -316,11 +316,66 @@ test("all package custom tools are offered to Code/Notebook without replacing th
   pi.registerMessageRenderer = () => {};
   registerAskUserQuestionTool(pi);
   braveSearch(pi);
-  const nested = getCodeModeExtensionToolSnapshot(pi, { model: { provider: "anthropic", api: "anthropic-messages" } }, true).tools;
+  const nested = getCodeModeExtensionToolSnapshot(pi, { model: { provider: "anthropic", api: "anthropic-messages" } }, { refreshGates: true }).tools;
   const expected = ["ask_user_question", "brave_search"];
   assert.deepEqual(tools.map((tool) => tool.name).sort(), expected);
   assert.deepEqual(nested.map((tool) => tool.topLevelName).sort(), expected);
   assert.equal(nested.find((tool) => tool.topLevelName === "ask_user_question").blocking, true);
   await fire("session_shutdown");
   assert.equal(getCodeModeExtensionToolSnapshot(pi, undefined).tools.length, 0);
+});
+
+test("real Code/Notebook runtime imports callable tools without bypassing explicit gates or eligibility", async (t) => {
+  const { registerCodexCodeMode } = await import("@howaboua/pi-codex-conversion/dist/adapter/code-mode.js");
+  const { registerAskUserQuestionTool } = await jiti.import("../extensions/ask-user-question/ask-user-question.ts");
+  const { default: braveSearch } = await jiti.import("../extensions/brave-search/index.ts");
+  const { pi, fire, tools } = harness();
+  pi.registerCommand = () => {};
+  pi.registerMessageRenderer = () => {};
+  registerAskUserQuestionTool(pi);
+  braveSearch(pi);
+  pi.registerTool({ name: "ordinary_extension", description: "Automatic import fixture", parameters: Type.Object({}) });
+  const nativeTools = ["read", "edit", "write", "bash", ...ALL_CODEX_ADAPTER_TOOL_NAMES];
+  pi.getAllTools = () => [...new Set([...nativeTools, ...tools.map(tool => tool.name)])].map(name => ({ name }));
+  let active = [...nativeTools, ...tools.map(tool => tool.name)];
+  pi.getActiveTools = () => active;
+  pi.setActiveTools = names => { active = names; };
+  const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
+  config.scope.allProviders = "on";
+  config.tools.autoReasoning = false;
+  const state = { config };
+  const runtime = await registerCodexCodeMode(pi, { state, tracker: {}, sessions: new Map() });
+  t.after(async () => { await fire("session_shutdown"); await runtime.shutdown(); });
+  const exec = tools.find(tool => tool.name === "exec");
+  const callable = tools.filter(tool => ["ordinary_extension", "ask_user_question", "brave_search"].includes(tool.name));
+  const nameOf = tool => tool.topLevelName ?? tool.name;
+  for (const mode of ["code", "notebook"]) {
+    state.executionMode = mode;
+    for (const model of [
+      { provider: "anthropic", api: "anthropic-messages", id: "claude" },
+      codexModel,
+      { ...codexModel, provider: "renamed" },
+      { provider: "anthropic", api: "anthropic-messages", id: "claude" },
+    ]) {
+      const ctx = { cwd: "/fixture", model, hasUI: false, isProjectTrusted: () => false };
+      await fire("model_select", {}, ctx);
+      syncAdapter(pi, ctx, state);
+      // Resolve active providers, then exercise the exec tool's actual loadout hook.
+      runtime.getTools(ctx);
+      const changes = exec.prepareLoadout({ callable, declared: active.map(name => ({ name })), getNamespace: () => undefined });
+      assert.ok(changes.hiddenDeclarations.includes("ordinary_extension"));
+      const nested = runtime.getTools(ctx);
+      assert.equal(nested.filter(tool => nameOf(tool) === "ordinary_extension").length, 1);
+      const questions = nested.filter(tool => nameOf(tool) === "ask_user_question");
+      assert.equal(questions.length, 1);
+      assert.equal(questions[0].blocking, true);
+      assert.equal(nested.filter(tool => nameOf(tool) === "brave_search").length, model.api === "openai-codex-responses" ? 0 : 1);
+      const saved = state.previousToolNames;
+      state.previousToolNames = saved.filter(name => name !== "ask_user_question");
+      assert.ok(!runtime.getTools(ctx).some(tool => nameOf(tool) === "ask_user_question"), "an ineligible explicit tool cannot fall back to automatic import");
+      state.previousToolNames = saved;
+      exec.prepareLoadout({ callable: [], declared: active.map(name => ({ name })), getNamespace: () => undefined });
+      assert.ok(!runtime.getTools(ctx).some(tool => nameOf(tool) === "ordinary_extension"), "callable removals reach the actual runtime");
+    }
+  }
 });
