@@ -10,10 +10,9 @@ import { Type } from "typebox";
 const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
 const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { fsCache: false });
-const { hasCodexConversion, conversionOwnsFast, registerCompatibleTool } = await jiti.import("../extensions/shared/codex-conversion.ts");
+const { hasCodexConversion, conversionOwnsFast } = await jiti.import("../extensions/shared/codex-conversion.ts");
 const { touchedFiles } = await jiti.import("../extensions/post-edit/touched-files.ts");
 const { default: postEdit } = await jiti.import("../extensions/post-edit/index.ts");
-const { getCodeModeExtensionToolSnapshot } = await import("@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js");
 const { registerConversionFastDisplay, getFastState: fastDisplay, onFastStateChange } = await jiti.import("../extensions/shared/fast-state.ts");
 const { renderCodexStatus } = await import("@howaboua/pi-codex-conversion/dist/ui/status.js");
 const { syncAdapter } = await import("@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js");
@@ -129,32 +128,6 @@ test("fast ownership follows loaded extension and current route, not installatio
   assert.equal(conversionOwnsFast(pi, { model: codexModel }), false);
 });
 
-test("custom tools remain normal Pi tools and compose with conversion through the public API", async () => {
-  const { pi, fire, tools } = harness();
-  let capturedContext;
-  registerCompatibleTool(pi, {
-    name: "ask_user_question", label: "Ask", description: "Ask a question",
-    parameters: Type.Object({ question: Type.String() }),
-    execute: async (_id, args, _signal, _update, ctx) => {
-      capturedContext = ctx;
-      return { content: [{ type: "text", text: args.question }], details: undefined };
-    },
-  });
-  assert.equal(tools.length, 1);
-  const [nested] = getCodeModeExtensionToolSnapshot(pi, undefined).tools;
-  assert.equal(nested.topLevelName, "ask_user_question");
-  assert.equal(nested.blocking, true);
-  assert.deepEqual(nested.inputSchema, tools[0].parameters);
-  const signal = new AbortController().signal;
-  const ctx = { cwd: "/fixture", hasUI: true };
-  const result = await nested.invoke({ question: "Which?" }, { extensionContext: ctx, toolCallId: "nested-1" }, signal);
-  assert.ok(JSON.stringify(result).includes("Which?"));
-  assert.equal(capturedContext.cwd, ctx.cwd);
-  await assert.rejects(() => nested.invoke({}, { extensionContext: ctx }, signal), /Invalid/);
-  await fire("session_shutdown");
-  assert.equal(getCodeModeExtensionToolSnapshot(pi, undefined).tools.length, 0);
-});
-
 const patchDetails = (status = "success") => ({ status, result: {
   changedFiles: ["already-dirty.ts"], createdFiles: ["new.ts"], deletedFiles: ["old.ts"], movedFiles: ["renamed.ts"], fuzz: 0,
 } });
@@ -250,32 +223,21 @@ test("/fast dispatches only to a loaded integration owning the current route", a
   assert.equal(notices.at(-1)[1], "error");
 });
 
-test("all package custom tools are offered to Code/Notebook without replacing their Pi registrations", async () => {
-  const { registerAskUserQuestionTool } = await jiti.import("../extensions/ask-user-question/ask-user-question.ts");
-  const { default: braveSearch } = await jiti.import("../extensions/brave-search/index.ts");
-  const { pi, fire, tools } = harness();
-  pi.registerCommand = () => {};
-  pi.registerMessageRenderer = () => {};
-  registerAskUserQuestionTool(pi);
-  braveSearch(pi);
-  const nested = getCodeModeExtensionToolSnapshot(pi, { model: { provider: "anthropic", api: "anthropic-messages" } }, { refreshGates: true }).tools;
-  const expected = ["ask_user_question", "brave_search"];
-  assert.deepEqual(tools.map((tool) => tool.name).sort(), expected);
-  assert.deepEqual(nested.map((tool) => tool.topLevelName).sort(), expected);
-  assert.equal(nested.find((tool) => tool.topLevelName === "ask_user_question").blocking, true);
-  await fire("session_shutdown");
-  assert.equal(getCodeModeExtensionToolSnapshot(pi, undefined).tools.length, 0);
-});
-
 test("real Code/Notebook runtime imports callable tools without bypassing explicit gates or eligibility", async (t) => {
   const { registerCodexCodeMode } = await import("@howaboua/pi-codex-conversion/dist/adapter/code-mode.js");
-  const { registerAskUserQuestionTool } = await jiti.import("../extensions/ask-user-question/ask-user-question.ts");
-  const { default: braveSearch } = await jiti.import("../extensions/brave-search/index.ts");
+  const { adaptToolForCodeMode, registerCodeModeExtensionTools } = await import("@howaboua/pi-codex-conversion/code-mode");
   const { pi, fire, tools } = harness();
-  pi.registerCommand = () => {};
-  pi.registerMessageRenderer = () => {};
-  registerAskUserQuestionTool(pi);
-  braveSearch(pi);
+  const explicit = {
+    name: "explicit_fixture", label: "Fixture", description: "Explicit import fixture", parameters: Type.Object({}),
+    execute: async () => ({ content: [{ type: "text", text: "fixture" }] }),
+  };
+  pi.registerTool(explicit);
+  const registration = registerCodeModeExtensionTools(pi, () => [adaptToolForCodeMode(explicit, {
+    usage: "await tools.explicit_fixture(input)",
+  })], {
+    isActive: ctx => ctx?.model?.api !== "openai-codex-responses",
+  });
+  t.after(() => registration.unregister());
   pi.registerTool({ name: "ordinary_extension", description: "Automatic import fixture", parameters: Type.Object({}) });
   const nativeTools = ["read", "edit", "write", "bash", ...ALL_CODEX_ADAPTER_TOOL_NAMES];
   pi.getAllTools = () => [...new Set([...nativeTools, ...tools.map(tool => tool.name)])].map(name => ({ name }));
@@ -289,7 +251,7 @@ test("real Code/Notebook runtime imports callable tools without bypassing explic
   const runtime = await registerCodexCodeMode(pi, { state, tracker: {}, sessions: new Map() });
   t.after(async () => { await fire("session_shutdown"); await runtime.shutdown(); });
   const exec = tools.find(tool => tool.name === "exec");
-  const callable = tools.filter(tool => ["ordinary_extension", "ask_user_question", "brave_search"].includes(tool.name));
+  const callable = tools.filter(tool => ["ordinary_extension", "explicit_fixture"].includes(tool.name));
   const nameOf = tool => tool.topLevelName ?? tool.name;
   for (const mode of ["code", "notebook"]) {
     state.executionMode = mode;
@@ -308,13 +270,10 @@ test("real Code/Notebook runtime imports callable tools without bypassing explic
       assert.ok(changes.hiddenDeclarations.includes("ordinary_extension"));
       const nested = runtime.getTools(ctx);
       assert.equal(nested.filter(tool => nameOf(tool) === "ordinary_extension").length, 1);
-      const questions = nested.filter(tool => nameOf(tool) === "ask_user_question");
-      assert.equal(questions.length, 1);
-      assert.equal(questions[0].blocking, true);
-      assert.equal(nested.filter(tool => nameOf(tool) === "brave_search").length, model.api === "openai-codex-responses" ? 0 : 1);
+      assert.equal(nested.filter(tool => nameOf(tool) === "explicit_fixture").length, model.api === "openai-codex-responses" ? 0 : 1);
       const saved = state.previousToolNames;
-      state.previousToolNames = saved.filter(name => name !== "ask_user_question");
-      assert.ok(!runtime.getTools(ctx).some(tool => nameOf(tool) === "ask_user_question"), "an ineligible explicit tool cannot fall back to automatic import");
+      state.previousToolNames = saved.filter(name => name !== "explicit_fixture");
+      assert.ok(!runtime.getTools(ctx).some(tool => nameOf(tool) === "explicit_fixture"), "an ineligible explicit tool cannot fall back to automatic import");
       state.previousToolNames = saved;
       exec.prepareLoadout({ callable: [], declared: active.map(name => ({ name })), getNamespace: () => undefined });
       assert.ok(!runtime.getTools(ctx).some(tool => nameOf(tool) === "ordinary_extension"), "callable removals reach the actual runtime");

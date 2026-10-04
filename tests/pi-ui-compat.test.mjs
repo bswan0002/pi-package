@@ -10,8 +10,6 @@ const jiti = createJiti(import.meta.url, { fsCache: false });
 const { theme } = await import(new URL("./modes/interactive/theme/theme.js", agentEntry));
 const { KeybindingsManager } = await import(new URL("./core/keybindings.js", agentEntry));
 const { patchUserMessageComponent, PolishedEditor } = await jiti.import("../extensions/style/ui.ts");
-const { QuestionnaireSession } = await jiti.import("../extensions/ask-user-question/state/questionnaire-session.ts");
-const { buildItemsForQuestion } = await jiti.import("../extensions/ask-user-question/ask-user-question.ts");
 initTheme("dark", false);
 
 function terminal() {
@@ -51,7 +49,7 @@ test("styled user messages retain text, framing and shell zones across resize an
 });
 
 for (const Host of [TuiMainScreen, TuiAltScreen]) {
-  test(`editor and questionnaire render, resize and accept input on ${Host.name}`, () => {
+  test(`editor renders and resizes on ${Host.name}`, () => {
     const tui = new Host(terminal());
     const editor = new PolishedEditor(tui, {
       borderColor: (s) => theme.fg("border", s), selectList: getSelectListTheme(),
@@ -61,23 +59,6 @@ for (const Host of [TuiMainScreen, TuiAltScreen]) {
       assert.match(bounded(editor.render(width), width), /Please review this change/);
       assert.match(bounded(editor.render(width), width), /gpt-6  fast/);
     }
-    const question = { header: "Approach", question: "Which approach?", options: [
-      { label: "First", description: "Keep existing behavior", preview: "## First preview\n\nPreserve behavior." },
-      { label: "Second", description: "Try another approach", preview: "## Second preview\n\nAlternative behavior." },
-    ] };
-    let result;
-    const session = new QuestionnaireSession({ tui, theme, params: { questions: [question] },
-      itemsByTab: [buildItemsForQuestion(question)], done: (value) => { result = value; } });
-    for (const width of [40, 120, 60]) {
-      tui.terminal.columns = width;
-      session.component.invalidate();
-      assert.match(bounded(session.component.render(width), width), /Which approach/);
-    }
-    session.component.handleInput("\x1b[B");
-    session.component.handleInput("\r");
-    assert.ok(result, "Enter completes the single question");
-    assert.equal(result.cancelled, false);
-    assert.match(JSON.stringify(result), /Second/);
     tui.stop();
   });
 }

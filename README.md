@@ -6,9 +6,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 
 ### Extensions
 
-- [`ask-user-question`](./extensions/ask-user-question) — adds an `ask_user_question` tool for structured TUI clarifying questions. Based on [juicesharp/rpiv-ask-user-question](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question).
 - [`fast`](./extensions/fast) — provider-neutral /fast shortcut; Codex Conversion owns fast mode and inline usage/reset countdowns.
-- [`brave-search`](./extensions/brave-search) — Brave API search fallback for non-Codex models. Requires `BRAVE_SEARCH_API_KEY`.
 - [`browser`](./extensions/browser) — bundles `@howaboua/pi-browser` for logged-in browser inspection and interaction through CDP in ordinary Pi and Code/Notebook.
 - [`codex-web-run`](./extensions/codex-web-run) — bundles `@howaboua/pi-codex-web-run` for hosted web search and page navigation.
 - [`codex-imagegen`](./extensions/codex-imagegen) — bundles `@howaboua/pi-codex-imagegen` for hosted image generation/editing.
@@ -45,7 +43,7 @@ missing settings inherit these defaults. Change them with `/codex` if desired.
 - Conversion's resolved fast state appears beside the model in our custom footer, not in the conversion status row. Conversion still controls the setting and request service tier.
 - Conversion's status includes reset countdowns directly beside its quotas (e.g. `weekly: 32% left · 1d18h ↺`), using the same cached usage response and existing refresh cadence. There is no separate usage fetcher or fallback row.
 - Better OpenAI is removed, including `/openai-usage`, `/openai-settings`, and `--fast`. Its old `pi-better-openai.json` files are ignored; no standalone preference is imported. Use Conversion's settings or `PI_CODEX_FAST` for startup defaults.
-- Hosted `web_run` and `imagegen` tools compose as `tools.web__run` and `tools.image_gen__imagegen` inside Code/Notebook. `ask_user_question` remains blocking. `brave_search` is offered only on non-Codex models, including in Code/Notebook; renamed Codex transports also use hosted search.
+- Hosted `web_run` and `imagegen` tools compose as `tools.web__run` and `tools.image_gen__imagegen` inside Code/Notebook. Renamed Codex transports also use hosted search. No separate non-Codex search fallback is bundled.
 - Browser composes as `tools.browser` in Code/Notebook. Enable remote debugging in Chrome at `chrome://inspect/#remote-debugging`, then restart Pi and begin with `await tools.browser("help")`. See [browser setup](./extensions/browser/README.md); no browser settings are changed automatically.
 - The old `openai_image` tool, `/openai-image` command, and Better OpenAI `image` settings are removed. Existing `image` config sections are ignored; use the bundled companion's imagegen tool instead. Images save beneath the workspace in `.pi/openai-codex-images`.
 - Post-edit observes direct and nested patch results, including partial failures, alongside Pi `edit`/`write` results and the existing Git-status fallback.
@@ -110,14 +108,12 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 | Package target                                             | primary | may work       | Personal workflow targets macOS.                                         |
 | screenshot-picker                                          | yes     | partial/yes    | Linux paths and `xdg-open` exist; thumbnails depend on terminal support. |
 | sounds                                                     | yes     | no/unsupported | Uses `afplay`.                                                           |
-| style/diff/post-edit/brave-search | yes     | likely         | Mostly Node/pi behavior; external tools may vary.                        |
+| style/diff/post-edit | yes     | likely         | Mostly Node/pi behavior; external tools may vary.                        |
 
 ## External dependencies
 
 | Extension                | Optional/required tools                                                           | Notes                                                    |
 | ------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| ask-user-question        | None                                                                              | Uses pi's interactive TUI.                               |
-| brave-search             | `BRAVE_SEARCH_API_KEY`                                                            | Environment variable required.                           |
 | browser                  | Node.js 22.19+, Chrome-family browser with CDP enabled; optional SSH/SCP          | Logged-in browser control, not desktop control.          |
 | confluence-export        | `ATLASSIAN_EMAIL`, `ATLASSIAN_API_KEY`, `curl`, `python3`, `pandoc`               | Environment variables required.                         |
 | diff                     | Shiki npm dependencies                                                            | No major system tool expected.                           |

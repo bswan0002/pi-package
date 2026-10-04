@@ -12,7 +12,6 @@ Config lives under `piPackage.sounds` in global `~/.pi/agent/settings.json`, wit
         "agent_end": "/System/Library/Sounds/Glass.aiff"
       },
       "extensionEvents": {
-        "ask-user-question:started": "/System/Library/Sounds/Hero.aiff",
         "post-edit:failed": "/System/Library/Sounds/Ping.aiff"
       }
     }
@@ -22,4 +21,4 @@ Config lives under `piPackage.sounds` in global `~/.pi/agent/settings.json`, wit
 
 Pi core events are subscribed with `pi.on`; extension bus events are subscribed with `pi.events.on`. Sound paths may be absolute or use `~`.
 
-If no sounds config exists globally or in the project, the extension bootstraps the defaults above into global settings so they are visible and editable.
+If no sounds config exists globally or in the project, the extension bootstraps an `agent_end` sound and an empty `extensionEvents` map into global settings so they are visible and editable. The `post-edit:failed` sound above is an optional customization.

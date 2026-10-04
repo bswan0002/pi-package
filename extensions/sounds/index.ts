@@ -2,15 +2,12 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { loadPiPackageConfig, hasSoundsConfig, bootstrapGlobalSoundsConfig } from "../shared/config";
-import { EVENTS } from "../shared/events";
 
 const DEFAULT_SOUNDS = {
 	piEvents: {
 		agent_end: "/System/Library/Sounds/Glass.aiff",
 	},
-	extensionEvents: {
-		[EVENTS.ASK_USER_QUESTION_STARTED]: "/System/Library/Sounds/Hero.aiff",
-	},
+	extensionEvents: {},
 };
 
 function expandPath(path: string): string {
