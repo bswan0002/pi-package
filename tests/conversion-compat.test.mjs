@@ -316,7 +316,7 @@ test("all package custom tools are offered to Code/Notebook without replacing th
   pi.registerMessageRenderer = () => {};
   registerAskUserQuestionTool(pi);
   braveSearch(pi);
-  const nested = getCodeModeExtensionToolSnapshot(pi, { model: { provider: "anthropic", api: "anthropic-messages" } }, true).tools;
+  const nested = getCodeModeExtensionToolSnapshot(pi, { model: { provider: "anthropic", api: "anthropic-messages" } }, { refreshGates: true }).tools;
   const expected = ["ask_user_question", "brave_search"];
   assert.deepEqual(tools.map((tool) => tool.name).sort(), expected);
   assert.deepEqual(nested.map((tool) => tool.topLevelName).sort(), expected);

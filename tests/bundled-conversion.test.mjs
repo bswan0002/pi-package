@@ -65,7 +65,8 @@ test("bundled companions load in either order and Brave follows the model in all
     const { createEventBus } = await import(join(sdk, 'core/event-bus.js'));
     const { getCodeModeExtensionToolSnapshot } = await import('@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js');
     const { DEFAULT_CODEX_CONVERSION_CONFIG } = await import('@howaboua/pi-codex-conversion/dist/adapter/activation/config.js');
-    const paths = ['codex-conversion', 'codex-web-run', 'codex-imagegen', 'browser', 'brave-search', 'better-openai'].map(p => join(process.cwd(), 'extensions', p, 'index.ts'));
+    const { createPiCodeModeBridge } = await import('@howaboua/pi-codex-conversion/dist/adapter/code-mode/pi-tools.js');
+    const paths = ['codex-conversion', 'codex-web-run', 'codex-imagegen', 'browser', 'brave-search', 'better-openai', 'ask-user-question'].map(p => join(process.cwd(), 'extensions', p, 'index.ts'));
     for (const order of [paths, [...paths].reverse()]) {
       const events = createEventBus();
       const loaded = await loadExtensions(order, process.env.PI_CODING_AGENT_DIR, events);
@@ -85,6 +86,10 @@ test("bundled companions load in either order and Brave follows the model in all
       const pi = { events, getActiveTools: () => active,
         setActiveTools: names => { active = names; }, getAllTools: loaded.runtime.getAllTools };
       const brave = loaded.extensions.find(e => e.tools.has('brave_search'));
+      const bridge = createPiCodeModeBridge(pi);
+      // Include all explicit names in Pi's callable fixture: gated registrations
+      // must reserve their names even when their explicit integration is inactive.
+      bridge.prepareLoadout({ callable: [...tools, { name: 'ordinary_extension', description: 'Auto imported', parameters: { type: 'object' } }], getNamespace: () => undefined });
       const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
       config.scope.allProviders = 'on';
       const state = { config };
@@ -99,7 +104,18 @@ test("bundled companions load in either order and Brave follows the model in all
           const ctx = {model, hasUI: false};
           for (const fn of brave.handlers.get('model_select')) await fn({}, ctx);
           syncAdapter(pi, ctx, state);
-          const nested = getCodeModeExtensionToolSnapshot(pi, ctx, true).tools;
+          const snapshot = getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true, eligibleTopLevelNames: names });
+          const imported = bridge.getTools(snapshot.allToolNames);
+          const nested = [...snapshot.tools, ...imported];
+          assert.ok(imported.some(t => t.name === 'ordinary_extension'));
+          for (const name of ['brave_search', 'ask_user_question', 'web_run', 'imagegen', 'browser']) {
+            assert.ok(!imported.some(t => t.name === name), name + ' explicit integration must win');
+            assert.equal(nested.filter(t => (t.topLevelName ?? t.name) === name).length, name === 'brave_search' && model.api === 'openai-codex-responses' ? 0 : 1);
+          }
+          assert.equal(nested.find(t => t.topLevelName === 'ask_user_question').blocking, true);
+          const excluded = getCodeModeExtensionToolSnapshot(pi, ctx, { eligibleTopLevelNames: [] });
+          assert.equal(excluded.tools.length, 0, 'Pi tool eligibility remains authoritative');
+          assert.ok(excluded.allToolNames.includes('brave_search'), 'ineligible names remain reserved');
           const codex = model.api === 'openai-codex-responses';
           assert.equal(nested.some(t => t.topLevelName === 'brave_search'), !codex);
           assert.ok(nested.some(t => t.topLevelName === 'web_run'));
