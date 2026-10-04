@@ -1,4 +1,3 @@
-import { visibleExtensionStatuses } from "../shared/codex-conversion";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type {
 	ExtensionAPI,
@@ -7,7 +6,7 @@ import type {
 	Theme,
 } from "@earendil-works/pi-coding-agent";
 import { type EditorTheme, type TUI, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { getBetterOpenAIState, onBetterOpenAIStateChange } from "../shared/better-openai-state";
+import { getFastState, onFastStateChange } from "../shared/fast-state";
 import { type PolishedTuiConfig, colorize, ensureConfigExists, loadConfig } from "./config";
 import { type GitHubPrInfo, type GitStatusSummary, emptyGitStatus, readGitStatus } from "./git";
 import { type RuntimeInfo, readRuntimeInfo } from "./runtime";
@@ -283,7 +282,7 @@ export default function (pi: ExtensionAPI) {
 					const statusRows = () => {
 						const extensionStatuses = footerData.getExtensionStatuses?.();
 						if (!extensionStatuses?.size) return [] as string[];
-						const text = visibleExtensionStatuses(extensionStatuses)
+						const text = [...extensionStatuses]
 							.sort(([a], [b]) => String(a).localeCompare(String(b)))
 							.map(([, value]) => sanitizeStatusText(String(value)))
 							.filter(Boolean)
@@ -313,7 +312,7 @@ export default function (pi: ExtensionAPI) {
 	const installEditor = (ctx: ExtensionContext) => {
 		syncState(ctx);
 
-		let unsubscribeBetterOpenAI: (() => void) | undefined;
+		let unsubscribeFast: (() => void) | undefined;
 		let currentEditor: PolishedEditor | undefined;
 		let autocompleteFixed = false;
 
@@ -322,15 +321,15 @@ export default function (pi: ExtensionAPI) {
 		};
 
 		const editorFactory = (tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
-			unsubscribeBetterOpenAI?.();
-			unsubscribeBetterOpenAI = onBetterOpenAIStateChange(() => tui.requestRender());
+			unsubscribeFast?.();
+			unsubscribeFast = onFastStateChange(() => tui.requestRender());
 			const editor = new PolishedEditor(
 				tui,
 				theme,
 				keybindings,
 				ctx.ui.theme,
 				() => {
-					const fastLabel = getBetterOpenAIState().fastLabel;
+					const fastLabel = getFastState().fastLabel;
 					return [
 						ctx.ui.theme.fg("accent", state.modelLabel),
 						fastLabel ? ctx.ui.theme.fg("warning", fastLabel) : "",

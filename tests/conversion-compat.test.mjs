@@ -10,12 +10,11 @@ import { Type } from "typebox";
 const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
 const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { fsCache: false });
-const { hasCodexConversion, conversionOwnsFast, visibleExtensionStatuses, registerCompatibleTool } = await jiti.import("../extensions/shared/codex-conversion.ts");
-const { STATUS_KEY, RESET_STATUS_KEY } = await jiti.import("../extensions/better-openai/src/identity.ts");
+const { hasCodexConversion, conversionOwnsFast, registerCompatibleTool } = await jiti.import("../extensions/shared/codex-conversion.ts");
 const { touchedFiles } = await jiti.import("../extensions/post-edit/touched-files.ts");
 const { default: postEdit } = await jiti.import("../extensions/post-edit/index.ts");
 const { getCodeModeExtensionToolSnapshot } = await import("@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js");
-const { registerConversionFastDisplay, setBetterOpenAIState, getBetterOpenAIState: fastDisplay, onBetterOpenAIStateChange } = await jiti.import("../extensions/shared/better-openai-state.ts");
+const { registerConversionFastDisplay, getFastState: fastDisplay, onFastStateChange } = await jiti.import("../extensions/shared/fast-state.ts");
 const { renderCodexStatus } = await import("@howaboua/pi-codex-conversion/dist/ui/status.js");
 const { syncAdapter } = await import("@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js");
 const { ALL_CODEX_ADAPTER_TOOL_NAMES } = await import("@howaboua/pi-codex-conversion/dist/adapter/activation/runtime-plan.js");
@@ -48,30 +47,25 @@ function harness() {
 
 const codexModel = { provider: "openai-codex", api: "openai-codex-responses", id: "gpt-6-luna" };
 
-test("conversion fast state appears in the custom footer without competing with standalone state", async () => {
+test("conversion fast display follows resolved state and clears on shutdown", async () => {
   const { pi, fire } = harness();
   let redraws = 0;
-  const unsubscribe = onBetterOpenAIStateChange(() => redraws++);
+  const unsubscribe = onFastStateChange(() => redraws++);
   const dispose = registerConversionFastDisplay(pi);
-  setBetterOpenAIState({ fastLabel: "fast" });
-  pi.events.emit("pi-package:codex-fast-state", { active: true, fast: false });
-  assert.equal(fastDisplay().fastLabel, undefined);
   pi.events.emit("pi-package:codex-fast-state", { active: true, fast: true });
   assert.equal(fastDisplay().fastLabel, "fast");
-  setBetterOpenAIState({ fastLabel: undefined });
-  assert.equal(fastDisplay().fastLabel, "fast", "Better OpenAI refresh cannot erase conversion's enabled state");
-  pi.events.emit("pi-package:codex-fast-state", { active: true, fast: false });
-  assert.equal(fastDisplay().fastLabel, undefined);
-  setBetterOpenAIState({ fastLabel: "fast" });
   pi.events.emit("pi-package:codex-fast-state", { active: false, fast: true });
-  assert.equal(fastDisplay().fastLabel, "fast", "leaving conversion restores standalone display");
-  assert.ok(redraws >= 4);
+  assert.equal(fastDisplay().fastLabel, undefined);
+  pi.events.emit("pi-package:codex-fast-state", { active: true, fast: true });
+  pi.events.emit("pi-package:codex-fast-state", { active: "invalid", fast: false });
+  assert.equal(fastDisplay().fastLabel, "fast");
   await fire("session_shutdown");
+  assert.equal(fastDisplay().fastLabel, undefined);
   dispose();
-  unsubscribe();
-  setBetterOpenAIState({ fastLabel: undefined });
   pi.events.emit("pi-package:codex-fast-state", { active: true, fast: true });
   assert.equal(fastDisplay().fastLabel, undefined);
+  assert.equal(redraws, 4);
+  unsubscribe();
 });
 
 test("conversion status keeps usage and mode but no longer duplicates fast", () => {
@@ -133,41 +127,6 @@ test("fast ownership follows loaded extension and current route, not installatio
   assert.equal(conversionOwnsFast(pi, {}), false);
   commands = [];
   assert.equal(conversionOwnsFast(pi, { model: codexModel }), false);
-});
-
-test("quota deduplication tracks actual status presence and preserves unrelated statuses", () => {
-  const statuses = new Map([[STATUS_KEY, "5h: 80%"], ["other", "working"]]);
-  assert.deepEqual(visibleExtensionStatuses(statuses), [...statuses]);
-  statuses.set("codex-adapter", "Codex adapter quota");
-  assert.deepEqual(visibleExtensionStatuses(statuses).map(([key]) => key), ["other", "codex-adapter"]);
-  assert.equal(statuses.has(STATUS_KEY), true, "filter must not erase fallback status");
-  statuses.set("codex-adapter", "");
-  assert.ok(visibleExtensionStatuses(statuses).some(([key]) => key === STATUS_KEY));
-  statuses.delete("codex-adapter");
-  assert.deepEqual(visibleExtensionStatuses(statuses), [...statuses]);
-});
-
-test("reset countdowns survive conversion status without duplicating standalone usage", () => {
-  const statuses = new Map([[STATUS_KEY, "7d: 84% ↺ 1d18h"], [RESET_STATUS_KEY, "7d ↺ 1d18h"]]);
-  assert.deepEqual(visibleExtensionStatuses(statuses), [[STATUS_KEY, "7d: 84% ↺ 1d18h"]]);
-  statuses.set("codex-adapter", "Codex adapter • weekly: 84% left");
-  assert.deepEqual(visibleExtensionStatuses(statuses), [["codex-adapter", "Codex adapter • weekly: 84% left · 1d18h ↺"]]);
-  assert.equal(statuses.get("codex-adapter"), "Codex adapter • weekly: 84% left", "rendering must not mutate conversion's status");
-  statuses.set("codex-adapter", "");
-  assert.ok(visibleExtensionStatuses(statuses).some(([key]) => key === STATUS_KEY));
-  assert.ok(!visibleExtensionStatuses(statuses).some(([key]) => key === RESET_STATUS_KEY));
-});
-
-test("inline quota resets preserve ANSI, omit unavailable windows, and follow settings changes", () => {
-  const adapter = "\x1b[2mCodex adapter • 5h: 80% left • weekly: 32% left\x1b[22m";
-  const statuses = new Map([["codex-adapter", adapter], [RESET_STATUS_KEY, "5h ↺ 1h0m | 7d ↺ 1d18h"]]);
-  assert.deepEqual(visibleExtensionStatuses(statuses), [["codex-adapter", "\x1b[2mCodex adapter • 5h: 80% left · 1h0m ↺ • weekly: 32% left · 1d18h ↺\x1b[22m"]]);
-  statuses.set(RESET_STATUS_KEY, "7d ↺ 1d18h");
-  assert.equal(visibleExtensionStatuses(statuses)[0][1], "\x1b[2mCodex adapter • 5h: 80% left • weekly: 32% left · 1d18h ↺\x1b[22m");
-  statuses.set(RESET_STATUS_KEY, "Secondary ↺ 1d18h | 2h ↺ 1h0m");
-  assert.deepEqual(visibleExtensionStatuses(statuses), [["codex-adapter", adapter]], "unknown durations must not be attached to a guessed quota");
-  statuses.delete(RESET_STATUS_KEY);
-  assert.deepEqual(visibleExtensionStatuses(statuses), [["codex-adapter", adapter]]);
 });
 
 test("custom tools remain normal Pi tools and compose with conversion through the public API", async () => {
@@ -253,59 +212,42 @@ test("post-edit runs for direct and nested patches to already-dirty files, in ei
   }
 });
 
-test("Better OpenAI delegates fast controls and preserves standalone preferences across model/scope switches", async (t) => {
-  const { default: betterOpenAI } = await jiti.import("../extensions/better-openai/index.ts");
-  const { getBetterOpenAIState } = await jiti.import("../extensions/shared/better-openai-state.ts");
-  const cwd = await mkdtemp(join(tmpdir(), "pi-fast-compat-"));
-  t.after(() => rm(cwd, { recursive: true, force: true }));
-  await mkdir(join(cwd, ".pi/extensions"), { recursive: true });
-  await writeFile(join(cwd, ".pi/extensions/pi-better-openai.json"), JSON.stringify({
-    persistState: true, desiredActive: true, supportedModels: ["openai-codex/gpt-6-luna", "openai/gpt-6-luna"],
-    usage: { enabled: false }, footer: { mode: "status" },
-  }));
-  const { pi, fire } = harness();
+test("/fast dispatches only to a loaded integration owning the current route", async () => {
+  const { default: fast } = await jiti.import("../extensions/fast/index.ts");
   const commands = new Map();
   const sent = [];
-  let activeTools = ["exec_command", "apply_patch"];
-  pi.getCommands = () => [{ name: "codex", source: "extension" }];
-  pi.getActiveTools = () => activeTools;
-  pi.registerProvider = () => assert.fail("conversion must retain provider ownership");
-  pi.registerCommand = (name, command) => commands.set(name, command);
-  pi.registerFlag = () => {};
-  pi.registerMessageRenderer = () => {};
-  pi.getFlag = () => false;
-  pi.sendUserMessage = (...args) => sent.push(args);
-  const ctx = {
-    cwd, hasUI: false, model: codexModel,
-    sessionManager: { getSessionId: () => "fixture", getEntries: () => [] },
-    ui: { notify() {}, setStatus() {} }, modelRegistry: { isUsingOAuth: () => true },
+  const notices = [];
+  let loaded = true;
+  let activeTools = ["exec", "wait", "notebook"];
+  const pi = {
+    registerCommand: (name, command) => commands.set(name, command),
+    getCommands: () => loaded ? [{ name: "codex", source: "extension" }] : [],
+    getActiveTools: () => activeTools,
+    sendUserMessage: (...args) => sent.push(args),
   };
-  betterOpenAI(pi);
-  await fire("session_start", {}, ctx);
-  t.after(() => fire("session_shutdown"));
-  const request = { payload: { service_tier: "auto" } };
-  assert.equal(await fire("before_provider_request", request, ctx), undefined);
-  assert.equal(getBetterOpenAIState().fastLabel, undefined);
-  await commands.get("fast").handler("", ctx);
-  assert.deepEqual(sent, [["/codex fast", { expandPromptTemplates: true }]]);
-  assert.equal(request.payload.service_tier, "auto");
-
-  // Switch away from the adapter. The saved standalone preference resumes.
-  ctx.model = { ...codexModel, provider: "openai", api: "openai-responses" };
-  activeTools = ["read", "edit", "bash"];
-  await fire("model_select", { model: ctx.model, previousModel: codexModel }, ctx);
-  assert.equal((await fire("before_provider_request", request, ctx)).service_tier, "priority");
-  assert.equal(getBetterOpenAIState().fastLabel, "fast");
-
-  // Changing conversion scope without model_select must also stop injection.
-  activeTools = ["exec", "wait", "notebook"];
-  assert.equal(await fire("before_provider_request", request, ctx), undefined);
-  await fire("turn_end", {}, ctx);
-  assert.equal(getBetterOpenAIState().fastLabel, undefined);
-  activeTools = ["read", "edit", "bash"];
-  assert.equal((await fire("before_provider_request", request, ctx)).service_tier, "priority");
-  await commands.get("fast").handler("", ctx);
-  assert.equal(await fire("before_provider_request", request, ctx), undefined);
+  fast(pi);
+  const ctx = { model: codexModel, ui: { notify: (...args) => notices.push(args) } };
+  const run = (args = "") => commands.get("fast").handler(args, ctx);
+  await run();
+  ctx.model = { ...codexModel, provider: "renamed" };
+  await run();
+  ctx.model = { api: "openai-responses", provider: "openai" };
+  await run();
+  assert.equal(sent.length, 3);
+  assert.deepEqual(sent[0], ["/codex fast", { expandPromptTemplates: true }]);
+  activeTools = ["read", "bash"];
+  await run();
+  ctx.model = { api: "anthropic-messages", provider: "anthropic" };
+  await run();
+  ctx.model = codexModel;
+  loaded = false;
+  await run();
+  ctx.model = undefined;
+  await run();
+  await run("on");
+  assert.equal(sent.length, 3);
+  assert.equal(notices.length, 5);
+  assert.equal(notices.at(-1)[1], "error");
 });
 
 test("all package custom tools are offered to Code/Notebook without replacing their Pi registrations", async () => {
