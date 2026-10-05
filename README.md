@@ -71,7 +71,15 @@ even when the globally installed pi is up to date.
 
 The bundled hosted tools require Node.js 22.19 or newer and Codex authentication
 (`/login openai-codex`). They can also use Codex credentials while chatting with
-another provider; Brave is the non-Codex fallback when hosted search is unavailable.
+another provider.
+
+With Pi 1.0.3, Azure's provider name is `azure`; its Responses API ID remains
+`azure-openai-responses`. Conversion 3.0.45 does not automatically activate for
+ordinary Azure GPT model IDs under the renamed provider. If you intentionally
+use conversion with Azure Responses, include `azure` in conversion's
+`scope.additionalProviders`; existing `allProviders` settings and Codex-named
+model detection still apply. This package does not enable additional providers
+automatically.
 
 ## Shared config
 

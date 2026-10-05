@@ -14,7 +14,7 @@ initTheme("dark", false);
 
 function terminal() {
   return { columns: 100, rows: 40, kittyProtocolActive: false,
-    start() {}, stop() {}, write() {}, moveBy() {}, hideCursor() {}, showCursor() {},
+    start(onInput) { this.input = onInput; }, stop() {}, write() {}, moveBy() {}, hideCursor() {}, showCursor() {},
     clearLine() {}, clearFromCursor() {}, clearScreen() {}, setTitle() {}, setProgress() {},
     async drainInput() {},
   };
@@ -60,5 +60,42 @@ for (const Host of [TuiMainScreen, TuiAltScreen]) {
       assert.match(bounded(editor.render(width), width), /gpt-6  fast/);
     }
     tui.stop();
+  });
+}
+
+for (const Host of [TuiMainScreen, TuiAltScreen]) {
+  test(`Home/End edit the line and Ctrl+Home/End preserve the cursor on ${Host.name}`, (t) => {
+    const term = terminal();
+    const tui = new Host(term);
+    t.after(() => tui.stop());
+    const editor = new PolishedEditor(tui, {
+      borderColor: (s) => theme.fg("border", s), selectList: getSelectListTheme(),
+    }, new KeybindingsManager(), theme, () => "gpt-6", () => "high");
+    tui.addChild(editor);
+    tui.setFocus(editor);
+    const scrolls = [];
+    if (Host === TuiAltScreen) {
+      tui.scrollToTop = () => scrolls.push("top");
+      tui.scrollToBottom = () => scrolls.push("bottom");
+    }
+    tui.start();
+    for (const [home, end] of [["\x1b[H", "\x1b[F"], ["\x1b[1~", "\x1b[4~"]]) {
+      editor.setText("first\nsecond");
+      term.input(home);
+      term.input("A");
+      assert.equal(editor.getText(), "first\nAsecond");
+      term.input(end);
+      term.input("Z");
+      assert.equal(editor.getText(), "first\nAsecondZ");
+    }
+    assert.deepEqual(scrolls, []);
+    editor.setText("first\nsecond");
+    term.input("\x1b[D"); // Cursor before the final d.
+    term.input("\x1b[1;5H");
+    term.input("A");
+    term.input("\x1b[1;5F");
+    term.input("Z");
+    assert.equal(editor.getText(), "first\nseconAZd");
+    assert.deepEqual(scrolls, Host === TuiAltScreen ? ["top", "bottom"] : []);
   });
 }
