@@ -40,3 +40,15 @@ test("fresh conversion installs default to Notebook and Compact V2", async (t) =
   assert.equal(effective(false).executionMode, "notebook");
   assert.equal(effective(false).compaction.method, "v2");
 });
+
+test("Azure provider rename requires explicit conversion scope for ordinary GPT IDs", () => {
+  const plan = (provider, config = DEFAULT_CODEX_CONVERSION_CONFIG, id = "gpt-5") =>
+    resolveCodexRuntimePlan({ model: { provider, api: "azure-openai-responses", id } }, config);
+  assert.equal(plan("azure-openai-responses").kind, "notebook");
+  assert.equal(plan("azure").kind, "inactive");
+  const optedIn = normalizeCodexConversionConfig({ scope: { additionalProviders: ["azure"] } });
+  assert.equal(plan("azure", optedIn).kind, "notebook");
+  assert.equal(plan("unrelated-provider", optedIn).kind, "inactive");
+  assert.equal(plan("azure", normalizeCodexConversionConfig({ scope: { allProviders: "on" } })).kind, "notebook");
+  assert.equal(plan("azure", DEFAULT_CODEX_CONVERSION_CONFIG, "gpt-5-codex").kind, "notebook");
+});
