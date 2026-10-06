@@ -5,7 +5,12 @@ Conversion's `/codex fast` on Codex routes and adapted OpenAI Responses routes.
 Unsupported routes warn without changing any settings. Provider integrations
 own eligibility, persistence, environment overrides, and transport lifecycle.
 
-Conversion's resolved fast state appears beside the model in the style editor.
+`/fast` changes only the current model family (Astra, Sol, Terra, Luna, or
+Other), preserving the other families. Use `/codex` for All models Fast Mode.
+Legacy boolean preferences retain their meaning through upstream migration.
+
+Conversion's resolved fast state appears beside the current model in the style
+editor.
 The badge means priority processing was requested, not server-confirmed.
 Conversion's status shows quota percentages and compact reset countdowns from
 the same usage response, using its existing refresh cadence.

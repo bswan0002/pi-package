@@ -72,7 +72,7 @@ test("conversion status keeps usage and mode but no longer duplicates fast", () 
   renderCodexStatus({ hasUI: true, model: codexModel, ui: {
     setStatus: (_key, value) => { status = value; }, theme: { fg: (_role, value) => value },
   } }, {
-    config: { ui: { statusLine: true }, scope: { allProviders: "off" }, openai: { fast: true, verbosity: "medium" } },
+    config: { ui: { statusLine: true }, scope: { allProviders: "off" }, openai: { fast: { astra: true, sol: true, terra: true, luna: true, other: true }, verbosity: "medium" } },
     usageStatus: { fiveHourUsageLeft: 80 },
   }, { kind: "notebook", effectiveOpenAICodex: true });
   assert.match(status, /notebook mode/);
@@ -88,19 +88,23 @@ test("real adapter synchronization publishes effective fast state across model/c
   pi.setActiveTools = (names) => { activeTools = names; };
   pi.getAllTools = () => [...ALL_CODEX_ADAPTER_TOOL_NAMES, "read", "edit", "write", "bash"].map((name) => ({ name }));
   const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
-  config.openai.fast = true;
+  config.openai.fast = { astra: false, sol: false, terra: true, luna: true, other: false };
   config.scope.allProviders = "off";
   const state = { config, executionMode: "notebook" };
   const ctx = { model: codexModel, hasUI: false };
   try {
     syncAdapter(pi, ctx, state);
     assert.equal(fastDisplay().fastLabel, "fast");
-    config.openai.fast = false;
+    config.openai.fast.luna = false;
     syncAdapter(pi, ctx, state);
     assert.equal(fastDisplay().fastLabel, undefined);
-    config.openai.fast = true;
+    config.openai.fast = { astra: false, sol: false, terra: true, luna: true, other: false };
     syncAdapter(pi, ctx, state);
     assert.equal(fastDisplay().fastLabel, "fast");
+    for (const [id, enabled] of [["gpt-6.1-sol", false], ["gpt-6-astra", false], ["gpt-6-terra", true], ["gpt-reserve", true], ["vendor/gpt-7-luna", true], ["gpt-5", false]]) {
+      syncAdapter(pi, { ...ctx, model: { ...codexModel, id } }, state);
+      assert.equal(fastDisplay().fastLabel, enabled ? "fast" : undefined, id);
+    }
     syncAdapter(pi, { ...ctx, model: { provider: "anthropic", api: "anthropic-messages", id: "claude" } }, state);
     assert.equal(fastDisplay().fastLabel, undefined);
   } finally { dispose(); }
@@ -279,4 +283,21 @@ test("real Code/Notebook runtime imports callable tools without bypassing explic
       assert.ok(!runtime.getTools(ctx).some(tool => nameOf(tool) === "ordinary_extension"), "callable removals reach the actual runtime");
     }
   }
+});
+
+test("inactive conversion preserves later external tool selections", () => {
+  const { pi } = harness();
+  let active = ["read", "edit", "write", "bash", "external"];
+  pi.getActiveTools = () => active;
+  pi.setActiveTools = names => { active = names; };
+  pi.getAllTools = () => [...ALL_CODEX_ADAPTER_TOOL_NAMES, "read", "edit", "write", "bash", "external"].map(name => ({ name }));
+  const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
+  config.scope.allProviders = "off";
+  const state = { config, executionMode: "notebook" };
+  syncAdapter(pi, { model: codexModel, hasUI: false }, state);
+  const inactive = { model: { provider: "anthropic", api: "anthropic-messages", id: "claude" }, hasUI: false };
+  syncAdapter(pi, inactive, state);
+  active = ["read", "external"]; // Another extension changes its selection after deactivation.
+  syncAdapter(pi, inactive, state);
+  assert.deepEqual(active, ["read", "external"]);
 });

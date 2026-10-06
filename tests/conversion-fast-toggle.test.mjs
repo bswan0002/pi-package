@@ -26,34 +26,60 @@ test("patched fast toggle persists, respects scope and applies through conversio
       getActiveTools: () => active, setActiveTools: names => { active = names; },
       events: {emit: (...args) => bus.emit(...args)} };
     const state = {config: readCodexConversionConfig()};
-    state.config.openai.fast = false;
+    state.config.openai.fast = { astra: true, sol: false, terra: true, luna: false, other: false };
     assert.ok(writeCodexConversionConfig(state.config).ok);
     const ctx = {cwd: process.env.PI_CODING_AGENT_DIR, hasUI: false,
       model: {provider: 'openai-codex', api: 'openai-codex-responses', id: 'gpt-6-luna'},
       isProjectTrusted: () => true, isIdle: () => true,
       ui: {notify: (message, level) => notices.push({message, level}), custom: () => assert.fail('must not open settings')} };
     const voice = {onDictationStateChange: () => () => {}};
-    registerCodexCommand(pi, state, voice, {}, (config, _ctx, previous) => applied.push({fast: config.openai.fast, previous: previous.openai.fast}));
+    registerCodexCommand(pi, state, voice, {}, (config, _ctx, previous) => applied.push({fast: config.openai.fast.luna, previous: previous.openai.fast.luna}));
     const toggle = () => commands.get('codex').handler('fast', ctx);
     await toggle();
-    assert.equal(state.config.openai.fast, true);
-    assert.equal(readCodexConversionConfig().openai.fast, true);
+    assert.equal(state.config.openai.fast.luna, true);
+    assert.equal(readCodexConversionConfig().openai.fast.luna, true);
     await toggle();
-    assert.equal(state.config.openai.fast, false);
+    assert.equal(state.config.openai.fast.luna, false);
     assert.deepEqual(applied.map(c => c.fast), [true, false]);
+    assert.deepEqual(readCodexConversionConfig().openai.fast,
+      { astra: true, sol: false, terra: true, luna: false, other: false });
+    // The same upstream family resolution is used by the toggle and request transport.
+    for (const [id, family] of [['vendor/gpt-6.1-sol', 'sol'], ['gpt-reserve', 'luna'], ['gpt-6-astra', 'astra'], ['gpt-7-terra-preview', 'terra'], ['gpt-5', 'other']]) {
+      ctx.model.id = id;
+      const before = readCodexConversionConfig().openai.fast;
+      await toggle();
+      assert.deepEqual(readCodexConversionConfig().openai.fast, { ...before, [family]: !before[family] });
+      await toggle();
+      assert.deepEqual(readCodexConversionConfig().openai.fast, before);
+    }
+    ctx.model.id = 'gpt-6-luna';
     // A trusted folder override stays in the folder; the global preference is untouched.
     const project = getProjectCodexConversionConfigPath(ctx.cwd);
     await mkdir(dirname(project), {recursive: true});
     await writeFile(project, JSON.stringify({openai: {fast: false}}));
     await toggle();
-    assert.equal(state.config.openai.fast, true);
-    assert.equal(readCodexConversionConfig().openai.fast, false);
-    // Environment pinning must not claim a successful toggle or write ignored settings.
-    process.env.PI_CODEX_FAST = '1';
-    const count = applied.length;
+    assert.equal(state.config.openai.fast.luna, true);
+    assert.equal(readCodexConversionConfig().openai.fast.luna, false);
+    // An untrusted folder must not receive writes or override global family choices.
+    ctx.isProjectTrusted = () => false;
     await toggle();
-    assert.equal(applied.length, count);
-    assert.match(notices.at(-1).message, /pinned by PI_CODEX_FAST/);
+    assert.equal(readCodexConversionConfig().openai.fast.luna, true);
+    assert.equal(readEffectiveCodexConversionConfig({cwd: ctx.cwd, projectTrusted: true}).openai.fast.luna, true);
+    await toggle();
+    assert.equal(readCodexConversionConfig().openai.fast.luna, false);
+    assert.equal(readEffectiveCodexConversionConfig({cwd: ctx.cwd, projectTrusted: true}).openai.fast.luna, true);
+    ctx.isProjectTrusted = () => true;
+    await toggle();
+    await toggle(); // Restore effective trusted-folder state before the deferred toggles.
+    // Environment pinning must not claim a successful toggle or write ignored settings.
+    const count = applied.length;
+    for (const pin of ['1', '0', 'true', 'false']) {
+      process.env.PI_CODEX_FAST = pin;
+      await toggle();
+      assert.equal(applied.length, count);
+      assert.match(notices.at(-1).message, /pinned by PI_CODEX_FAST/);
+      assert.equal(readCodexConversionConfig().openai.fast.luna, false);
+    }
     delete process.env.PI_CODEX_FAST;
     // Busy runs save immediately and only change transport/runtime when idle.
     let idle = false;
@@ -62,16 +88,16 @@ test("patched fast toggle persists, respects scope and applies through conversio
     ctx.isIdle = () => idle;
     ctx.waitForIdle = () => ready;
     await toggle();
-    assert.equal(state.config.openai.fast, true);
-    assert.equal(readEffectiveCodexConversionConfig({cwd: ctx.cwd, projectTrusted: true}).openai.fast, false);
+    assert.equal(state.config.openai.fast.luna, true);
+    assert.equal(readEffectiveCodexConversionConfig({cwd: ctx.cwd, projectTrusted: true}).openai.fast.luna, false);
     await toggle(); // Toggle the saved state, not the still-active state.
-    assert.equal(readEffectiveCodexConversionConfig({cwd: ctx.cwd, projectTrusted: true}).openai.fast, true);
+    assert.equal(readEffectiveCodexConversionConfig({cwd: ctx.cwd, projectTrusted: true}).openai.fast.luna, true);
     assert.equal(applied.length, count);
     idle = true;
     settle();
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(applied.length, count + 1);
-    assert.equal(state.config.openai.fast, true);
+    assert.equal(state.config.openai.fast.luna, true);
   `;
   const child = spawnSync(process.execPath, ["--input-type=module", "-"], {
     input: script, encoding: "utf8", timeout: 30_000,
