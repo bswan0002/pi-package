@@ -527,3 +527,29 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/
      ]
          .filter(Boolean)
          .join(" • ");
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
+index c08f1a2..3999508 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
+@@ -1,6 +1,12 @@
+ import { renderTerminalOutput } from "../tools/exec/output.js";
+ export const BACKGROUND_BASH_WIDGET_ID = "codex-background-bashes";
+ const OUTPUT_TAIL_CHARS = 4_000;
++// Display Mac key names without changing the parser's canonical bindings.
++function shortcutLabel(shortcut) {
++    if (process.platform !== "darwin")
++        return shortcut;
++    return shortcut.split("+").map((part) => part === "alt" ? "⌥" : /^[a-z]$/.test(part) ? part.toUpperCase() : part).join("+").replace(/⌥\+/g, "⌥");
++}
+ function truncate(text, maxLength) {
+     return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+ }
+@@ -70,7 +76,7 @@ export function renderBackgroundBashWidget(ctx, state, sessions, config) {
+         }
+         lines.push(`${theme.fg("muted", "│")} ${theme.fg("dim", `session ${active.id} · updated ${ageLabel(active.updatedAt)} ago`)}`);
+     }
+-    lines.push(`${theme.fg("muted", "╰─")} ${theme.fg("dim", `${config.backgroundShellPrevShortcut}/${config.backgroundShellNextShortcut} select · ${config.backgroundShellToggleShortcut} fold/open · ${config.backgroundShellCloseShortcut} close`)}`);
++    lines.push(`${theme.fg("muted", "╰─")} ${theme.fg("dim", `${shortcutLabel(config.backgroundShellPrevShortcut)}/${shortcutLabel(config.backgroundShellNextShortcut)} select · ${shortcutLabel(config.backgroundShellToggleShortcut)} fold/open · ${shortcutLabel(config.backgroundShellCloseShortcut)} close`)}`);
+     ctx.ui.setWidget(BACKGROUND_BASH_WIDGET_ID, lines, { placement: "aboveEditor" });
+ }
+ export function registerBackgroundBashWidgetShortcuts(pi, state, sessions, config, isEnabled) {

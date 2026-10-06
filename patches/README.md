@@ -17,6 +17,9 @@ scrollback).
 
 Recommended defaults, display integration, and a fast-mode toggle:
 
+- Display background-shell Alt shortcuts as Option (`⌥`) on macOS, including
+  customized bindings. Other platforms and registered bindings stay unchanged.
+
 - A right-aligned dictation button above the editor replaces dictation's footer
   status. It uses the Nerd Font microphone (`U+F130`), so configure a Nerd Font
   in your terminal. Connecting, listening/stop, and transcribing states follow
