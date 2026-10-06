@@ -36,7 +36,7 @@ Existing explicit global or trusted project preferences still take precedence;
 missing settings inherit these defaults. Change them with `/codex` if desired.
 
 - Conversion owns the Codex provider and connection lifecycle. The `/fast` extension only dispatches commands; it never installs a transport or injects request options.
-- The tiny provider-neutral `/fast` extension toggles conversion's own fast setting on conversion-owned routes, without opening settings or maintaining a second preference. The patch routes this through conversion's save/apply lifecycle: trusted folder scope is preserved and busy runs apply when idle. A valid `PI_CODEX_FAST` environment override pins the setting; unset it and restart to use the toggle. Unsupported integrations warn without changing settings.
+- The tiny provider-neutral `/fast` extension toggles conversion's fast setting for the current model family on conversion-owned routes, without opening settings or maintaining a second preference. The patch routes this through conversion's save/apply lifecycle: trusted folder scope is preserved and busy runs apply when idle. A valid `PI_CODEX_FAST` environment override pins the setting; unset it and restart to use the toggle. Unsupported integrations warn without changing settings.
 - Conversion's resolved fast state appears beside the model in our custom footer, not in the conversion status row. Conversion still controls the setting and request service tier.
 - Conversion's status includes reset countdowns directly beside its quotas (e.g. `weekly: 32% left · 1d18h ↺`), using the same cached usage response and existing refresh cadence. There is no separate usage fetcher or fallback row.
 - Better OpenAI is removed, including `/openai-usage`, `/openai-settings`, and `--fast`. Its old `pi-better-openai.json` files are ignored; no standalone preference is imported. Use Conversion's settings or `PI_CODEX_FAST` for startup defaults.
@@ -73,8 +73,8 @@ The bundled hosted tools require Node.js 22.19 or newer and Codex authentication
 (`/login openai-codex`). They can also use Codex credentials while chatting with
 another provider.
 
-With Pi 1.0.3, Azure's provider name is `azure`; its Responses API ID remains
-`azure-openai-responses`. Conversion 3.0.45 does not automatically activate for
+With Pi 1.0.4, Azure's provider name is `azure`; its Responses API ID remains
+`azure-openai-responses`. Conversion 3.0.46 does not automatically activate for
 ordinary Azure GPT model IDs under the renamed provider. If you intentionally
 use conversion with Azure Responses, include `azure` in conversion's
 `scope.additionalProviders`; existing `allProviders` settings and Codex-named

@@ -30,7 +30,7 @@ test("fresh conversion installs default to Notebook and Compact V2", async (t) =
   await writeFile(configPath, JSON.stringify({ openai: { fast: true } }));
   assert.equal(readCodexConversionConfig(configPath).executionMode, "notebook");
   assert.equal(readCodexConversionConfig(configPath).compaction.method, "v2");
-  assert.equal(readCodexConversionConfig(configPath).openai.fast, true);
+  assert.deepEqual(readCodexConversionConfig(configPath).openai.fast, { astra: true, sol: true, terra: true, luna: true, other: true });
 
   await mkdir(join(cwd, ".pi"));
   await writeFile(join(cwd, ".pi/pi-codex-conversion.json"), JSON.stringify({ executionMode: "code", compaction: { method: "both" } }));
