@@ -1,8 +1,13 @@
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-index c902c28..fef228e 100644
+index 39646fc..bdc7206 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-@@ -5,6 +5,12 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY, buildExtraToolsOnlyStatusText } from ".
+@@ -1,3 +1,4 @@
++import { isFastModeEnabled } from "./fast-mode.js";
+ import { getCodeModeExtensionToolSnapshot } from "../../code-mode-extension-tools.js";
+ import { renderCodexStatus } from "../../ui/status.js";
+ import { ALL_CODEX_ADAPTER_TOOL_NAMES, isAdapterRuntime, resolveCodexRuntimePlanForState } from "./runtime-plan.js";
+@@ -5,6 +6,12 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY, buildExtraToolsOnlyStatusText } from ".
  export function syncAdapter(pi, ctx, state) {
      state.availableToolNames = pi.getAllTools().map((tool) => tool.name);
      const plan = resolveCodexRuntimePlanForState(ctx, state);
@@ -10,16 +15,16 @@ index c902c28..fef228e 100644
 +    // Publish resolved runtime state (including env/config overrides), not a toggle.
 +    pi.events.emit("pi-package:codex-fast-state", {
 +        active: isAdapterRuntime(plan) && Boolean(plan.effectiveOpenAICodex),
-+        fast: Boolean(state.config.openai.fast),
++        fast: isFastModeEnabled(state.config.openai.fast, ctx.model?.id),
 +    });
      reconcileExternalToolLoadout(state, pi.getActiveTools());
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index f2ab2b9..7747f29 100644
+index de98dd5..f8b7423 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-@@ -24,7 +24,7 @@ export const REALTIME_V3_VOICES = [
+@@ -25,7 +25,7 @@ export const REALTIME_V3_VOICES = [
  export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
  export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
  export const DEFAULT_CODEX_CONVERSION_CONFIG = {
@@ -28,7 +33,7 @@ index f2ab2b9..7747f29 100644
      voiceFeaturesOnly: false,
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -52,7 +52,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+@@ -54,7 +54,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
          notesTreeHandoff: true,
          shareSubagentContext: false,
          idleNotesRollover: false,
@@ -184,10 +189,17 @@ index 2c4edc2..d69fb9a 100644
              catch (error) {
                  if (error instanceof ExecutePatchError) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-index 1c2a81e..cdf4768 100644
+index 136b6f1..0e28af7 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-@@ -179,6 +179,23 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
+@@ -1,5 +1,5 @@
+ import { FAST_MODE_FAMILIES } from "../../adapter/activation/config-contract.js";
+-import { allModelsFastModeState } from "../../adapter/activation/fast-mode.js";
++import { allModelsFastModeState, isFastModeEnabled, resolveFastModeFamily } from "../../adapter/activation/fast-mode.js";
+ import { clearFolderCodexConversionConfig, getCodexConversionConfigPath, getProjectCodexConversionConfigPath, hasFolderCodexConversionConfig, materializeFolderCodexConversionConfig, readCodexConversionConfig, readEffectiveCodexConversionConfig, readLayeredCodexConversionConfig, setGlobalCodexLunaCacheKeepalive, setProjectCodexCacheKeepalive, writeCodexConversionConfig, } from "../../adapter/activation/config-store.js";
+ import { syncAdapter } from "../../adapter/activation/activation.js";
+ import { createCodexVoiceControls } from "../../voice/controls.js";
+@@ -181,6 +181,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
          getArgumentCompletions: (prefix) => CODEX_COMMAND_COMPLETIONS.filter((item) => item.startsWith(prefix.trim().toLowerCase())).map((value) => ({ label: value, value })),
          handler: async (args, ctx) => {
              const arg = args.trim().toLowerCase();
@@ -203,23 +215,32 @@ index 1c2a81e..cdf4768 100644
 +                const config = scope === "folder"
 +                    ? readLayeredCodexConversionConfig({ cwd: ctx.cwd, projectTrusted: true })
 +                    : readCodexConversionConfig();
-+                const next = { ...config, openai: { ...config.openai, fast: !config.openai.fast } };
++                const family = resolveFastModeFamily(ctx.model?.id) ?? "other";
++                const enabled = !isFastModeEnabled(config.openai.fast, ctx.model?.id);
++                const next = { ...config, openai: { ...config.openai, fast: { ...config.openai.fast, [family]: enabled } } };
 +                if (saveAndApply(ctx, scope, next))
-+                    ctx.ui.notify(`Fast mode ${next.openai.fast ? "on" : "off"}${ctx.isIdle() ? "." : " (pending idle)."}`, "info");
++                    ctx.ui.notify(`Fast mode ${enabled ? "on" : "off"} (${family})${ctx.isIdle() ? "." : " (pending idle)."}`, "info");
 +                return;
 +            }
              if (arg === "usage analyse") {
                  await startUsageAnalysis(pi, ctx);
                  return;
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-index 6ff2d7e..9c153e2 100644
+index f84f0f8..9c153e2 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-@@ -12,7 +12,7 @@ export function renderCodexStatus(ctx, state, plan) {
+@@ -1,6 +1,5 @@
+ import { STATUS_KEY, buildStatusText } from "../adapter/activation/tool-set.js";
+ import { isResponsesContext } from "../adapter/prompt/codex-model.js";
+-import { isFastModeEnabled } from "../adapter/activation/fast-mode.js";
+ export function renderCodexStatus(ctx, state, plan) {
+     if (!ctx.hasUI)
+         return;
+@@ -13,7 +12,7 @@ export function renderCodexStatus(ctx, state, plan) {
          mode: plan.kind,
          useOnAllModels: config.scope.allProviders === "on",
          additionalProvider: plan.configuredProvider,
--        fast: plan.effectiveOpenAICodex && config.openai.fast,
+-        fast: plan.effectiveOpenAICodex && isFastModeEnabled(config.openai.fast, ctx.model?.id),
 +        fast: false, // displayed by pi-package's custom model footer
          contextManagement: plan.contextManagementMode,
          compaction: plan.nativeCompaction,
@@ -443,9 +464,10 @@ index 0000000..450fd5d
 +    });
 +}
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
+index e3607e4..d17b3b5 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
-@@ -53,8 +53,12 @@
+@@ -53,8 +53,12 @@ function parseWindow(value) {
          return undefined;
      const usedPercent = numberValue(value["used_percent"]);
      const limitWindowSeconds = numberValue(value["limit_window_seconds"]);
@@ -460,7 +482,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload
      return usedPercent === undefined && windowMinutes === undefined && resetsAt === undefined ? undefined : { usedPercent, windowMinutes, resetsAt };
  }
  function parseRateLimit(value) {
-@@ -91,13 +95,16 @@
+@@ -91,13 +95,16 @@ export function parseCodexUsagePayload(payload) {
  }
  export function codexUsageStatus(snapshot) {
      const limit = snapshot.limits.find(({ limitId }) => limitId === "codex");
@@ -479,9 +501,10 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload
  }
  export function parseCodexRateLimitResetConsumePayload(payload) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts
+index 82571c6..6551645 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts
-@@ -18,6 +18,8 @@
+@@ -18,6 +18,8 @@ export interface CodexUsageSnapshot {
      raw: unknown;
  }
  export interface CodexUsageStatus {
@@ -491,13 +514,13 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload
      weeklyUsageLeft?: number | undefined;
  }
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
+index 904564e..074afc9 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-@@ -7,6 +7,22 @@
- }
+@@ -8,6 +8,22 @@ function formatStatusText(suffix, theme) {
  export function buildExtraToolsOnlyStatusText(tools, theme) {
      return formatStatusText(` • extra tools${tools.length > 0 ? `: ${tools.join(", ")}` : ""}`, theme);
-+}
+ }
 +// Compact reset countdowns use the same cached response as the percentages.
 +function quotaStatus(label, left, resetsAt) {
 +    if (left === undefined) return undefined;
@@ -513,10 +536,11 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/
 +        reset = ` · ${countdown} ↺`;
 +    }
 +    return `${label}: ${Math.round(left)}% left${reset}`;
- }
++}
  export function buildStatusText(options, theme) {
      const extras = [
-@@ -18,8 +34,8 @@
+         options.mode === "notebook" ? "notebook mode" : options.mode === "code" ? "code mode" : undefined,
+@@ -18,8 +34,8 @@ export function buildStatusText(options, theme) {
              : undefined,
          options.compaction ? "compact v2" : undefined,
          options.fast ? "fast" : undefined,
@@ -553,3 +577,25 @@ index c08f1a2..3999508 100644
      ctx.ui.setWidget(BACKGROUND_BASH_WIDGET_ID, lines, { placement: "aboveEditor" });
  }
  export function registerBackgroundBashWidgetShortcuts(pi, state, sessions, config, isEnabled) {
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.d.ts
+index 327ac78..87676d6 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.d.ts
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.d.ts
+@@ -2,3 +2,4 @@ import type { FastModeConfig } from "./config-contract.ts";
+ export declare function normalizeFastMode(value: unknown): FastModeConfig;
+ export declare function allModelsFastModeState(fast: FastModeConfig): "on" | "off" | "mixed";
+ export declare function isFastModeEnabled(fast: FastModeConfig, modelId: string | undefined): boolean;
++export declare function resolveFastModeFamily(modelId: string | undefined): "astra" | "sol" | "terra" | "luna" | undefined;
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.js
+index 02549e3..7395d12 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.js
+@@ -11,7 +11,7 @@ export function normalizeFastMode(value) {
+         other: normalizeBoolean(families["other"], fallback),
+     };
+ }
+-function resolveFastModeFamily(modelId) {
++export function resolveFastModeFamily(modelId) {
+     const id = modelId?.split("/").at(-1)?.trim().toLowerCase();
+     // The backend's reserve route is Luna without a family suffix.
+     if (id === "gpt-reserve")
