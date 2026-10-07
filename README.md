@@ -71,10 +71,12 @@ even when the globally installed pi is up to date.
 
 The bundled hosted tools require Node.js 22.19 or newer and Codex authentication
 (`/login openai-codex`). They can also use Codex credentials while chatting with
-another provider.
+another provider. ChatGPT sign-in alone does not authorize these hosted tools;
+a separate legacy OpenAI Codex login may be needed. Companion failures now give
+concise login guidance and redact raw backend details; provider routing is unchanged.
 
 With Pi 1.0.4, Azure's provider name is `azure`; its Responses API ID remains
-`azure-openai-responses`. Conversion 3.0.46 does not automatically activate for
+`azure-openai-responses`. Conversion 3.0.47 does not automatically activate for
 ordinary Azure GPT model IDs under the renamed provider. If you intentionally
 use conversion with Azure Responses, include `azure` in conversion's
 `scope.additionalProviders`; existing `allProviders` settings and Codex-named

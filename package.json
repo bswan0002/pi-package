@@ -40,9 +40,9 @@
   },
   "dependencies": {
     "@howaboua/pi-browser": "0.0.7",
-    "@howaboua/pi-codex-conversion": "3.0.46",
-    "@howaboua/pi-codex-imagegen": "0.0.9",
-    "@howaboua/pi-codex-web-run": "0.0.6",
+    "@howaboua/pi-codex-conversion": "3.0.47",
+    "@howaboua/pi-codex-imagegen": "0.0.10",
+    "@howaboua/pi-codex-web-run": "0.0.7",
     "@shikijs/cli": "^4.0.2",
     "diff": "^9.0.0",
     "glob": "^13.0.6",

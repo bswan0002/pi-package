@@ -1,12 +1,18 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-3.0.46, which its exports and our extension loader execute. Upstream `src/` is
+3.0.47, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
-The 3.0.46 refresh preserves all existing patches, including the dictation
+The 3.0.47 patch was replayed against the published package: all 17 existing
+patched files are byte-identical to 3.0.46, and the two local additions remain
+absent upstream. Clean installation applies the unchanged patch successfully.
+
+The 3.0.47 refresh preserves all existing patches, including the dictation
 and realtime Voice chat buttons, diff snapshots, and fast-mode integration.
+Upstream fixes Local/Tree history reserved namespaces, preserves native Pi
+reasoning constraints, and requires fresh notes before idle rollover.
 Upstream automatic Pi tool imports prefer explicit registrations; existing tool
 gates and blocking question behavior remain authoritative. The refresh also
 preserves upstream notes/history attachment and the new `notesTreeHandoff` default.
@@ -70,7 +76,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@3.0.46` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@3.0.47` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 
