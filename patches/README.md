@@ -17,9 +17,37 @@ Upstream automatic Pi tool imports prefer explicit registrations; existing tool
 gates and blocking question behavior remain authoritative. The refresh also
 preserves upstream notes/history attachment and the new `notesTreeHandoff` default.
 Conversion and the hosted companions require Pi 1.0.0+, matching this package's
-peer ranges and development checks on Pi 1.0.4. Pi 1.0.0 defaults to fullscreen;
+peer ranges and development checks on Pi 1.1.0. Pi 1.0.0 defaults to fullscreen;
 this package leaves that choice to the host (`--tui-mode regular` restores normal
 scrollback).
+
+## Pi 1.1.0 compatibility (2026-10-08)
+
+Reviewed the published manifests and [tagged Pi changelogs](https://github.com/earendil-works/pi/tree/v1.1.0/packages). All eight used Pi
+packages (`chord`, `pi-agent-core`, `pi-ai`, `pi-codemode`, `pi-coding-agent`,
+`pi-mcp`, `pi-telemetry`, `pi-tui`) resolve to 1.1.0. Conversion 3.0.47,
+browser 0.0.7, imagegen 0.0.10, and web-run 0.0.7 remain the latest published
+versions. The Node 22.19+ floor and Pi >=1.0.0 peer ranges are unchanged.
+
+Pi now requires `AssistantMessageEventStream` from provider streams. Conversion
+already uses its factory for the Codex transport, Responses proxy, and context
+namespace router. Regression tests exercise transport errors/cancellation and
+preserve recorded response duration through namespace routing. No conversion
+patch changes are required.
+
+The custom edit/write renderers are checked through Pi's actual tool component
+with changing `outputPad`, recorded `durationMs`, expansion, and result replay.
+Terminal test doubles implement the new `setProgramStatus` contract. Existing
+loader, MCP bridge, fast-mode, voice, snapshot, editor, and lifecycle tests remain
+in place. Pi's retry fixes, `agent_settled.aborted`, codemode output delimiters,
+and MCP cancellation are host behavior and require no local override. The
+unreleased theme-schema change is not part of this upgrade.
+
+Validation: clean `npm ci` replays the existing conversion patch; all 53 tests,
+`npm run typecheck`, and `git diff --check` pass. Live authenticated provider,
+MCP OAuth, browser, and macOS terminal checks are not part of this automated run.
+
+## Preserved customizations
 
 Recommended defaults, display integration, and a fast-mode toggle:
 
