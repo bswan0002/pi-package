@@ -15,7 +15,7 @@ initTheme("dark", false);
 function terminal() {
   return { columns: 100, rows: 40, kittyProtocolActive: false,
     start(onInput) { this.input = onInput; }, stop() {}, write() {}, moveBy() {}, hideCursor() {}, showCursor() {},
-    clearLine() {}, clearFromCursor() {}, clearScreen() {}, setTitle() {}, setProgress() {},
+    clearLine() {}, clearFromCursor() {}, clearScreen() {}, setTitle() {}, setProgress() {}, setProgramStatus() {},
     async drainInput() {},
   };
 }
@@ -99,3 +99,39 @@ for (const Host of [TuiMainScreen, TuiAltScreen]) {
     assert.deepEqual(scrolls, Host === TuiAltScreen ? ["top", "bottom"] : []);
   });
 }
+
+test("custom diff renderers survive Pi tool padding, duration and replay", async () => {
+  const { ToolExecutionComponent } = await import(new URL("./modes/interactive/components/tool-execution.js", agentEntry));
+  const { default: registerDiff } = await jiti.import("../extensions/diff/index.ts");
+  const tools = new Map();
+  await registerDiff({
+    events: { on: () => () => {}, emit() {} }, on() {}, registerEntryRenderer() {},
+    registerTool: tool => tools.set(tool.name, tool),
+  });
+  const ui = { requestRender() {} };
+  for (const name of ["edit", "write"]) {
+    const tool = tools.get(name);
+    assert.ok(tool);
+    const args = { path: "fixture.ts", content: "const value = 1;", oldText: "old", newText: "new" };
+    const result = { content: [{ type: "text", text: "Fixture edit failed" }], isError: true, durationMs: 42 };
+    // The second component simulates reloading the persisted result, without execution-start state.
+    for (const replay of [false, true]) {
+      const component = new ToolExecutionComponent(name, "fixture", args, { outputPad: 0 }, tool, ui, process.cwd());
+      component.setArgsComplete();
+      if (!replay) component.markExecutionStarted();
+      component.updateResult(result);
+      for (const [width, padding] of [[40, 0], [100, 3], [30, 1], [60, 0]]) {
+        component.setOutputPad(padding);
+        for (const expanded of [false, true]) {
+          component.setExpanded(expanded);
+          const lines = component.render(width);
+          const text = bounded(lines, width);
+          assert.match(text, /fixture.ts/);
+          assert.match(text, /Fixture edit failed/);
+          const header = text.split("\n").find(line => line.includes("fixture.ts"));
+          assert.equal(header.length - header.trimStart().length, padding);
+        }
+      }
+    }
+  }
+});
