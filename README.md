@@ -78,7 +78,7 @@ a separate legacy OpenAI Codex login may be needed. Companion failures now give
 concise login guidance and redact raw backend details; provider routing is unchanged.
 
 With Pi 1.0.4, Azure's provider name is `azure`; its Responses API ID remains
-`azure-openai-responses`. Conversion 3.0.47 does not automatically activate for
+`azure-openai-responses`. Conversion 3.0.49 does not automatically activate for
 ordinary Azure GPT model IDs under the renamed provider. If you intentionally
 use conversion with Azure Responses, include `azure` in conversion's
 `scope.additionalProviders`; existing `allProviders` settings and Codex-named

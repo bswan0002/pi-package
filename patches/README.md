@@ -1,25 +1,59 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-3.0.47, which its exports and our extension loader execute. Upstream `src/` is
+3.0.49, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
-The 3.0.47 patch was replayed against the published package: all 17 existing
-patched files are byte-identical to 3.0.46, and the two local additions remain
-absent upstream. Clean installation applies the unchanged patch successfully.
+## October 10 maintenance (2026-10-10)
 
-The 3.0.47 refresh preserves all existing patches, including the dictation
-and realtime Voice chat buttons, diff snapshots, and fast-mode integration.
-Upstream fixes Local/Tree history reserved namespaces, preserves native Pi
-reasoning constraints, and requires fresh notes before idle rollover.
-Upstream automatic Pi tool imports prefer explicit registrations; existing tool
-gates and blocking question behavior remain authoritative. The refresh also
-preserves upstream notes/history attachment and the new `notesTreeHandoff` default.
-Conversion and the hosted companions require Pi 1.0.0+, matching this package's
-peer ranges and development checks on Pi 1.1.0. Pi 1.0.0 defaults to fullscreen;
-this package leaves that choice to the host (`--tui-mode regular` restores normal
-scrollback).
+Discovered the used ecosystem from manifests, the lockfile, imports, loaders,
+patches and tracking documentation. Independently fetched current registry
+metadata and verified all 12 latest package tarballs against their published
+SHA-512 integrity. Reviewed the packaged companion changelogs and
+[tagged Pi changelogs](https://github.com/earendil-works/pi/tree/v1.1.0/packages).
+
+- Conversion: **3.0.47 → 3.0.49**.
+- Browser: **0.0.7 → 0.0.8**.
+- Imagegen **0.0.10**, web-run **0.0.7**, and all eight used Pi packages remain
+  current: `chord`, `pi-agent-core`, `pi-ai`, `pi-codemode`, `pi-coding-agent`,
+  `pi-mcp`, `pi-telemetry`, `pi-tui` at **1.1.0**.
+- Raise only the coding-agent peer minimum to **>=1.1.0**, matching conversion's
+  published requirement. AI and TUI remain **>=1.0.0**. Browser's optional
+  conversion peer now requires **>=3.0.48**, satisfied by the bundled version.
+  Keep unrelated dependency resolutions and the Node 22.19+ host floor unchanged.
+
+[Conversion 3.0.48–49](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/main/packages/pi-codex-conversion/CHANGELOG.md)
+adds Ultrafast/Daybreak, audio-device selection, voice session handoff, external
+notes support and the Remote-to-Notes shared-context fix. Nine of the 17 existing
+patched dist files changed upstream; eight were byte-identical and both local
+additions remain absent upstream. Rebased and regenerated all 19 patched files,
+preserving Notebook/Compact V2 defaults, snapshots, quota countdowns, Option
+shortcut labels, settings scope and idle deferral.
+
+The custom footer displays `fast` or `ultrafast` using upstream's resolved service
+tier. `/fast` turns either enabled tier off and turns an off family on as ordinary
+Fast; other families and Daybreak stay unchanged. `PI_CODEX_FAST=ultrafast` blocks
+the toggle just like boolean overrides. Conversion retains Daybreak and base-cost
+estimate status without duplicating the speed badge. Voice controls retain
+upstream ownership checks and notify on handoff reservation, transfer, stop and
+completion; a forwarded call can still be stopped from the source session.
+
+[Browser 0.0.8](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/main/packages/pi-browser/CHANGELOG.md)
+returns help for empty calls and foregrounds screenshot targets to avoid focus
+emulation timeouts. Invalid requests now fail during argument preparation; the
+regression test covers that earlier rejection. No Sites assets or tools are
+configured here, so the newly separated Sites package is not added.
+
+Validation: clean `npm ci` with strict patch replay, all 60 tests,
+`npm run typecheck`, and `git diff --check`. New tests cover Ultrafast persistence,
+footer state, Daybreak/cost status, browser and notebook help, foreground capture
+ordering, voice handoff/ownership, and external notes sharing while retaining
+saved Remote identity. Existing snapshot, native patch execution, loader, MCP,
+compaction-default, quota, editor and lifecycle tests remain in place.
+Authenticated provider/Daybreak/Ultrafast requests, encrypted remote history,
+real browser capture, audio hardware/LAN transfer and macOS terminal interaction
+are not exercised by this automated run.
 
 ## Pi 1.1.0 compatibility (2026-10-08)
 
@@ -104,7 +138,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@3.0.47` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@3.0.49` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 

@@ -52,3 +52,44 @@ for (const companion of ["pi-codex-imagegen", "pi-codex-web-run"]) {
     }
   });
 }
+
+test("empty notebook calls return help without starting the runtime", async () => {
+  const { registerNotebookTool } = await import("@howaboua/pi-codex-conversion/dist/tools/code-mode/notebook-tool.js");
+  let tool;
+  registerNotebookTool({ registerTool: value => { tool = value; } }, new Proxy({}, {
+    get() { assert.fail("help must not access the notebook runtime"); },
+  }));
+  for (const input of [{}, { input: "help" }]) {
+    const result = await tool.execute("help", input);
+    assert.deepEqual(result.details, { action: "help" });
+    assert.match(result.content[0].text, /checkpoint/);
+  }
+});
+
+test("external notes sharing preserves saved Remote provenance and validates dispatch", async () => {
+  const { EventEmitter } = await import("node:events");
+  const { registerContextSharingService } = await import("@howaboua/pi-codex-conversion/dist/context-management/sharing-service.js");
+  const { contextAgentIdentity } = await import("@howaboua/pi-codex-conversion/dist/context-management/agent-identity.js");
+  const bus = new EventEmitter();
+  let service, owner;
+  bus.on("pi-codex:context-sharing:available", value => { service = value; });
+  const binding = { protocol: 1, threadId: "thread", sessionId: "family", agentName: "/root",
+    storage: "remote", accountScope: "a".repeat(64), backendUrl: "https://fixture.invalid" };
+  const ctx = { sessionManager: { getSessionId: () => "thread",
+    getEntries: () => [{ type: "custom", customType: "codex-context-agent", data: binding }] } };
+  const calls = [];
+  registerContextSharingService({ on() {}, events: { on: (name, fn) => { bus.on(name, fn); return () => bus.off(name, fn); },
+    emit: (name, value) => bus.emit(name, value) } },
+    () => ({ contextManagementMode: "local", shareSubagentContext: true }),
+    async (_ctx, request) => { calls.push(request); return { content: [] }; }, () => owner);
+  assert.throws(() => service.describe(ctx), /requires Remote history storage/);
+  owner = {};
+  assert.deepEqual(service.describe(ctx), { ...binding, storage: "session" });
+  assert.deepEqual(contextAgentIdentity(ctx), binding, "saved Remote identity stays available for authenticated history");
+  const request = { sessionId: "family", agentName: "/root", namespace: "notes", params: { action: "list" } };
+  await service.execute(ctx, request);
+  assert.equal(calls.length, 1);
+  await assert.rejects(() => service.execute(ctx, { ...request, agentName: "/root/other" }), /does not belong/);
+  await assert.rejects(() => service.execute(ctx, { ...request, encryptedArguments: "opaque" }), /Encrypted Remote arguments/);
+  assert.equal(calls.length, 1);
+});
