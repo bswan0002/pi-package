@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { EventEmitter } from "node:events";
 import { registerDictationButton } from "@howaboua/pi-codex-conversion/dist/voice/dictation-button.js";
 import { CodexVoiceController } from "@howaboua/pi-codex-conversion/dist/voice/controller.js";
 import { visibleWidth } from "@earendil-works/pi-tui";
@@ -11,7 +12,7 @@ const click = x => ({ type: "click", button: "left", x, y: 0,
 
 test("paired voice controls align, share a guard, stop chat and report failures", async () => {
   const handlers = new Map();
-  const voice = new CodexVoiceController({});
+  const voice = new CodexVoiceController({ events: new EventEmitter() });
   let component, renders = 0, dictations = 0, chats = 0, finish;
   const notices = [];
   const ctx = { hasUI: true, ui: {
@@ -84,4 +85,46 @@ test("paired voice controls align, share a guard, stop chat and report failures"
   handlers.get("session_shutdown")();
   assert.equal(component, undefined);
   assert.equal(voice.dictationListeners.size, 0);
+});
+
+test("voice controls follow handoff reservation, forwarded stop and transfer completion", async () => {
+  const voice = new CodexVoiceController({ events: new EventEmitter() });
+  const changes = [];
+  voice.onDictationStateChange(() => changes.push([voice.dictationState, voice.realtimeState]));
+  const reservation = voice.reserveHandoffArrival();
+  assert.deepEqual(changes.at(-1), ["unavailable", "connecting"]);
+  reservation.release();
+  assert.deepEqual(changes.at(-1), ["idle", "idle"]);
+  voice.runtime.config = {};
+  voice.runtime.state = { type: "conversation", session: { microphoneMuted: false } };
+  const handoff = voice.captureHandoffAudio();
+  voice.runtime.state = { type: "idle" };
+  let stops = 0;
+  const forwarded = { onSessionEvent: () => () => {}, stop: async () => { stops++; } };
+  handoff.transferred(undefined, forwarded);
+  assert.deepEqual(changes.at(-1), ["unavailable", "active"]);
+  assert.equal(voice.activeMode, "realtime");
+  for (const state of [{ type: "connecting", mode: "realtime" }, { type: "reconnecting" }]) {
+    voice.runtime.state = state;
+    voice.renderStatus("connecting");
+    assert.deepEqual(changes.at(-1), ["unavailable", "connecting"]);
+  }
+  voice.runtime.state = { type: "idle" };
+  handoff.finished();
+  assert.deepEqual(changes.at(-1), ["idle", "idle"]);
+  handoff.transferred(undefined, forwarded);
+  await voice.stop();
+  assert.equal(stops, 1);
+  assert.deepEqual(changes.at(-1), ["idle", "idle"]);
+});
+
+test("voice startup respects another provider's active ownership", async () => {
+  const bus = new EventEmitter();
+  const voice = new CodexVoiceController({ events: bus });
+  bus.on("@howaboua/pi/active-voice/v1", request => request.refuse("another provider"));
+  for (const mode of ["dictation", "realtime"]) {
+    await assert.rejects(() => voice.start({}, {}, mode), /another provider voice or dictation is active/);
+    assert.equal(voice.dictationState, "idle");
+    assert.equal(voice.realtimeState, "idle");
+  }
 });

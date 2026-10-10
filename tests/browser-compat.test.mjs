@@ -39,5 +39,40 @@ test("browser native and nested calls tolerate unused response_length while pres
     { action: "open", ref_id: "tab1", response_length: "invalid" },
     { action: "tabs", unexpected: true },
     { find: [{ ref_id: "tab1", pattern: "hello", response_length: "short" }] },
-  ]) await assert.rejects(() => tool.execute("bad", tool.prepareArguments(input), undefined, undefined, ctx));
+  ]) await assert.rejects(async () => tool.execute("bad", tool.prepareArguments(input), undefined, undefined, ctx));
+});
+
+test("browser empty native and nested calls request help without operations", async () => {
+  const requests = [];
+  const tool = createBrowserTool({ execute: async request => { requests.push(request); return { help: true }; } });
+  const ctx = { sessionManager: { getSessionId: () => "fixture" } };
+  const nested = adaptToolForCodeMode(tool, { kind: "freeform", prepareInput: prepareBrowserInput, usage: "await tools.browser(input)" });
+  for (const input of [undefined, {}, { command: "help" }]) {
+    await tool.execute("help", tool.prepareArguments(input), undefined, undefined, ctx);
+    assert.deepEqual(requests.at(-1), { help: true });
+  }
+  for (const input of [undefined, "{}", "help"]) {
+    await nested.invoke(input, { extensionContext: ctx }, new AbortController().signal);
+    assert.deepEqual(requests.at(-1), { help: true });
+  }
+});
+
+test("foreground capture disables background rendering before activating the target", async () => {
+  const { BrowserCdpSession } = await import("../node_modules/@howaboua/pi-browser/dist/src/cdp/session.js");
+  const session = new BrowserCdpSession();
+  const steps = [];
+  const signal = new AbortController().signal;
+  session.pages = async () => [{ targetId: "target1", owned: true }];
+  session.tabs.set("target1", {
+    setBackgroundRendering: async enabled => steps.push(["background", enabled]),
+    run: async (_ref, current, action) => {
+      assert.equal(current, signal);
+      return action({ cdp: { send: async (method, params) => steps.push([method, params]) } });
+    },
+  });
+  await session.withTab("target1", signal, async () => steps.push(["capture"]), "foreground");
+  assert.deepEqual(steps, [["background", false], ["Target.activateTarget", { targetId: "target1" }], ["capture"]]);
+  steps.length = 0;
+  await session.withTab("target1", signal, async () => steps.push(["read"]));
+  assert.deepEqual(steps, [["background", true], ["read"]]);
 });
