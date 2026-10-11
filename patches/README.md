@@ -1,9 +1,44 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-3.0.49, which its exports and our extension loader execute. Upstream `src/` is
+3.0.50, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## October 11 follow-up (2026-10-11)
+
+Updated the existing maintenance branch from conversion **3.0.49 → 3.0.50**.
+Repeated discovery across tracked manifests, lockfiles, imports, loaders, patches
+and documentation, and independently verified all 12 latest published ecosystem
+tarballs against their registry SHA-512 integrity. Browser **0.0.8**, imagegen
+**0.0.10**, web-run **0.0.7**, and all eight Pi packages at **1.1.0** remain current.
+Published dependency and peer requirements are unchanged; in particular browser's
+optional conversion peer remains **>=3.0.48**, regardless of unreleased metadata
+on upstream main. The `@howaboua/pi/active-voice/v1` string is an event channel,
+not an additional package. No Notes Compaction, Ask, Shepherdr or Sites package is
+added.
+
+The [release-pinned changelog](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/ef20cd8c21c14c84d65f586dd485388ad82fee23/packages/pi-codex-conversion/CHANGELOG.md)
+matches the published artifact. The runtime delta adds an optional external notes
+owner `allowsCompaction(reason)` guard before compaction work. A false result
+yields to that owner's later hook, avoiding an unwanted summary when normal
+compaction is disabled. The declaration and source match this behavior; remaining
+artifact changes are release/API documentation and the package version.
+
+All 17 pre-existing patched dist files are byte-identical to 3.0.49, and both
+local additions remain absent upstream. The patch contents are unchanged and
+renamed for 3.0.50, preserving every customization from the October 10 rebase.
+Only conversion's root pin and resolved lock entry change in this follow-up.
+
+Validation: clean `npm ci` with strict patch replay, all **63 tests**, typecheck,
+`npm ls`, and `git diff --check` pass. The new lifecycle regression fails against
+3.0.49 and passes against 3.0.50. It covers vetoes for manual, threshold and
+overflow reasons before turn, notebook, voice or provider work; permissive and
+legacy owners; and existing tree-handoff cancellation without an external owner.
+Live provider requests, actual external Notes Compaction integration, encrypted
+remote history, browser/audio/LAN hardware and macOS terminal interaction remain
+unrun. No CI check runs or statuses were attached to the prior PR head; remote
+checks are rechecked after pushing the final commit.
 
 ## October 10 maintenance (2026-10-10)
 
@@ -138,7 +173,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@3.0.49` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@3.0.50` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 
