@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { EventEmitter } from "node:events";
 import { registerDictationButton } from "@howaboua/pi-codex-conversion/dist/voice/dictation-button.js";
 import { CodexVoiceController } from "@howaboua/pi-codex-conversion/dist/voice/controller.js";
 import { visibleWidth, stripTerminalSequences } from "@earendil-works/pi-tui";
@@ -68,7 +69,7 @@ test("dictation control aligns, handles only button clicks, guards transitions a
 });
 
 test("controller publishes hotkey/start/finish/failure states and suppresses only dictation footer", async () => {
-  const voice = new CodexVoiceController({});
+  const voice = new CodexVoiceController({ events: new EventEmitter() });
   const states = [], statuses = [], notices = [];
   voice.onDictationStateChange(state => states.push(state));
   voice.runtime.context = { ui: { theme,

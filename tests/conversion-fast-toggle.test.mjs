@@ -52,7 +52,20 @@ test("patched fast toggle persists, respects scope and applies through conversio
       await toggle();
       assert.deepEqual(readCodexConversionConfig().openai.fast, before);
     }
+    // Ultrafast is enabled: /fast turns it off, then back to ordinary Fast.
     ctx.model.id = 'gpt-6-luna';
+    const ultra = readCodexConversionConfig();
+    ultra.openai.fast.luna = 'ultrafast';
+    ultra.openai.fast.astra = 'ultrafast';
+    ultra.openai.daybreak = true;
+    assert.ok(writeCodexConversionConfig(ultra).ok);
+    await toggle();
+    assert.equal(state.config.openai.fast.luna, false);
+    assert.equal(state.config.openai.fast.astra, 'ultrafast');
+    assert.equal(state.config.openai.daybreak, true);
+    await toggle();
+    assert.equal(state.config.openai.fast.luna, true);
+    await toggle();
     // A trusted folder override stays in the folder; the global preference is untouched.
     const project = getProjectCodexConversionConfigPath(ctx.cwd);
     await mkdir(dirname(project), {recursive: true});
@@ -73,7 +86,7 @@ test("patched fast toggle persists, respects scope and applies through conversio
     await toggle(); // Restore effective trusted-folder state before the deferred toggles.
     // Environment pinning must not claim a successful toggle or write ignored settings.
     const count = applied.length;
-    for (const pin of ['1', '0', 'true', 'false']) {
+    for (const pin of ['1', '0', 'true', 'false', 'ultrafast', ' ULTRAFAST ']) {
       process.env.PI_CODEX_FAST = pin;
       await toggle();
       assert.equal(applied.length, count);

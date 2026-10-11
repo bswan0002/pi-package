@@ -95,6 +95,9 @@ test("real adapter synchronization publishes effective fast state across model/c
   try {
     syncAdapter(pi, ctx, state);
     assert.equal(fastDisplay().fastLabel, "fast");
+    config.openai.fast.luna = "ultrafast";
+    syncAdapter(pi, ctx, state);
+    assert.equal(fastDisplay().fastLabel, "ultrafast");
     config.openai.fast.luna = false;
     syncAdapter(pi, ctx, state);
     assert.equal(fastDisplay().fastLabel, undefined);
@@ -300,4 +303,19 @@ test("inactive conversion preserves later external tool selections", () => {
   active = ["read", "external"]; // Another extension changes its selection after deactivation.
   syncAdapter(pi, inactive, state);
   assert.deepEqual(active, ["read", "external"]);
+});
+
+test("Ultrafast stays in the custom footer while Daybreak and cost estimates stay in conversion status", () => {
+  let status;
+  const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
+  config.openai.fast.luna = "ultrafast";
+  config.openai.daybreak = true;
+  renderCodexStatus({ hasUI: true, model: codexModel, ui: {
+    setStatus: (_key, value) => { status = value; }, theme: { fg: (_role, value) => value },
+  } }, { config, usageStatus: { fiveHourUsageLeft: 80 } },
+  { kind: "notebook", effectiveOpenAICodex: true, codexTransport: true });
+  assert.match(status, /Daybreak/);
+  assert.match(status, /base cost estimate/);
+  assert.match(status, /80% left/);
+  assert.doesNotMatch(status, /\b(?:ultrafast|fast)\b/);
 });
