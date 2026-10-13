@@ -14,7 +14,7 @@ initTheme("dark", false);
 
 function terminal() {
   return { columns: 100, rows: 40, kittyProtocolActive: false,
-    start(onInput) { this.input = onInput; }, stop() {}, write() {}, moveBy() {}, hideCursor() {}, showCursor() {},
+    output: "", start(onInput) { this.input = onInput; }, stop() {}, write(data) { this.output += data; }, moveBy() {}, hideCursor() {}, showCursor() {},
     clearLine() {}, clearFromCursor() {}, clearScreen() {}, setTitle() {}, setProgress() {}, setProgramStatus() {},
     async drainInput() {},
   };
@@ -135,3 +135,43 @@ test("custom diff renderers survive Pi tool padding, duration and replay", async
     }
   }
 });
+
+
+test("bundled themes pass Pi 1.2 startup schema validation and resolve colors", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { validateThemeJson } = await import(new URL("./modes/interactive/theme/theme-schema.js", agentEntry));
+  const { loadThemeFromPath, setThemeJsonValidator } = await import(new URL("./modes/interactive/theme/theme.js", agentEntry));
+  setThemeJsonValidator(validateThemeJson);
+  try {
+    for (const name of ["dark-plus", "flexoki-dark"]) {
+      const path = new URL(`../themes/${name}.json`, import.meta.url);
+      const json = JSON.parse(await readFile(path, "utf8"));
+      assert.equal(json.$schema, "https://pi.dev/schemas/theme.schema.json");
+      assert.equal(validateThemeJson(name, json).name, json.name);
+      assert.ok(loadThemeFromPath(path.pathname).fg("accent", "text").includes("text"));
+    }
+    assert.throws(() => validateThemeJson("invalid", { name: "invalid", colors: {} }));
+  } finally {
+    setThemeJsonValidator(undefined);
+  }
+});
+
+for (const Host of [TuiMainScreen, TuiAltScreen]) {
+  test(`polished editor fake cursor is resolved by ${Host.name}`, async (t) => {
+    const term = terminal();
+    const tui = new Host(term);
+    t.after(() => tui.stop());
+    const editor = new PolishedEditor(tui, {
+      borderColor: s => theme.fg("border", s), selectList: getSelectListTheme(),
+    }, new KeybindingsManager(), theme, () => "gpt-6", () => "high");
+    editor.setText("cursor fixture");
+    tui.addChild(editor);
+    tui.setFocus(editor);
+    assert.ok(editor.render(100).join("").includes("\x1b_pi:fc\x07"));
+    tui.start();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    assert.ok(term.output.includes("cursor fixture"));
+    assert.ok(!term.output.includes("\x1b_pi:fc\x07"));
+    assert.ok(!term.output.includes("\x1b_pi:/fc\x07"));
+  });
+}

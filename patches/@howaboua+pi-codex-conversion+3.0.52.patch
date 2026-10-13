@@ -23,10 +23,10 @@ index 719322a..a56f09e 100644
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index ef78cfd..a138945 100644
+index b03fdb4..4af003f 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-@@ -25,7 +25,7 @@ export const REALTIME_V3_VOICES = [
+@@ -26,7 +26,7 @@ export const REALTIME_V3_VOICES = [
  export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
  export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
  export const DEFAULT_CODEX_CONVERSION_CONFIG = {
@@ -35,37 +35,15 @@ index ef78cfd..a138945 100644
      voiceFeaturesOnly: false,
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -54,7 +54,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
-         notesTreeHandoff: true,
+@@ -56,7 +56,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
          shareSubagentContext: false,
-         idleNotesRollover: false,
+         idleNotesRollover: 0,
+         taskBoundaryReminder: 0,
 -        method: "pi",
 +        method: "v2",
          v2UserMessageRetention: 64,
      },
      notebook: { maxHeapMiB: 4_096, plainCommandOutput: false },
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.d.ts
-index fb69a06..5afbf18 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.d.ts
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.d.ts
-@@ -2,3 +2,4 @@ import type { FastModeConfig } from "./config-contract.ts";
- export declare function normalizeFastMode(value: unknown): FastModeConfig;
- export declare function allModelsFastModeState(fast: FastModeConfig): "on" | "off" | "ultrafast" | "mixed";
- export declare function resolveFastModeServiceTier(fast: FastModeConfig, modelId: string | undefined): "priority" | "ultrafast" | undefined;
-+export declare function resolveFastModeFamily(modelId: string | undefined): "astra" | "sol" | "terra" | "luna" | undefined;
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.js
-index 222125a..aabe989 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.js
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/fast-mode.js
-@@ -14,7 +14,7 @@ export function normalizeFastMode(value) {
-         other: normalizeFastModeValue(families["other"] ?? fallback, fallback),
-     };
- }
--function resolveFastModeFamily(modelId) {
-+export function resolveFastModeFamily(modelId) {
-     const id = modelId?.split("/").at(-1)?.trim().toLowerCase();
-     // The backend's reserve route is Luna without a family suffix.
-     if (id === "gpt-reserve")
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 index a87af0e..6cc9a9e 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
@@ -172,6 +150,20 @@ index e3607e4..d17b3b5 100644
      };
  }
  export function parseCodexRateLimitResetConsumePayload(payload) {
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/extension/turn-lifecycle.js b/node_modules/@howaboua/pi-codex-conversion/dist/extension/turn-lifecycle.js
+index 0b881bd..70040fd 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/extension/turn-lifecycle.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/extension/turn-lifecycle.js
+@@ -139,7 +139,8 @@ export function createCodexTurnLifecycle(pi, runtime, ui, codeMode, reserve, ses
+                 runtime.voice.piInput(event.text, event.streamingBehavior);
+         },
+         beforeAgentStart: async (event, ctx) => {
+-            if (!state.externalNotes)
++            // Pi 1.2 custom-message starts have no user prompt; keep pending tree handoffs.
++            if (!state.externalNotes && typeof event.prompt === "string")
+                 state.contextTree.handoff.preparing(event.prompt);
+             if (!state.config.voiceFeaturesOnly)
+                 await reserve.beforeTurn(ctx);
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts
 index 4c41c35..c5b5efa 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts
@@ -300,6 +292,28 @@ index 2c4edc2..d69fb9a 100644
              }
              catch (error) {
                  if (error instanceof ExecutePatchError) {
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
+index d9ec6ee..2dd853b 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
+@@ -43,6 +43,8 @@ export function registerPublicCodeModeTools(pi, runtime) {
+ function createExecTool(runtime, tracker, renderResult, hooks) {
+     return {
+         name: "exec",
++        // Dynamic cells can discover or resume calls to any admitted Pi tool.
++        reachesTools: () => "all",
+         exposure: "model-only",
+         label: "Exec",
+         description: EXEC_DESCRIPTION,
+@@ -84,6 +86,8 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks) {
+     const constrainedSampling = getExperimentalToolSampling("wait");
+     return {
+         name: "wait",
++        // Dynamic cells can discover or resume calls to any admitted Pi tool.
++        reachesTools: () => "all",
+         exposure: "model-only",
+         label: "Wait",
+         description: WAIT_DESCRIPTION,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
 index c08f1a2..3999508 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
@@ -327,17 +341,17 @@ index c08f1a2..3999508 100644
  }
  export function registerBackgroundBashWidgetShortcuts(pi, state, sessions, config, isEnabled) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-index bfb29ba..50571fc 100644
+index 5a8a78b..a5b948c 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 @@ -1,5 +1,5 @@
  import { FAST_MODE_FAMILIES } from "../../adapter/activation/config-contract.js";
 -import { allModelsFastModeState } from "../../adapter/activation/fast-mode.js";
-+import { allModelsFastModeState, resolveFastModeServiceTier, resolveFastModeFamily } from "../../adapter/activation/fast-mode.js";
++import { allModelsFastModeState, resolveFastModeServiceTier, resolveCodexModelFamily } from "../../adapter/activation/fast-mode.js";
  import { clearFolderCodexConversionConfig, getCodexConversionConfigPath, getProjectCodexConversionConfigPath, hasFolderCodexConversionConfig, materializeFolderCodexConversionConfig, readCodexConversionConfig, readEffectiveCodexConversionConfig, readLayeredCodexConversionConfig, setGlobalCodexLunaCacheKeepalive, setProjectCodexCacheKeepalive, writeCodexConversionConfig, } from "../../adapter/activation/config-store.js";
  import { syncAdapter } from "../../adapter/activation/activation.js";
  import { createCodexVoiceControls } from "../../voice/controls.js";
-@@ -182,6 +182,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
+@@ -188,6 +188,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
          getArgumentCompletions: (prefix) => CODEX_COMMAND_COMPLETIONS.filter((item) => item.startsWith(prefix.trim().toLowerCase())).map((value) => ({ label: value, value })),
          handler: async (args, ctx) => {
              const arg = args.trim().toLowerCase();
@@ -353,7 +367,7 @@ index bfb29ba..50571fc 100644
 +                const config = scope === "folder"
 +                    ? readLayeredCodexConversionConfig({ cwd: ctx.cwd, projectTrusted: true })
 +                    : readCodexConversionConfig();
-+                const family = resolveFastModeFamily(ctx.model?.id) ?? "other";
++                const family = resolveCodexModelFamily(ctx.model?.id) ?? "other";
 +                const enabled = !resolveFastModeServiceTier(config.openai.fast, ctx.model?.id);
 +                const next = { ...config, openai: { ...config.openai, fast: { ...config.openai.fast, [family]: enabled } } };
 +                if (saveAndApply(ctx, scope, next))

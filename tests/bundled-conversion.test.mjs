@@ -73,6 +73,10 @@ test("bundled companions load and compose in either order across all modes", asy
       assert.deepEqual(loaded.errors, []);
       const tools = loaded.extensions.flatMap(e => [...e.tools.values()].map(t => t.definition));
       const names = tools.map(t => t.name);
+      for (const name of ['exec', 'wait']) {
+        assert.equal(tools.find(t => t.name === name).reachesTools({}), 'all',
+          name + ' must wait for connecting MCP tools before dynamic execution');
+      }
       assert.equal(names.filter(n => n === 'web_run').length, 1);
       assert.equal(names.filter(n => n === 'imagegen').length, 1);
       assert.equal(names.filter(n => n === 'browser').length, 1);

@@ -1,9 +1,52 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-3.0.50, which its exports and our extension loader execute. Upstream `src/` is
+3.0.52, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## October 13 maintenance (2026-10-13)
+
+Updated conversion **3.0.50 → 3.0.52** and the Pi development/test baseline
+**1.1.0 → 1.2.0**. Rediscovered used packages from tracked manifests, lockfiles,
+imports, loaders, patches and documentation. Independently fetched registry
+metadata and verified the SHA-512 integrity of all 12 baseline ecosystem packages'
+latest tarballs; reviewed packaged companion changelogs and the
+[tagged Pi 1.2.0 changelogs](https://github.com/earendil-works/pi/tree/v1.2.0/packages).
+Browser **0.0.8**, imagegen **0.0.10** and web-run **0.0.7** remain current.
+The seven remaining Pi packages (`pi-agent-core`, `pi-ai`, `pi-codemode`,
+`pi-coding-agent`, `pi-mcp`, `pi-telemetry`, `pi-tui`) resolve to **1.2.0**.
+Pi no longer depends on `chord`, so it and its unused esbuild tree are removed.
+Conversion now requires undici 8.11.2, openai 7.32.0 and higher smol-toml,
+web-tree-sitter and ws minima; only their required resolutions change.
+Peer ranges stay unchanged, including coding-agent **>=1.1.0**. The active-voice
+channel is not a package, and no unused ecosystem companion is added.
+
+[Conversion 3.0.51–52](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/76f2077127752693af97098b9391f1372a557c98/packages/pi-codex-conversion/CHANGELOG.md) introduces context presets (272k/500k/872k, custom/reset),
+corrects Sol's default to 500k, and adds configurable idle rollover, keepalive
+intervals and task-boundary reminders. Existing enabled rollover/keepalive
+settings retain their intervals. Rebased the shipped dist patch, preserving
+Notebook/Compact V2 defaults, snapshots, compaction vetoes, fast/ultrafast/footer
+state, quota countdowns and voice ownership/controls. Use upstream's newly
+exported `resolveCodexModelFamily` instead of patching a private resolver export.
+
+Pi 1.2 custom-message starts have no user prompt: skip only tree-handoff prompt
+validation for these events while retaining the rest of lifecycle preparation.
+Declare `reachesTools: () => "all"` for dynamic exec/wait cells so Pi's MCP
+readiness hook can wait for connecting servers; this does not change tool
+admission. The existing bridge already preserves Pi's newly widened structured
+MCP results, including arrays and null. Both theme schema URLs now use pi.dev.
+
+Validation: clean `npm ci` with strict replay of all **19 patched files**, all
+**68 tests**, `npm run typecheck`, `npm ls --all` and `git diff --check` pass.
+New regressions cover custom/ordinary/legacy turn starts, registered exec/wait
+reachability, structured MCP values, real startup theme validation and fake-cursor
+rendering on both terminal hosts. Existing integration regressions remain green.
+Live MCP connection timing, authenticated provider requests, actual external
+Notes Compaction, encrypted remote history, browser/audio/LAN hardware and macOS
+terminal interaction remain unrun. The retained peer minimum is not a claim that
+the full suite was rerun on every older Pi version. Remote checks are inspected
+on the final pushed commit; this repository currently has no workflow files.
 
 ## October 11 follow-up (2026-10-11)
 
@@ -173,7 +216,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@3.0.50` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@3.0.52` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 
