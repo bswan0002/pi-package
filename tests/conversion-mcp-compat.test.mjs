@@ -80,3 +80,16 @@ test("automatic extension imports preserve Pi admission, execution, and result c
   bridge.prepareLoadout({ callable: [], getNamespace: () => undefined });
   assert.deepEqual(bridge.getTools(), [], "removed callable tools cannot survive a loadout refresh");
 });
+
+
+test("Pi 1.2 MCP structured results preserve arrays, scalars and null", async () => {
+  const name = "mcp__example__lookup";
+  const bridge = createPiCodeModeBridge({ getAllTools: () => [{ name, sourceInfo: { path: "builtin:mcp" } }] });
+  bridge.prepareLoadout({ callable: [{ name, parameters: { type: "object" } }], getNamespace: () => ({ name: "mcp__example" }) });
+  const [tool] = bridge.getTools();
+  for (const structuredContent of [null, [1, { id: 2 }], "value", 42, false]) {
+    assert.deepEqual(await tool.invoke({}, {
+      executeTool: async () => ({ isError: false, result: { content: [{ type: "text", text: "fallback" }], structuredContent } }),
+    }), structuredContent);
+  }
+});

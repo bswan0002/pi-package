@@ -26,9 +26,9 @@ Cloudability API, query, and staging skills now live in [cloudability/cldy-ui-sk
 
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser` dependencies through local extension loaders. **Remove separately installed copies of all four from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
-Pi **1.0.0 or newer** is required by this package and its bundled Codex dependencies.
-The pinned development and compatibility-test baseline is **Pi 1.1.0**; see the
-[release assessment](./patches/README.md#pi-110-compatibility-2026-10-08).
+Pi **1.1.0 or newer** is required by this package and its bundled Codex dependencies.
+The pinned development and compatibility-test baseline is **Pi 1.2.0**; see the
+[release assessment](./patches/README.md#october-13-maintenance-2026-10-13).
 
 `npm ci` applies the tracked patch in `patches/` via `patch-package`. Install scripts must be enabled. Patch failures fail installation rather than silently dropping the integration. See [patch maintenance](./patches/README.md).
 
@@ -78,7 +78,7 @@ a separate legacy OpenAI Codex login may be needed. Companion failures now give
 concise login guidance and redact raw backend details; provider routing is unchanged.
 
 With Pi 1.0.4, Azure's provider name is `azure`; its Responses API ID remains
-`azure-openai-responses`. Conversion 3.0.50 does not automatically activate for
+`azure-openai-responses`. Conversion 3.0.52 does not automatically activate for
 ordinary Azure GPT model IDs under the renamed provider. If you intentionally
 use conversion with Azure Responses, include `azure` in conversion's
 `scope.additionalProviders`; existing `allProviders` settings and Codex-named
