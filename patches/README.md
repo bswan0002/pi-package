@@ -5,6 +5,39 @@ The patch targets the shipped **dist JavaScript and declarations** of conversion
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
+## Pi 1.3.0 compatibility (2026-10-15)
+
+Refreshed discovery across manifests, all 252 lockfile entries, loaders, imports,
+extensions, patches and tracking documents. Independently verified registry
+metadata and SHA-512 integrity for all 11 used ecosystem package tarballs.
+The seven Pi packages (`pi-agent-core`, `pi-ai`, `pi-codemode`, `pi-coding-agent`,
+`pi-mcp`, `pi-telemetry`, `pi-tui`) advance **1.2.0 → 1.3.0**. Conversion **3.0.52**,
+browser **0.0.8**, imagegen **0.0.10** and web-run **0.0.7** remain latest.
+No package is added or removed. Pi's internal dependency edges now use exact
+release versions upstream; the lockfile changes only these seven packages and
+root development pins. Existing peer ranges and the Node host floor remain unchanged.
+The active-voice event channel is not an additional package.
+
+Reviewed the [tagged release changelogs](https://github.com/earendil-works/pi/tree/v1.3.0/packages).
+Pi removes experimental assistant-frame APIs and changes worker-backed codemode
+results/close to settle before actual worker exit. Neither local extensions nor
+bundled companions reference those removed APIs or directly manage Pi codemode
+workers, so no local adaptation is needed. Upstream now restores active tools on
+resume, rejects malformed final tool arguments, fixes Sol's context window to
+500k, preserves GPT-6 API-key thinking-change caches, and fixes overlay ownership.
+Kimi Coding base-URL overrides now need `/v1`; this repository configures none.
+No provider/account configuration is changed.
+
+The conversion artifact and its 19-file patch are unchanged. Notebook/Compact V2
+defaults, compaction vetoes, snapshots, fast/ultrafast/footer state, quota countdowns,
+voice controls, and Pi 1.2 event/MCP compatibility remain covered by existing tests.
+Clean `npm ci` with strict patch replay, all **68 tests**, `npm run typecheck`,
+`npm ls --all`, and `git diff --check` pass on Pi 1.3.0.
+Live provider requests, persisted real-session resume, Bun worker termination,
+MCP connection timing, browser/audio/LAN hardware and macOS terminal interaction
+remain unrun. Older supported Pi versions were not rerun. No workflow files are
+configured in this repository; remote checks are verified on the pushed commit.
+
 ## October 13 maintenance (2026-10-13)
 
 Updated conversion **3.0.50 → 3.0.52** and the Pi development/test baseline
