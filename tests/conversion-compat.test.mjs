@@ -273,7 +273,7 @@ test("real Code/Notebook runtime imports callable tools without bypassing explic
       syncAdapter(pi, ctx, state);
       // Resolve active providers, then exercise the exec tool's actual loadout hook.
       runtime.getTools(ctx);
-      const changes = exec.prepareLoadout({ callable, declared: active.map(name => ({ name })), getNamespace: () => undefined });
+      const changes = exec.prepareLoadout({ callable, declared: active.map(name => ({ name })), getExposure: () => "direct", getNamespace: () => undefined });
       assert.ok(changes.hiddenDeclarations.includes("ordinary_extension"));
       const nested = runtime.getTools(ctx);
       assert.equal(nested.filter(tool => nameOf(tool) === "ordinary_extension").length, 1);
@@ -282,7 +282,7 @@ test("real Code/Notebook runtime imports callable tools without bypassing explic
       state.previousToolNames = saved.filter(name => name !== "explicit_fixture");
       assert.ok(!runtime.getTools(ctx).some(tool => nameOf(tool) === "explicit_fixture"), "an ineligible explicit tool cannot fall back to automatic import");
       state.previousToolNames = saved;
-      exec.prepareLoadout({ callable: [], declared: active.map(name => ({ name })), getNamespace: () => undefined });
+      exec.prepareLoadout({ callable: [], declared: active.map(name => ({ name })), getExposure: () => "direct", getNamespace: () => undefined });
       assert.ok(!runtime.getTools(ctx).some(tool => nameOf(tool) === "ordinary_extension"), "callable removals reach the actual runtime");
     }
   }

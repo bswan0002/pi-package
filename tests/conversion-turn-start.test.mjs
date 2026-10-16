@@ -4,24 +4,28 @@ import { createCodexTurnLifecycle } from "@howaboua/pi-codex-conversion/dist/ext
 import { CodexTreeHandoff } from "@howaboua/pi-codex-conversion/dist/context-management/tree-handoff.js";
 import { DEFAULT_CODEX_CONVERSION_CONFIG } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config.js";
 
-test("custom-message starts preserve pending tree handoffs; user and legacy starts still validate them", async () => {
+test("custom-message starts preserve pending tree handoffs; user starts still validate them", async () => {
   const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
   config.voiceFeaturesOnly = true;
   const handoff = new CodexTreeHandoff();
   const rejected = [];
   handoff.pending = { prompt: "save handoff", reject: error => rejected.push(error.message) };
-  const state = { config, contextTree: { handoff }, contextWindows: { currentIdentity: () => "fixture" } };
+  let turns = 0;
+  let activations = 0;
+  const state = { config, codexTurnState: { beginTurn: () => turns++ }, contextTree: { handoff }, contextWindows: { currentIdentity: () => "fixture" } };
   let began = 0;
   const pi = { events: { emit() {}, on() {} }, getAllTools: () => [], getActiveTools: () => [], setActiveTools() {} };
   const runtime = { state, autoReasoning: { begin: () => began++ } };
-  const lifecycle = createCodexTurnLifecycle(pi, runtime, {}, {}, {}, {});
+  const lifecycle = createCodexTurnLifecycle(pi, runtime, {}, {}, {}, { activate: () => activations++ });
   const ctx = { hasUI: false };
   await lifecycle.beforeAgentStart({ type: "before_agent_start", messageType: "custom", message: { role: "custom", customType: "fixture", content: "continue", display: false } }, ctx);
   assert.deepEqual(rejected, []);
   assert.equal(handoff.pending.preparing, undefined);
+  assert.equal(turns, 1);
+  assert.equal(activations, 1);
   assert.equal(began, 1, "custom starts still run lifecycle preparation");
   await lifecycle.beforeAgentStart({ type: "before_agent_start", messageType: "user", prompt: "save handoff" }, ctx);
   assert.equal(handoff.pending.preparing, true);
-  await lifecycle.beforeAgentStart({ type: "before_agent_start", prompt: "different legacy prompt" }, ctx);
+  await lifecycle.beforeAgentStart({ type: "before_agent_start", messageType: "user", prompt: "different prompt" }, ctx);
   assert.deepEqual(rejected, ["Another prompt interrupted the tree handoff"]);
 });
