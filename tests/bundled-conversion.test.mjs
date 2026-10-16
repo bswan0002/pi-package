@@ -77,6 +77,10 @@ test("bundled companions load and compose in either order across all modes", asy
         assert.equal(tools.find(t => t.name === name).reachesTools({}), 'all',
           name + ' must wait for connecting MCP tools before dynamic execution');
       }
+      assert.equal(tools.find(t => t.name === 'exec').reachesTools({code: 'tools[computedName]()'}), 'all');
+      for (const name of ['exec', 'wait', 'notebook']) {
+        assert.equal(tools.find(t => t.name === name).executionMode, 'sequential');
+      }
       assert.equal(names.filter(n => n === 'web_run').length, 1);
       assert.equal(names.filter(n => n === 'imagegen').length, 1);
       assert.equal(names.filter(n => n === 'browser').length, 1);
@@ -94,7 +98,7 @@ test("bundled companions load and compose in either order across all modes", asy
       const bridge = createPiCodeModeBridge(pi);
       // Include all explicit names in Pi's callable fixture: gated registrations
       // must reserve their names even when their explicit integration is inactive.
-      bridge.prepareLoadout({ callable: [...tools, { name: 'ordinary_extension', description: 'Auto imported', parameters: { type: 'object' } }], getNamespace: () => undefined });
+      bridge.prepareLoadout({ declared: [], getExposure: () => "direct", callable: [...tools, { name: 'ordinary_extension', description: 'Auto imported', parameters: { type: 'object' } }], getNamespace: () => undefined });
       const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
       config.scope.allProviders = 'on';
       const state = { config };
@@ -108,6 +112,9 @@ test("bundled companions load and compose in either order across all modes", asy
         ]) {
           const ctx = {model, hasUI: false};
           syncAdapter(pi, ctx, state);
+          for (const name of ['web_run', 'imagegen', 'browser']) {
+            assert.ok(active.includes(name), name + ' must remain active for persisted resume admission');
+          }
           const snapshot = getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true, eligibleTopLevelNames: names });
           const imported = bridge.getTools(snapshot.allToolNames);
           const nested = [...snapshot.tools, ...imported];

@@ -1,5 +1,5 @@
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-index 719322a..a56f09e 100644
+index 245e7a2..a7ea454 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 @@ -1,3 +1,4 @@
@@ -8,7 +8,7 @@ index 719322a..a56f09e 100644
  import { discoverExternalNotesOwner } from "../../context-management/external-notes-bridge.js";
  import { TOOL_NAMES as EXTERNAL_NOTES_TOOL_NAMES } from "../../context-management/external-notes-protocol.js";
 @@ -8,6 +9,14 @@ export function syncAdapter(pi, ctx, state) {
-     discoverExternalNotesOwner(pi, state);
+     discoverExternalNotesOwner(pi, state, ctx);
      state.availableToolNames = pi.getAllTools().map((tool) => tool.name);
      const plan = resolveCodexRuntimePlanForState(ctx, state);
 +    // pi-package's custom model footer owns only the fast indicator.
@@ -23,7 +23,7 @@ index 719322a..a56f09e 100644
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index b03fdb4..4af003f 100644
+index bf64e19..a8d1304 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 @@ -26,7 +26,7 @@ export const REALTIME_V3_VOICES = [
@@ -35,7 +35,7 @@ index b03fdb4..4af003f 100644
      voiceFeaturesOnly: false,
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -56,7 +56,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+@@ -57,7 +57,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
          shareSubagentContext: false,
          idleNotesRollover: 0,
          taskBoundaryReminder: 0,
@@ -150,20 +150,6 @@ index e3607e4..d17b3b5 100644
      };
  }
  export function parseCodexRateLimitResetConsumePayload(payload) {
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/extension/turn-lifecycle.js b/node_modules/@howaboua/pi-codex-conversion/dist/extension/turn-lifecycle.js
-index 0b881bd..70040fd 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/extension/turn-lifecycle.js
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/extension/turn-lifecycle.js
-@@ -139,7 +139,8 @@ export function createCodexTurnLifecycle(pi, runtime, ui, codeMode, reserve, ses
-                 runtime.voice.piInput(event.text, event.streamingBehavior);
-         },
-         beforeAgentStart: async (event, ctx) => {
--            if (!state.externalNotes)
-+            // Pi 1.2 custom-message starts have no user prompt; keep pending tree handoffs.
-+            if (!state.externalNotes && typeof event.prompt === "string")
-                 state.contextTree.handoff.preparing(event.prompt);
-             if (!state.config.voiceFeaturesOnly)
-                 await reserve.beforeTurn(ctx);
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts
 index 4c41c35..c5b5efa 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.d.ts
@@ -293,27 +279,33 @@ index 2c4edc2..d69fb9a 100644
              catch (error) {
                  if (error instanceof ExecutePatchError) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-index d9ec6ee..2dd853b 100644
+index dc1775b..9859623 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-@@ -43,6 +43,8 @@ export function registerPublicCodeModeTools(pi, runtime) {
- function createExecTool(runtime, tracker, renderResult, hooks) {
-     return {
-         name: "exec",
-+        // Dynamic cells can discover or resume calls to any admitted Pi tool.
+@@ -51,12 +51,8 @@ function createExecTool(runtime, tracker, renderResult, hooks) {
+         parameters: EXEC_PARAMETERS,
+         constrainedSampling: CODE_MODE_EXEC_CONSTRAINED_SAMPLING,
+         prepareLoadout: (loadout) => runtime.prepareLoadout(loadout),
+-        reachesTools: ({ code }) => {
+-            // Pi waits for named MCP servers before this cell snapshots its tools.
+-            if (typeof code !== "string")
+-                return [];
+-            return /\bALL_TOOLS\b/.test(code) ? "all" : (code.match(/\w+/g) ?? []);
+-        },
++        // Computed tool names and discovery can reach any admitted MCP server.
 +        reachesTools: () => "all",
-         exposure: "model-only",
-         label: "Exec",
-         description: EXEC_DESCRIPTION,
-@@ -84,6 +86,8 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks) {
+         async execute(id, params, signal, onUpdate, ctx) {
+             tracker.start(id);
+             const piToolScope = new PiToolCallScope(ctx, signal);
+@@ -91,6 +87,8 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks) {
      const constrainedSampling = getExperimentalToolSampling("wait");
      return {
          name: "wait",
-+        // Dynamic cells can discover or resume calls to any admitted Pi tool.
++        // Resumed cells can make further calls with dynamically computed names.
 +        reachesTools: () => "all",
          exposure: "model-only",
+         executionMode: "sequential",
          label: "Wait",
-         description: WAIT_DESCRIPTION,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
 index c08f1a2..3999508 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
@@ -535,7 +527,7 @@ index 768ea84..8332739 100644
      }
  }
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
-index bf4419f..4ada918 100644
+index 0624662..ebab8fb 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
 @@ -4,6 +4,7 @@ import { resolveVoiceHelperBinary } from "./binary.js";
@@ -546,7 +538,7 @@ index bf4419f..4ada918 100644
  export function createCodexVoiceControls(options) {
      const { pi, state, voice, lanVoice } = options;
      const requestSetup = async (ctx, retryCommand, force, mode) => {
-@@ -64,6 +65,7 @@ export function createCodexVoiceControls(options) {
+@@ -62,6 +63,7 @@ export function createCodexVoiceControls(options) {
          }
          ctx.ui.notify(`Realtime microphone ${muted ? "muted" : "unmuted"}`, "info");
      };

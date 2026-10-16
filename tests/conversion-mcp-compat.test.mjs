@@ -6,7 +6,7 @@ test("bundled conversion preserves MCP namespace guidance and missing-tool recov
   const name = "mcp__example__lookup";
   const namespace = { name: "mcp__example", description: "Read the project guide before querying." };
   const bridge = createPiCodeModeBridge({ getAllTools: () => [{ name, sourceInfo: { path: "builtin:mcp" } }] });
-  const loadout = { callable: [{ name, description: "Look up a record", parameters: { type: "object" } }],
+  const loadout = { declared: [], callable: [{ name, description: "Look up a record", parameters: { type: "object" } }],
     getNamespace: () => namespace, getExposure: () => "deferred" };
   assert.deepEqual(bridge.prepareLoadout(loadout), { hiddenDeclarations: [name] });
   const [tool] = bridge.getTools();
@@ -39,7 +39,7 @@ test("automatic extension imports preserve Pi admission, execution, and result c
     { name: "tool_search", parameters, sourceInfo: { path: "builtin:tool-search" } },
   ];
   const bridge = createPiCodeModeBridge({ getAllTools: () => definitions });
-  const changes = bridge.prepareLoadout({
+  const changes = bridge.prepareLoadout({ declared: [], getExposure: () => "direct",
     callable: definitions.filter(t => t.name !== "not_callable"),
     getNamespace: () => undefined,
   });
@@ -77,7 +77,7 @@ test("automatic extension imports preserve Pi admission, execution, and result c
   assert.deepEqual(await ordinary.invoke({}, {
     executeTool: async () => ({ isError: false, result: { content } }),
   }, signal), { content });
-  bridge.prepareLoadout({ callable: [], getNamespace: () => undefined });
+  bridge.prepareLoadout({ declared: [], getExposure: () => "direct", callable: [], getNamespace: () => undefined });
   assert.deepEqual(bridge.getTools(), [], "removed callable tools cannot survive a loadout refresh");
 });
 
@@ -85,11 +85,49 @@ test("automatic extension imports preserve Pi admission, execution, and result c
 test("Pi 1.2 MCP structured results preserve arrays, scalars and null", async () => {
   const name = "mcp__example__lookup";
   const bridge = createPiCodeModeBridge({ getAllTools: () => [{ name, sourceInfo: { path: "builtin:mcp" } }] });
-  bridge.prepareLoadout({ callable: [{ name, parameters: { type: "object" } }], getNamespace: () => ({ name: "mcp__example" }) });
+  bridge.prepareLoadout({ declared: [], getExposure: () => "direct", callable: [{ name, parameters: { type: "object" } }], getNamespace: () => ({ name: "mcp__example" }) });
   const [tool] = bridge.getTools();
   for (const structuredContent of [null, [1, { id: 2 }], "value", 42, false]) {
     assert.deepEqual(await tool.invoke({}, {
       executeTool: async () => ({ isError: false, result: { content: [{ type: "text", text: "fallback" }], structuredContent } }),
     }), structuredContent);
   }
+});
+
+
+test("Code omitted arguments normalize only when the tool schema permits an empty object", async () => {
+  const definitions = [
+    { name: "optional", parameters: { type: "object", properties: {} } },
+    { name: "nullable", parameters: { anyOf: [{ type: "null" }, { type: "object" }] } },
+    { name: "required", parameters: { type: "object", required: ["value"], properties: { value: { type: "string" } } } },
+  ];
+  const bridge = createPiCodeModeBridge({ getAllTools: () => definitions });
+  bridge.prepareLoadout({ callable: definitions, declared: definitions, getExposure: () => "direct", getNamespace: () => undefined });
+  const [optional, nullable, required] = bridge.getTools();
+  let received;
+  const context = { executeTool: async (_name, input) => {
+    received = input;
+    return { isError: false, result: { content: [] } };
+  } };
+  for (const input of [undefined, null]) {
+    await optional.invoke(input, context);
+    assert.deepEqual(received, {});
+  }
+  await nullable.invoke(null, context);
+  assert.equal(received, null, "schema-valid null must survive");
+  await required.invoke(null, context);
+  assert.equal(received, null, "invalid required input stays available for Pi validation");
+});
+
+test("native deferred activation stays authoritative without hiding callable MCP discovery", () => {
+  const definitions = [
+    { name: "deferred", parameters: { type: "object" } },
+    { name: "mcp__example__lookup", parameters: { type: "object" }, sourceInfo: { path: "builtin:mcp" } },
+  ];
+  const bridge = createPiCodeModeBridge({ getAllTools: () => definitions });
+  const loadout = { callable: definitions, declared: [], getExposure: () => "deferred", getNamespace: () => undefined };
+  bridge.prepareLoadout(loadout);
+  assert.deepEqual(bridge.getTools().map(tool => tool.discoverWhenDeferred), [false, true]);
+  bridge.prepareLoadout({ ...loadout, declared: [definitions[0]] });
+  assert.deepEqual(bridge.getTools().map(tool => tool.discoverWhenDeferred), [true, true]);
 });
