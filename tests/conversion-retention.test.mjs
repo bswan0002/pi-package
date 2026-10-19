@@ -1,0 +1,38 @@
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, writeFile, utimes, access, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+import { DEFAULT_CODEX_CONVERSION_CONFIG } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config.js";
+import { maintainNotebookJournals, notebookJournalsDirectory, notebookCheckpointRetention } from "@howaboua/pi-codex-conversion/dist/tools/notebook-mode/storage-retention.js";
+
+test("journal expiry respects recent sidecars, indefinite retention and off without touching saved variables", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-journal-retention-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const now = Date.now();
+  const old = new Date(now - 8 * 86400_000);
+  const root = notebookJournalsDirectory(dir);
+  const project = join(root, "a".repeat(64));
+  await mkdir(project, { recursive: true });
+  const expired = join(project, "b".repeat(64) + ".ipynb");
+  const active = join(project, "c".repeat(64) + ".ipynb");
+  const sidecar = active + ".events.jsonl";
+  const saved = join(dir, "saved-variable-fixture");
+  for (const path of [expired, active, sidecar, saved]) await writeFile(path, "fixture");
+  for (const path of [expired, active]) await utimes(path, old, old);
+  assert.equal(DEFAULT_CODEX_CONVERSION_CONFIG.notebook.journals, "week");
+  assert.equal(notebookCheckpointRetention(dir), "never");
+  maintainNotebookJournals(dir, now);
+  await assert.rejects(access(expired), { code: "ENOENT" });
+  await access(active);
+  await access(sidecar);
+  const config = join(dir, "pi-codex-conversion.json");
+  await writeFile(config, JSON.stringify({ notebook: { journals: "on" } }));
+  await utimes(sidecar, old, old);
+  maintainNotebookJournals(dir, now);
+  await access(active);
+  await writeFile(config, JSON.stringify({ notebook: { journals: "off" } }));
+  maintainNotebookJournals(dir, now);
+  await assert.rejects(access(root), { code: "ENOENT" });
+  await access(saved);
+});

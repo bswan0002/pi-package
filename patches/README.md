@@ -1,9 +1,54 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-4.0.1, which its exports and our extension loader execute. Upstream `src/` is
+4.0.2, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## Conversion 4.0.2 and companions (2026-10-19)
+
+Updates the existing PR from conversion **4.0.1 → 4.0.2**, browser **0.0.8 → 0.0.9**,
+imagegen **0.0.10 → 0.0.11**, and web-run **0.0.7 → 0.0.8**. Fresh discovery covered
+both main and PR manifests, complete lockfiles, imports/loaders, extensions, patches
+and tracking documents; all 11 latest ecosystem tarballs passed SHA-512 verification.
+All seven Pi packages remain **1.3.0**. The three companions declare optional
+conversion peers **>=4.0.2**, satisfied together here. Root peer ranges are unchanged.
+Imagegen/web-run now require undici **8.12.2**; retain the other existing transitive
+resolutions, including certificate libraries npm otherwise refreshed unnecessarily.
+
+Reviewed the [release-pinned package changelogs](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/37406c5b663252cba486c9032c8cd128ce13ec0a/packages).
+Three existing patch targets changed (configuration defaults, Code tools and
+settings commands), 13 were unchanged and two remain local additions. Regenerated
+the same 18-file patch, preserving Notebook/Compact V2, snapshots, compaction vetoes,
+fast/ultrafast/footer, quota countdowns, conservative MCP readiness and voice controls.
+PCC GPT prompt mode remains opt-in; ordinary prompt settings retain their meaning.
+New companion guidance and unified help discovery remain upstream-owned.
+
+**Current runtime and retention behavior:** Code mode always uses the pinned official
+runtime, and downloads honor proxy environment settings. `tools.customRustBinariesDir`
+no longer overrides Code mode; other native helper overrides are unchanged. This
+supersedes the local Code build guidance in the historical 4.0.1 entry below.
+Notebook journals default to expiry after seven days without updates. `/codex`
+offers **On** (no age expiry, ordinary size limits remain), **Keep for 1 week**, or
+**Off & remove** (stop recording and remove journals). Saved variables and conversations
+are separate. Session-checkpoint cleanup is independently opt-in at one month or one
+week; the default remains **Never**. No user data cleanup was run by this maintenance.
+
+For existing pre-4.x sessions, install the updated package first, run `/reload` in
+the still-running session, complete one turn, and only then restart Pi. The reasoning
+and upstream source for this sequence are recorded in the 4.0.1 assessment below;
+the reload must load the newly installed version, not the old package.
+
+Validation: clean `npm ci` with strict patch replay, all **72 tests**, typecheck,
+`npm ls --all`, and `git diff --check` pass. New tests exercise compact/ordinary
+companion guidance in both load orders without changing schemas, browser's on-demand
+help, journal expiry with a recent sidecar, indefinite/off policies, and default
+checkpoint retention using disposable fixtures. The first new prompt test assumed
+browser changed its description; inspection showed it changes help output instead,
+and the test now exercises that actual contract. Existing 70 tests stayed green.
+Live provider calls, official runtime download/execution and proxy behavior, actual
+persisted-session migration, MCP connection timing, browser capture, audio/LAN hardware
+and macOS interaction remain unrun. Remote checks are inspected on the pushed head.
 
 ## Conversion 4.0.1 compatibility (2026-10-16)
 
@@ -303,7 +348,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@4.0.1` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@4.0.2` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 

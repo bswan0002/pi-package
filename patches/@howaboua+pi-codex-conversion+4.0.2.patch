@@ -23,7 +23,7 @@ index 245e7a2..a7ea454 100644
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index bf64e19..a8d1304 100644
+index c53a572..5d37c42 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 @@ -26,7 +26,7 @@ export const REALTIME_V3_VOICES = [
@@ -43,7 +43,7 @@ index bf64e19..a8d1304 100644
 +        method: "v2",
          v2UserMessageRetention: 64,
      },
-     notebook: { maxHeapMiB: 4_096, plainCommandOutput: false },
+     notebook: { maxHeapMiB: 4_096, plainCommandOutput: false, journals: "week", checkpointCleanup: "never" },
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 index a87af0e..6cc9a9e 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
@@ -279,10 +279,10 @@ index 2c4edc2..d69fb9a 100644
              catch (error) {
                  if (error instanceof ExecutePatchError) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-index dc1775b..9859623 100644
+index 03ec77c..a09d1c9 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-@@ -51,12 +51,8 @@ function createExecTool(runtime, tracker, renderResult, hooks) {
+@@ -61,12 +61,8 @@ function createExecTool(runtime, tracker, renderResult, hooks) {
          parameters: EXEC_PARAMETERS,
          constrainedSampling: CODE_MODE_EXEC_CONSTRAINED_SAMPLING,
          prepareLoadout: (loadout) => runtime.prepareLoadout(loadout),
@@ -297,7 +297,7 @@ index dc1775b..9859623 100644
          async execute(id, params, signal, onUpdate, ctx) {
              tracker.start(id);
              const piToolScope = new PiToolCallScope(ctx, signal);
-@@ -91,6 +87,8 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks) {
+@@ -101,6 +97,8 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks) {
      const constrainedSampling = getExperimentalToolSampling("wait");
      return {
          name: "wait",
@@ -333,7 +333,7 @@ index c08f1a2..3999508 100644
  }
  export function registerBackgroundBashWidgetShortcuts(pi, state, sessions, config, isEnabled) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-index 5a8a78b..a5b948c 100644
+index d17e463..d6546e1 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 @@ -1,5 +1,5 @@
@@ -343,7 +343,7 @@ index 5a8a78b..a5b948c 100644
  import { clearFolderCodexConversionConfig, getCodexConversionConfigPath, getProjectCodexConversionConfigPath, hasFolderCodexConversionConfig, materializeFolderCodexConversionConfig, readCodexConversionConfig, readEffectiveCodexConversionConfig, readLayeredCodexConversionConfig, setGlobalCodexLunaCacheKeepalive, setProjectCodexCacheKeepalive, writeCodexConversionConfig, } from "../../adapter/activation/config-store.js";
  import { syncAdapter } from "../../adapter/activation/activation.js";
  import { createCodexVoiceControls } from "../../voice/controls.js";
-@@ -188,6 +188,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
+@@ -204,6 +204,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
          getArgumentCompletions: (prefix) => CODEX_COMMAND_COMPLETIONS.filter((item) => item.startsWith(prefix.trim().toLowerCase())).map((value) => ({ label: value, value })),
          handler: async (args, ctx) => {
              const arg = args.trim().toLowerCase();
