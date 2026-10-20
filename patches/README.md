@@ -1,9 +1,108 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-3.0.52, which its exports and our extension loader execute. Upstream `src/` is
+4.0.2, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## Conversion 4.0.2 and companions (2026-10-19)
+
+Updates the existing PR from conversion **4.0.1 → 4.0.2**, browser **0.0.8 → 0.0.9**,
+imagegen **0.0.10 → 0.0.11**, and web-run **0.0.7 → 0.0.8**. Fresh discovery covered
+both main and PR manifests, complete lockfiles, imports/loaders, extensions, patches
+and tracking documents; all 11 latest ecosystem tarballs passed SHA-512 verification.
+All seven Pi packages remain **1.3.0**. The three companions declare optional
+conversion peers **>=4.0.2**, satisfied together here. Root peer ranges are unchanged.
+Imagegen/web-run now require undici **8.12.2**; retain the other existing transitive
+resolutions, including certificate libraries npm otherwise refreshed unnecessarily.
+
+Reviewed the [release-pinned package changelogs](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/37406c5b663252cba486c9032c8cd128ce13ec0a/packages).
+Three existing patch targets changed (configuration defaults, Code tools and
+settings commands), 13 were unchanged and two remain local additions. Regenerated
+the same 18-file patch, preserving Notebook/Compact V2, snapshots, compaction vetoes,
+fast/ultrafast/footer, quota countdowns, conservative MCP readiness and voice controls.
+PCC GPT prompt mode remains opt-in; ordinary prompt settings retain their meaning.
+New companion guidance and unified help discovery remain upstream-owned.
+
+**Current runtime and retention behavior:** Code mode always uses the pinned official
+runtime, and downloads honor proxy environment settings. `tools.customRustBinariesDir`
+no longer overrides Code mode; other native helper overrides are unchanged. This
+supersedes the local Code build guidance in the historical 4.0.1 entry below.
+Notebook journals default to expiry after seven days without updates. `/codex`
+offers **On** (no age expiry, ordinary size limits remain), **Keep for 1 week**, or
+**Off & remove** (stop recording and remove journals). Saved variables and conversations
+are separate. Session-checkpoint cleanup is independently opt-in at one month or one
+week; the default remains **Never**. No user data cleanup was run by this maintenance.
+
+For existing pre-4.x sessions, install the updated package first, run `/reload` in
+the still-running session, complete one turn, and only then restart Pi. The reasoning
+and upstream source for this sequence are recorded in the 4.0.1 assessment below;
+the reload must load the newly installed version, not the old package.
+
+Validation: clean `npm ci` with strict patch replay, all **72 tests**, typecheck,
+`npm ls --all`, and `git diff --check` pass. New tests exercise compact/ordinary
+companion guidance in both load orders without changing schemas, browser's on-demand
+help, journal expiry with a recent sidecar, indefinite/off policies, and default
+checkpoint retention using disposable fixtures. The first new prompt test assumed
+browser changed its description; inspection showed it changes help output instead,
+and the test now exercises that actual contract. Existing 70 tests stayed green.
+Live provider calls, official runtime download/execution and proxy behavior, actual
+persisted-session migration, MCP connection timing, browser capture, audio/LAN hardware
+and macOS interaction remain unrun. Remote checks are inspected on the pushed head.
+
+## Conversion 4.0.1 compatibility (2026-10-16)
+
+Updated conversion **3.0.52 → 4.0.1** after rediscovering packages from tracked
+manifests, the complete lockfile, imports, loaders, patches and documentation.
+Independently verified published metadata and SHA-512 integrity for all 11 used
+ecosystem tarballs. All seven Pi packages stay at **1.3.0**, browser at **0.0.8**,
+imagegen at **0.0.10**, and web-run at **0.0.7**. No unused package is added.
+Raise only AI and coding-agent peer minima to **>=1.3.0**, matching conversion's
+published requirements; TUI stays **>=1.0.0**. Required transitive changes are
+openai **7.34.0** and conversion's undici **8.12.2**; other resolutions are unchanged.
+
+The [release-pinned changelog](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/187a70d621ccc99b119166e55fcd568e5b4f605e/packages/pi-codex-conversion/CHANGELOG.md)
+introduces Pi-native custom-turn preparation, new-window request policy, native
+deferred-tool admission, sequential Code/Notebook execution and fixes for resume,
+no-argument calls, cancellation, exit and late command output. Removed prepared-idle
+kickoff APIs are not used by local extensions. Upstream voice setup now admits a
+custom turn and uses `sendMessage(..., { triggerTurn: true })`; preserve that path.
+
+Five existing patch targets changed upstream, 12 were identical, and two were
+local additions. Regenerated **18 patched files**, dropping the custom-message
+handoff guard because upstream now checks `messageType === "user"` on the required
+Pi 1.3 event contract. Tests verify custom starts still prepare the session/turn
+without interrupting a handoff, and user starts still validate it.
+Keep conservative `reachesTools: () => "all"` on exec and wait: upstream's token
+matching handles literal tool names but is not equivalent for computed names or
+further calls from resumed cells. This preserves readiness without changing tool
+admission. Retain upstream sequential execution and active integration tool
+admission for resume, while its loadout bridge hides provider-facing declarations.
+Notebook/Compact V2 defaults, snapshots, compaction vetoes, fast/ultrafast/footer
+state, quota countdowns and voice controls remain intact.
+
+**Existing-session migration:** first install this updated package (conversion
+4.0.1), then run `/reload` in the existing Pi session, complete one turn, and only
+then restart Pi. Do not run the migration reload before installing the update.
+Pi 1.3 `AgentSession.reload()` rebuilds with `includeAllExtensionTools: true`;
+conversion's `reconcileExtensionToolProjection()` now keeps those integration tools
+active, and the next run records tool declarations while hiding them only in the
+provider projection. Merely installing the package does not update the running
+session or persist its corrected loadout. This sequence follows the packaged
+4.0.1 changelog and the shipped implementations; live persisted-session migration
+has not been exercised here. Local Code runtime builds must explicitly set
+`tools.customRustBinariesDir`; upstream downloads Codex 0.163 otherwise.
+
+Validation: clean `npm ci` with strict patch replay, all **70 tests**, typecheck,
+`npm ls --all`, and `git diff --check` pass. Initial failures exposed outdated
+fixtures for loadout metadata, custom-turn activation and prewarm suspension;
+these were updated to the published contracts without weakening compaction vetoes.
+New coverage checks no-argument/null normalization and deferred admission; extended
+loader coverage checks persisted tool eligibility, computed-name readiness and
+sequential execution. Live provider calls, Rust runtime download/execution and
+cancellation, actual persisted-session migration, MCP connection timing, browser,
+audio/LAN hardware and macOS interaction remain unrun. No workflow files are
+configured; remote checks are inspected on the final pushed commit.
 
 ## Pi 1.3.0 compatibility (2026-10-15)
 
@@ -249,7 +348,7 @@ npx patch-package @howaboua/pi-codex-conversion
 ```
 
 If npm's remote-tarball policy blocks patch-package's temporary install, use
-`npm pack @howaboua/pi-codex-conversion@3.0.52` to obtain a pristine registry
+`npm pack @howaboua/pi-codex-conversion@4.0.2` to obtain a pristine registry
 package and generate a `git diff --no-index` against the changed files, with
 `a/node_modules/...` and `b/node_modules/...` paths. Do not relax the policy.
 

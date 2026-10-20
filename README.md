@@ -26,9 +26,13 @@ Cloudability API, query, and staging skills now live in [cloudability/cldy-ui-sk
 
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser` dependencies through local extension loaders. **Remove separately installed copies of all four from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
-Pi **1.1.0 or newer** is required by this package and its bundled Codex dependencies.
+Pi **1.3.0 or newer** is required by this package and its bundled Codex dependencies.
 The pinned development and compatibility-test baseline is **Pi 1.3.0**; see the
-[release assessment](./patches/README.md#pi-130-compatibility-2026-10-15).
+[release assessment](./patches/README.md#conversion-402-and-companions-2026-10-19).
+
+**Upgrading an existing Code/Notebook session:** install the updated package first, then run `/reload` in that still-running Pi session and complete one turn before restarting Pi. The reload must load conversion 4.0.2; reloading the old version before installation does not perform this migration. Code mode now always uses the pinned official runtime; `tools.customRustBinariesDir` no longer overrides Code mode (other helper overrides are unchanged).
+
+Notebook journals now expire after **seven days without updates** by default. In `/codex`, select **On** for indefinite age retention or **Off & remove** to stop recording and remove saved journals. Saved variables and conversations are separate; optional session-checkpoint cleanup remains **Never** by default.
 
 `npm ci` applies the tracked patch in `patches/` via `patch-package`. Install scripts must be enabled. Patch failures fail installation rather than silently dropping the integration. See [patch maintenance](./patches/README.md).
 
@@ -78,7 +82,7 @@ a separate legacy OpenAI Codex login may be needed. Companion failures now give
 concise login guidance and redact raw backend details; provider routing is unchanged.
 
 With Pi 1.0.4, Azure's provider name is `azure`; its Responses API ID remains
-`azure-openai-responses`. Conversion 3.0.52 does not automatically activate for
+`azure-openai-responses`. Conversion 4.0.2 does not automatically activate for
 ordinary Azure GPT model IDs under the renamed provider. If you intentionally
 use conversion with Azure Responses, include `azure` in conversion's
 `scope.additionalProviders`; existing `allProviders` settings and Codex-named

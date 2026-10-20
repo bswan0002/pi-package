@@ -11,7 +11,7 @@ function fixture(owner) {
     contextTree: { handoff: { active: false } },
     ...(owner ? { externalNotes: { owner } } : {}),
   };
-  const runtime = { state, finishTurn: () => calls.push("finish turn"), voice: {
+  const runtime = { state, suspendOrdinaryPrewarm: () => calls.push("suspend prewarm"), finishTurn: () => calls.push("finish turn"), voice: {
     announceContextTransition: reason => calls.push(reason),
     compactionStarted: () => calls.push("voice start"),
     compactionFinished: () => calls.push("voice finish"),
@@ -50,7 +50,7 @@ test("allowing and legacy notes owners keep the ordinary compaction lifecycle", 
     const { state, calls, lifecycle, ctx, event } = fixture(owner);
     state.config.compaction.method = "pi";
     assert.equal(await lifecycle.beforeCompact(event("manual"), ctx), undefined);
-    assert.deepEqual(calls, ["finish turn", "checkpoint", "voice finish"]);
+    assert.deepEqual(calls, ["suspend prewarm", "checkpoint", "voice finish"]);
     assert.equal(state.cwd, "current");
   }
 });
