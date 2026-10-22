@@ -1,9 +1,47 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-4.0.2, which its exports and our extension loader execute. Upstream `src/` is
+4.0.4, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## Pi 1.4.0 and conversion 4.0.4 (2026-10-22)
+
+Fresh discovery from default-branch manifests, lockfile, runtime imports/loaders,
+extensions, patches and tracking docs found the same 11 used packages. Verified
+registry metadata, upstream identities, release changelogs and SHA-512 integrity
+for every latest artifact. Update all seven Pi packages **1.3.0 → 1.4.0**, conversion
+**4.0.2 → 4.0.4**, and browser **0.0.9 → 0.0.10**. Imagegen **0.0.11** and web-run
+**0.0.8** remain current. No unused ecosystem package is added. The only new
+transitive package is Pi TUI's required `marked-cjk-friendly` **0.1.2**.
+
+Sources: [Pi 1.4.0 changelogs](https://github.com/earendil-works/pi/tree/v1.4.0/packages),
+[conversion 4.0.3–4.0.4 changelog](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/753e79b91bdeff23596f7bfb926cb1cffaafa344/packages/pi-codex-conversion/CHANGELOG.md),
+[browser 0.0.10 changelog](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/af4590da9ee93796d3f93b32e90a504409842bd6/packages/pi-browser/CHANGELOG.md).
+
+Conversion 4.0.4 migrates `resolveTranscriptTools()` to Pi 1.4's string support
+modes and uses `foldedSystemMessages` instead of `anchorsAdditions`. After a tool
+removal or redefinition, later additions remain in-place without rewriting the
+request's top-level tools. Raise only AI and coding-agent peer minima to **>=1.4.0**,
+matching conversion; TUI's peer minimum stays **>=1.0.0**. Browser's optional
+conversion minimum **>=4.0.3** is satisfied. No local consumers of removed
+`getPiUserAgent` or `telemetryContext` APIs were found.
+
+Replayed and regenerated the same 18-file dist patch. Fifteen upstream targets
+are unchanged, one changes only idle-rollover presets, and two are local additions.
+Preserve Notebook/Compact V2 defaults, snapshots, compaction vetoes, fast/ultrafast
+footer state, quota countdowns, conservative MCP readiness and voice controls.
+Upstream nested-call cancellation/accounting, auxiliary-session cleanup, denser
+browser help and idle presets remain intact. Official Code runtime and retention
+behavior documented below still apply.
+
+Validation: clean `npm ci` with strict patch replay, **78 tests**, typecheck,
+`npm ls --all`, and `git diff --check` pass. Six new request-serialization cases
+cover removal/redefinition followed by deferred loads, with additional-tools,
+tool-search and ordinary modes. Existing companion load-order and custom behavior
+regressions pass. Live provider calls, runtime download/execution, persisted-session
+migration, MCP connection timing, browser capture, audio/LAN and macOS UI remain
+unrun. Remote CI availability is checked on the pushed commit.
 
 ## Conversion 4.0.2 and companions (2026-10-19)
 
