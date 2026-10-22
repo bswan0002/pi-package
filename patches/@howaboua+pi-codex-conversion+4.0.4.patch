@@ -23,10 +23,10 @@ index 245e7a2..a7ea454 100644
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index c53a572..5d37c42 100644
+index 43b3591..9e75086 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-@@ -26,7 +26,7 @@ export const REALTIME_V3_VOICES = [
+@@ -27,7 +27,7 @@ export const REALTIME_V3_VOICES = [
  export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
  export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
  export const DEFAULT_CODEX_CONVERSION_CONFIG = {
@@ -35,7 +35,7 @@ index c53a572..5d37c42 100644
      voiceFeaturesOnly: false,
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -57,7 +57,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+@@ -58,7 +58,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
          shareSubagentContext: false,
          idleNotesRollover: 0,
          taskBoundaryReminder: 0,
