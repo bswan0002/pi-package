@@ -14,9 +14,6 @@
     "extensions": [
       "./extensions"
     ],
-    "skills": [
-      "./skills"
-    ],
     "themes": [
       "./themes"
     ]

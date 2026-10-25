@@ -16,12 +16,6 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 - [`sounds`](./extensions/sounds) — plays configurable macOS sounds on pi and extension events.
 - [`style`](./extensions/style) — installs the custom editor/statusline UI. Use `/pr-refresh` to refresh PR/git footer state. Based on [lmilojevicc/pi-zentui](https://github.com/lmilojevicc/pi-zentui).
 
-### Skills
-
-- [`confluence-export`](./skills/confluence-export) — fetches Atlassian Confluence Cloud pages and saves them as Markdown.
-
-Cloudability API, query, and staging skills now live in [cloudability/cldy-ui-skills](https://github.com/cloudability/cldy-ui-skills). Install them separately with `npx skills add cloudability/cldy-ui-skills`.
-
 ## Codex conversion compatibility
 
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser` dependencies through local extension loaders. **Remove separately installed copies of all four from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
@@ -128,7 +122,6 @@ Global `~/.pi/agent/settings.json` is the base; project `.pi/settings.json` over
 | Extension                | Optional/required tools                                                           | Notes                                                    |
 | ------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | browser                  | Node.js 22.19+, Chrome-family browser with CDP enabled; optional SSH/SCP          | Logged-in browser control, not desktop control.          |
-| confluence-export        | `ATLASSIAN_EMAIL`, `ATLASSIAN_API_KEY`, `curl`, `python3`, `pandoc`               | Environment variables required.                         |
 | diff                     | Shiki npm dependencies                                                            | No major system tool expected.                           |
 | post-edit                | project-configured commands                                                       | Runs whatever `.pi/post-edit.json` asks for.             |
 | screenshot-picker        | macOS `defaults`, macOS `open`, Linux `xdg-open`, terminal image protocol support | Image previews need capable terminals.                   |
