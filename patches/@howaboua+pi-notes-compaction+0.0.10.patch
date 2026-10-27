@@ -1,0 +1,15 @@
+diff --git a/node_modules/@howaboua/pi-notes-compaction/src/settings.ts b/node_modules/@howaboua/pi-notes-compaction/src/settings.ts
+index 5702eb3..e80171e 100644
+--- a/node_modules/@howaboua/pi-notes-compaction/src/settings.ts
++++ b/node_modules/@howaboua/pi-notes-compaction/src/settings.ts
+@@ -42,8 +42,8 @@ export function readSettings(
+ 			const migrated = readLegacySettings(preferences());
+ 			return (
+ 				migrated ?? {
+-					active: "all",
+-					modelWhitelist: [...DEFAULT_MODEL_WHITELIST],
++					active: "whitelist",
++					modelWhitelist: [],
+ 					normalCompaction: false,
+ 					rankedHistorySearch: false,
+ 					noteSaveMarkers: preferences().noteSaveMarkers,

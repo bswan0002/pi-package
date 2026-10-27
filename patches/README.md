@@ -1,9 +1,54 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-4.0.4, which its exports and our extension loader execute. Upstream `src/` is
+4.0.5, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## Conversion 4.0.5 and Notes migration (2026-10-27)
+
+Fresh discovery on main found four Howaboua packages and seven Pi packages. All
+11 latest artifacts passed integrity verification; Pi stays at **1.4.0**. Upgrade
+conversion **4.0.4 → 4.0.5**, browser **0.0.10 → 0.0.11**, imagegen **0.0.11 → 0.0.12**,
+and web-run **0.0.8 → 0.0.9** together: all companions now require conversion
+**>=4.0.5**. Root Pi peer ranges are unchanged. Preserve PR #33's removal of skills.
+
+[Release-pinned upstream sources and changelogs](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/d67cb69b22decc4ea024236ba59dc4ddae9a2334/packages).
+
+Conversion removes built-in Notes/history, rollover controls and legacy Remote
+mode. Add **pi-notes-compaction 0.0.10** with a local loader to preserve the formerly
+bundled optional continuity feature. This is a replacement for used functionality,
+not an unrelated ecosystem addition. Its settings patch changes only the fallback
+for fresh configurations to an empty whitelist: ordinary installs retain Compact V2.
+Explicit legacy Notes continuity imports through upstream's global/trusted-folder
+migration; existing Notes settings always win. The old PCC file stays untouched.
+Use `/notes` for activation and migrated controls. Upstream supplies read-only
+remote-note retrieval and saved Tree recovery; encrypted Remote execution is retired.
+No user data pruning, configuration rewriting or runtime downloads were performed.
+
+Rebase the conversion dist patch across the new voice-controller modules, retaining
+Notebook/Compact V2 defaults, snapshots, fast/ultrafast footer state, quota countdowns,
+dynamic-tool readiness and paired voice controls. Compaction coordination now uses
+upstream's memoized preparation hooks; retired context-sharing APIs belong to Notes,
+while parent/cache affinity belongs to `agent-relationship`. Browser nested calls
+return objects through Pi's nested executor, which owns admission and cancellation.
+New TS/JS Notebook modes remain opt-in; the existing Notebook default is unchanged.
+
+Required transitive updates include OpenAI **7.45.0**, undici **8.12.3**, acorn
+**8.19.0**, and Notes' native better-sqlite3 **13.0.3** / node-addon-api **8.9.2**.
+No unrelated lockfile resolutions were refreshed.
+
+Validation: clean installation and strict replay of both patches, **76 tests**,
+typecheck, dependency-tree validation and diff checks. Tests cover Notes migration,
+existing-settings precedence, native database access, both companion load orders,
+compaction preparation ordering/memoization, browser structured output and admission,
+and existing custom behavior. Tests for removed internal history/router APIs were
+replaced with the new ownership contracts. Initial failures exposed obsolete test
+fixtures and patch locations; those were updated rather than restoring retired APIs.
+The native rebuild initially needed a writable node-gyp cache in this cloud executor.
+Live provider traffic, account/Remote-history recovery, actual persisted-session
+migration, new runtime downloads/execution, browser capture, audio/LAN and macOS
+interaction remain unrun. See the PR for exact-head CI availability.
 
 ## Pi 1.4.0 and conversion 4.0.4 (2026-10-22)
 
