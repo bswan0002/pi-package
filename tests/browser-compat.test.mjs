@@ -8,7 +8,8 @@ test("browser native and nested calls tolerate unused response_length while pres
   const requests = [];
   const tool = createBrowserTool({ execute: async request => { requests.push(request); return { ok: true }; } });
   const ctx = { sessionManager: { getSessionId: () => "fixture" } };
-  const nested = adaptToolForCodeMode(tool, { kind: "freeform", prepareInput: prepareBrowserInput, usage: "await tools.browser(input)" });
+  const executeTool = async (_name, args, options) => ({ result: await tool.execute("nested", args, options?.signal, undefined, ctx), isError: false });
+  const nested = adaptToolForCodeMode(tool, { resultValue: result => result.details, kind: "freeform", prepareInput: prepareBrowserInput, usage: "await tools.browser(input)" });
   const inputs = [
     { action: "tabs", response_length: "short" },
     { action: "open", url: "https://example.com", response_length: "long" },
@@ -19,7 +20,8 @@ test("browser native and nested calls tolerate unused response_length while pres
   for (const input of inputs) {
     await tool.execute("fixture", tool.prepareArguments(input), undefined, undefined, ctx);
     const native = requests.at(-1);
-    await nested.invoke(JSON.stringify(input), { extensionContext: ctx }, new AbortController().signal);
+    const nestedResult = await nested.invoke(JSON.stringify(input), { extensionContext: ctx, executeTool }, new AbortController().signal);
+    assert.equal(typeof nestedResult, "object");
     assert.deepEqual(requests.at(-1), native);
     for (const op of native.operations) {
       if (op.action === "find" || (op.action === "open" && op.ref_id)) assert.equal(op.response_length, "long");
@@ -29,8 +31,9 @@ test("browser native and nested calls tolerate unused response_length while pres
   const beforeBlocked = requests.length;
   await assert.rejects(() => nested.invoke('{"action":"tabs"}', {
     extensionContext: ctx, toolCallId: "blocked",
-    preflight: async call => {
-      assert.deepEqual(call.input, { command: '{"action":"tabs"}' });
+    executeTool: async (name, args) => {
+      assert.equal(name, "browser");
+      assert.deepEqual(args, tool.prepareArguments({ command: '{"action":"tabs"}' }));
       throw new Error("Permission denied");
     },
   }, new AbortController().signal), /Permission denied/);
@@ -46,13 +49,14 @@ test("browser empty native and nested calls request help without operations", as
   const requests = [];
   const tool = createBrowserTool({ execute: async request => { requests.push(request); return { help: true }; } });
   const ctx = { sessionManager: { getSessionId: () => "fixture" } };
-  const nested = adaptToolForCodeMode(tool, { kind: "freeform", prepareInput: prepareBrowserInput, usage: "await tools.browser(input)" });
+  const executeTool = async (_name, args, options) => ({ result: await tool.execute("nested", args, options?.signal, undefined, ctx), isError: false });
+  const nested = adaptToolForCodeMode(tool, { resultValue: result => result.details, kind: "freeform", prepareInput: prepareBrowserInput, usage: "await tools.browser(input)" });
   for (const input of [undefined, {}, { command: "help" }]) {
     await tool.execute("help", tool.prepareArguments(input), undefined, undefined, ctx);
     assert.deepEqual(requests.at(-1), { help: true });
   }
   for (const input of [undefined, "{}", "help"]) {
-    await nested.invoke(input, { extensionContext: ctx }, new AbortController().signal);
+    await nested.invoke(input, { extensionContext: ctx, executeTool }, new AbortController().signal);
     assert.deepEqual(requests.at(-1), { help: true });
   }
 });

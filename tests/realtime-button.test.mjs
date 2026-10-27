@@ -106,7 +106,7 @@ test("voice controls follow handoff reservation, forwarded stop and transfer com
   assert.equal(voice.activeMode, "realtime");
   for (const state of [{ type: "connecting", mode: "realtime" }, { type: "reconnecting" }]) {
     voice.runtime.state = state;
-    voice.renderStatus("connecting");
+    voice.presentation.renderStatus("connecting");
     assert.deepEqual(changes.at(-1), ["unavailable", "connecting"]);
   }
   voice.runtime.state = { type: "idle" };

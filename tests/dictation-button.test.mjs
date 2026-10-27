@@ -75,7 +75,7 @@ test("controller publishes hotkey/start/finish/failure states and suppresses onl
   voice.runtime.context = { ui: { theme,
     setStatus: (...args) => statuses.push(args), notify: (...args) => notices.push(args) } };
   voice.runtime.state = { type: "connecting", mode: "dictation", phase: "authorizing" };
-  voice.renderStatus("connecting…");
+  voice.presentation.renderStatus("connecting…");
   assert.equal(states.at(-1), "connecting");
   assert.equal(statuses.at(-1)[1], undefined);
   let resolveFinish, finishes = 0;
@@ -84,21 +84,21 @@ test("controller publishes hotkey/start/finish/failure states and suppresses onl
   }, close: async () => {} };
   voice.runtime.state = { type: "dictation", session };
   voice.runtime.announcedMode = "dictation";
-  voice.renderStatus("listening");
+  voice.presentation.renderStatus("listening");
   assert.equal(states.at(-1), "listening");
   const finishing = voice.finishDictation();
-  voice.renderStatus("transcribing"); // Upstream transcriber status has no ellipsis.
+  voice.presentation.renderStatus("transcribing"); // Upstream transcriber status has no ellipsis.
   assert.equal(states.at(-1), "transcribing");
   await voice.finishDictation();
   assert.equal(finishes, 1);
   resolveFinish(); await finishing;
   assert.equal(states.at(-1), "idle");
   voice.runtime.state = { type: "conversation", session: { microphoneMuted: false, close: async () => {} } };
-  voice.renderStatus("listening");
+  voice.presentation.renderStatus("listening");
   assert.equal(states.at(-1), "unavailable");
   assert.match(statuses.at(-1)[1], /voice: listening/);
   voice.runtime.state = { type: "dictation", session };
-  voice.fail(new Error("Microphone unavailable"));
+  voice.lifecycle.fail(new Error("Microphone unavailable"));
   assert.equal(states.at(-1), "idle");
   assert.equal(notices.at(-1)[0], "Microphone unavailable");
   await tick();
