@@ -45,6 +45,6 @@
     "glob": "^13.0.6",
     "patch-package": "8.0.1",
     "shiki": "^4.0.2",
-    "@howaboua/pi-notes-compaction": "0.0.10"
+    "@howaboua/pi-notes-compaction": "0.0.11"
   }
 }

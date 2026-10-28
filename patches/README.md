@@ -5,6 +5,34 @@ The patch targets the shipped **dist JavaScript and declarations** of conversion
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
+## Notes 0.0.11 (2026-10-28)
+
+Upgrade the used **pi-notes-compaction 0.0.10 → 0.0.11**. Fresh discovery and
+artifact/changelog verification covered all 12 used ecosystem packages. Conversion
+**4.0.5**, browser **0.0.11**, imagegen **0.0.12**, web-run **0.0.9** and all seven
+Pi packages **1.4.0** remain current. No peer or transitive dependency changes.
+
+[Release-pinned changelog](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/c8afcba310fc75e91acfd5340b709710a87f4333/packages/pi-notes-compaction/CHANGELOG.md).
+
+Upstream selects `bun:sqlite` in Bun/standalone Pi builds instead of loading the
+Node native addon. Node continues using better-sqlite3; database schema version 1
+and existing notes/history indexes remain compatible. The pruning submenu now owns
+its preview, confirmation and progress states so its frame remains visible.
+
+The patched `src/settings.ts` is byte-identical between releases. Rename the patch
+for 0.0.11 without changing its contents: fresh installs stay inactive, existing
+Notes settings win, and explicit legacy continuity still migrates. Conversion's
+custom patch and PR #33's skill removal remain unchanged. No user database or
+pruning operation was touched.
+
+Validation: clean `npm ci` with both strict patches, **79 tests**, typecheck,
+`npm ls --all` and diff checks. Three new regressions exercise Node database
+reopening (notes, missing rows and pruning policy) and framed submenu preview,
+confirmation/cancellation, progress and busy-state closing. The initial UI fixture
+needed Pi's theme initialized; no product fix was needed. Bun is not installed,
+so the Bun/standalone runtime branch is unrun. Actual history pruning, ranked-search
+worker execution, account migration and live terminal/platform checks remain unrun.
+
 ## Conversion 4.0.5 and Notes migration (2026-10-27)
 
 Fresh discovery on main found four Howaboua packages and seven Pi packages. All
