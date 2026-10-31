@@ -119,7 +119,7 @@ test("Code omitted arguments normalize only when the tool schema permits an empt
   assert.equal(received, null, "invalid required input stays available for Pi validation");
 });
 
-test("native deferred activation stays authoritative without hiding callable MCP discovery", () => {
+test("deferred native and MCP tools remain discoverable before declaration", () => {
   const definitions = [
     { name: "deferred", parameters: { type: "object" } },
     { name: "mcp__example__lookup", parameters: { type: "object" }, sourceInfo: { path: "builtin:mcp" } },
@@ -127,7 +127,7 @@ test("native deferred activation stays authoritative without hiding callable MCP
   const bridge = createPiCodeModeBridge({ getAllTools: () => definitions });
   const loadout = { callable: definitions, declared: [], getExposure: () => "deferred", getNamespace: () => undefined };
   bridge.prepareLoadout(loadout);
-  assert.deepEqual(bridge.getTools().map(tool => tool.discoverWhenDeferred), [false, true]);
+  assert.deepEqual(bridge.getTools().map(tool => tool.discoverWhenDeferred), [true, true]);
   bridge.prepareLoadout({ ...loadout, declared: [definitions[0]] });
   assert.deepEqual(bridge.getTools().map(tool => tool.discoverWhenDeferred), [true, true]);
 });
