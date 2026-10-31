@@ -1,9 +1,52 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-4.0.5, which its exports and our extension loader execute. Upstream `src/` is
+4.0.7, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## Conversion 4.0.7 and companions (2026-10-31)
+
+Fresh registry/artifact discovery verified all 12 used packages. Upgrade conversion
+**4.0.5 → 4.0.7**, browser **0.0.11 → 0.0.13**, web-run **0.0.9 → 0.0.10**,
+and Notes **0.0.10 → 0.0.13** (extending PR #35's 0.0.11 work). Imagegen remains
+**0.0.12**, all seven Pi packages **1.4.0**. All latest artifact integrity checks
+passed. Conversion now depends on the already-used browser ^0.0.13; browser
+requires conversion >=4.0.7, Web Run and Notes >=4.0.6. No new package or peer
+range expansion, and no unrelated lockfile refresh.
+
+Sources: [conversion/browser](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/e4aa5bb43c560b722829a5123b3f2e05d3d9a19d/packages),
+[Web Run](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/d84cb25d192eeb142f14511d60387a22a9416958/packages/pi-codex-web-run/CHANGELOG.md),
+[Notes](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/ef254bc23bb3417f02c6b26bf3a2f0455e3e3835/packages/pi-notes-compaction/CHANGELOG.md).
+
+Rebase the same 22-file conversion patch, preserving every custom added/removed
+line. Its fast-command hunk needed relocation around the new LAN voice commands.
+Keep Notebook/Compact V2 defaults, compaction, snapshots, fast/footer state, quota
+countdowns and paired voice controls. Upstream adds Realtime model/provider choices,
+voice tasks, LAN recovery, Web Run service discovery, deferred-tool discovery and
+structured Code/Notebook arguments. Codex Live remains the default.
+
+The browser wrapper resolves the package's compiled `dist/extension.js` directly,
+matching upstream's lazy TypeScript extension entry. Importing the package root
+also eagerly exports browser tool code. Cold-start regressions prove both normal
+and voice-only startup with conversion installed, and that voice-only startup
+never loads browser tool/registration modules. The full companion loader test
+checks both orders and discovers the Web Run voice-search service without traffic.
+
+Rebase Notes' unchanged inactive-default override. Retain 0.0.11's SQLite/menu
+regressions and legacy migration. Notes 0.0.13 introduces agent-operated model
+roles via `model-roles.json` and `new_context({role})`; `/roles` is read-only and
+legacy `enabled` is ignored. Tests verify inactive/empty-whitelist rejection,
+stale-session rejection and configured model/reasoning activation. No user
+configuration, account data or pruning operation is changed. Bundled skills stay removed.
+
+Validation: clean `npm ci` with strict replay of both patches, **82 tests**,
+typecheck, `npm ls --all` and diff checks passed on Node 24.19.0. The initial
+old-patch replay failed at the fast command; rebasing fixed it. Two old test
+assumptions (browser input helper location and deferred-tool discovery) were
+updated to the new contracts. Bun is unavailable. Bun/standalone Pi, actual pruning/ranked-history
+workers, live providers, voice/audio/LAN/browser hardware, account recovery and
+macOS interaction remain unrun. Tests use disposable storage and mocked provider access.
 
 ## Notes 0.0.11 (2026-10-28)
 
