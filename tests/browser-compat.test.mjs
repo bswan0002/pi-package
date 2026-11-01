@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createBrowserTool, prepareBrowserInput } from "../node_modules/@howaboua/pi-browser/dist/src/browser-tool.js";
+import { createBrowserTool } from "../node_modules/@howaboua/pi-browser/dist/src/browser-tool.js";
+import { prepareBrowserInput } from "../node_modules/@howaboua/pi-browser/dist/src/browser-tool-definition.js";
 import { adaptToolForCodeMode } from "@howaboua/pi-codex-conversion/code-mode";
 
 // Exercise both shipped adapters without starting CDP or contacting a browser.
@@ -23,6 +24,8 @@ test("browser native and nested calls tolerate unused response_length while pres
     const nestedResult = await nested.invoke(JSON.stringify(input), { extensionContext: ctx, executeTool }, new AbortController().signal);
     assert.equal(typeof nestedResult, "object");
     assert.deepEqual(requests.at(-1), native);
+    await nested.invoke(input, { extensionContext: ctx, executeTool }, new AbortController().signal);
+    assert.deepEqual(requests.at(-1), native, "structured calls match JSON calls");
     for (const op of native.operations) {
       if (op.action === "find" || (op.action === "open" && op.ref_id)) assert.equal(op.response_length, "long");
       else assert.equal(Object.hasOwn(op, "response_length"), false);

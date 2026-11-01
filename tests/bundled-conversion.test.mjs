@@ -66,11 +66,15 @@ test("bundled companions load and compose in either order across all modes", asy
     const { getCodeModeExtensionToolSnapshot } = await import('@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js');
     const { DEFAULT_CODEX_CONVERSION_CONFIG } = await import('@howaboua/pi-codex-conversion/dist/adapter/activation/config.js');
     const { createPiCodeModeBridge } = await import('@howaboua/pi-codex-conversion/dist/adapter/code-mode/pi-tools.js');
+    const { discoverRealtimeWebSearch } = await import('@howaboua/pi-codex-conversion/dist/voice/realtime-web-search.js');
     const paths = ['codex-conversion', 'codex-web-run', 'codex-imagegen', 'browser', 'fast', 'notes-compaction'].map(p => join(process.cwd(), 'extensions', p, 'index.ts'));
     for (const order of [paths, [...paths].reverse()]) {
       const events = createEventBus();
       const loaded = await loadExtensions(order, process.env.PI_CODING_AGENT_DIR, events);
       assert.deepEqual(loaded.errors, []);
+      const search = discoverRealtimeWebSearch({ events });
+      assert.equal(search?.protocol, 1);
+      assert.equal(typeof search?.run, 'function');
       const tools = loaded.extensions.flatMap(e => [...e.tools.values()].map(t => t.definition));
       const names = tools.map(t => t.name);
       for (const name of ['exec', 'wait']) {
