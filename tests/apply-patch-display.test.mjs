@@ -263,6 +263,22 @@ test("patch entries click-toggle, survive host rebuilds, and respect the global 
   assert.deepEqual(renderEntry({ ...entry }, { expanded: false }, theme).render(80), collapsed, "different entries have independent expansion");
 });
 
+test("patch entries use host keybindings across clicks and invalidation", () => {
+  const renderEntry = renderer.createPatchEntryRenderer();
+  const entry = { data: { input: "", isError: false, source: "nested", toolCallId: "keys", files: [] } };
+  const options = { expanded: false, keyText: name => {
+    assert.equal(name, "app.tools.expand");
+    return "ctrl+alt+e";
+  } };
+  const component = renderEntry(entry, options, theme);
+  const check = () => assert.match(strip(component.render(80).join("\n")), /ctrl\+alt\+e toggle all/);
+  check();
+  component.handleMouse({ type: "click", button: "left", shift: false, alt: false, ctrl: false });
+  check();
+  component.invalidate();
+  check();
+});
+
 test("header, summary, file labels and diff share a full-width background", async () => {
   await renderer.prepareHighlighting();
   const data = { input: "", isError: true, source: "direct", toolCallId: "background",

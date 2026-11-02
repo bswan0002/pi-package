@@ -1490,7 +1490,7 @@ function renderSplitSync(
 
 // Snapshots belong to the persisted display entry, never to today's filesystem.
 // This also makes resumed sessions and multiple patches in one notebook cell safe.
-function patchDisplayComponent(data: ApplyPatchDisplayData, expanded: boolean, theme: any) {
+function patchDisplayComponent(data: ApplyPatchDisplayData, expanded: boolean, theme: any, formatKey = keyText) {
 	const safe = (value: string) => value.replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "�");
 	const files = data.files?.map((file) => ({
 		...file,
@@ -1518,7 +1518,7 @@ function patchDisplayComponent(data: ApplyPatchDisplayData, expanded: boolean, t
 			text(theme.fg("dim", "• ") + theme.fg(failed ? "error" : "toolTitle", theme.bold(
 				`apply_patch · ${partial ? "partially failed" : failed ? "failed" : "applied"}`,
 			)));
-			text(theme.fg("muted", `  click to ${expanded ? "collapse" : "expand"} · ${keyText("app.tools.expand")} toggle all`));
+			text(theme.fg("muted", `  click to ${expanded ? "collapse" : "expand"} · ${formatKey("app.tools.expand")} toggle all`));
 			// Never hide recovery instructions or claim attempted edits were applied.
 			if ((failed || expanded) && (data.error || data.content)) text(theme.fg(failed ? "error" : "muted", safe(data.error || data.content || "")));
 			if (data.error && data.content && data.error !== data.content) text(safe(data.content));
@@ -1569,14 +1569,14 @@ function createPatchEntryRenderer(): ApplyPatchDisplayOptions["render"] {
 		const state = previous?.globalExpanded === options.expanded
 			? previous : { globalExpanded: options.expanded, expanded: options.expanded };
 		expansion.set(entry, state);
-		let child = patchDisplayComponent(entry.data, state.expanded, theme);
+		let child = patchDisplayComponent(entry.data, state.expanded, theme, options.keyText ?? keyText);
 		return new MouseRegion({
 			render: (width) => child.render(width),
 			invalidate: () => child.invalidate(),
 		}, (event) => {
 			if (event.type !== "click" || event.button !== "left" || event.shift || event.alt || event.ctrl) return undefined;
 			state.expanded = !state.expanded;
-			child = patchDisplayComponent(entry.data!, state.expanded, theme);
+			child = patchDisplayComponent(entry.data!, state.expanded, theme, options.keyText ?? keyText);
 			return { handled: true, render: true };
 		});
 	};

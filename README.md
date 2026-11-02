@@ -21,8 +21,8 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser`, and `@howaboua/pi-notes-compaction` dependencies through local extension loaders. **Remove separately installed copies of all five from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
 Pi **1.4.0 or newer** is required by this package and its bundled Codex dependencies.
-The pinned development and compatibility-test baseline is **Pi 1.4.0**; see the
-[release assessment](./patches/README.md#conversion-407-and-companions-2026-10-31).
+The pinned development and compatibility-test baseline is **Pi 1.5.0**; see the
+[release assessment](./patches/README.md#pi-150-2026-11-02).
 
 **Upgrading an existing Code/Notebook session:** install the updated package first, then run `/reload` in that still-running Pi session and complete one turn before restarting Pi. The reload must load conversion 4.0.5 or newer; reloading the old version before installation does not perform this migration. Code mode now always uses the pinned official runtime; `tools.customRustBinariesDir` no longer overrides Code mode (other helper overrides are unchanged).
 
