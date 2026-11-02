@@ -82,6 +82,27 @@ index c1f8849..66265e5 100644
      ]
          .filter(Boolean)
          .join(" • ");
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.d.ts
+index d141f54..914f7a7 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.d.ts
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.d.ts
+@@ -1,4 +1,4 @@
+-import { Type } from "@earendil-works/pi-ai";
++import { Type } from "typebox";
+ import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
+ import type { AdapterState } from "./activation/state.ts";
+ type Level = ReturnType<ExtensionAPI["getThinkingLevel"]>;
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.js
+index fecbdd7..0149979 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.js
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.js
+@@ -1,4 +1,5 @@
+-import { StringEnum, Type } from "@earendil-works/pi-ai";
++import { StringEnum } from "@earendil-works/pi-ai";
++import { Type } from "typebox";
+ import { resolveCodexRuntimePlanForState } from "./activation/runtime-plan.js";
+ import { codexReasoningLane } from "./reasoning-updates.js";
+ import { auxiliaryToolRenderers, displayRecord } from "../ui/tool-rendering/auxiliary-tool.js";
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
 index 4c1f5e7..8d3e38c 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
@@ -697,3 +718,13 @@ index 0000000..450fd5d
 +        requestRender = () => {};
 +    });
 +}
+diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/realtime-tools.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/voice/realtime-tools.d.ts
+index 2f1ac06..7b4af62 100644
+--- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/realtime-tools.d.ts
++++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/realtime-tools.d.ts
+@@ -1,4 +1,4 @@
+-import { type Static, type TSchema } from "@earendil-works/pi-ai";
++import { type Static, type TSchema } from "typebox";
+ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+ export type GippityToolResult = null | boolean | number | string | GippityToolResult[] | {
+     [key: string]: GippityToolResult;

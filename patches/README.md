@@ -5,6 +5,44 @@ The patch targets the shipped **dist JavaScript and declarations** of conversion
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
+## Pi 1.5.0 (2026-11-02)
+
+Upgrade all seven used Pi packages **1.4.0 → 1.5.0**. Fresh discovery verified
+all 12 existing ecosystem packages and the newly required **pi-schema 1.5.0**
+artifact. Conversion **4.0.7**, browser **0.0.13**, Web Run **0.0.10**, Notes
+**0.0.13** and imagegen **0.0.12** stay pinned. All artifact integrity checks pass.
+
+[Pi AI breaking changes](https://github.com/earendil-works/pi/blob/v1.5.0/packages/ai/CHANGELOG.md),
+[agent schema migration](https://github.com/earendil-works/pi/blob/v1.5.0/packages/agent/CHANGELOG.md),
+[coding-agent changes](https://github.com/earendil-works/pi/blob/v1.5.0/packages/coding-agent/CHANGELOG.md),
+and [schema release](https://github.com/earendil-works/pi/blob/v1.5.0/packages/schema/CHANGELOG.md).
+
+Pi AI no longer exports TypeBox. Extend the conversion dist patch to import
+`Type` from `typebox` in auto-reasoning, and `Type`/`Static`/`TSchema` directly
+in its declarations. Declare the already-used **typebox 1.3.27** at the root
+instead of relying on Pi AI's removed dependency. Keep TypeBox tool schemas;
+Pi 1.5 accepts JSON Schema and applies pi-schema validation/coercion to both
+TypeBox and plain objects. Regressions cover uniform coercion, invalid/missing
+arguments, auto-reasoning levels and voice validation/cancellation. Conversion's
+grammar streaming helper is local, so Pi's changed helper signature needs no rebase.
+
+Diff entry key hints now use the host's injected formatter, with the old import
+as a fallback for earlier supported Pi hosts. Test clicks and invalidation with
+custom bindings. Existing root peer minima stay unchanged; no new API is required
+without a fallback. The required lockfile updates include pi-schema, Pi's
+minimatch 11.0.3 dependency and its glob helper, and deduplication onto required
+undici 8.12.3. No unrelated packages are refreshed.
+
+Preserve both existing patches, custom controls and defaults, Notes inactivity
+and legacy migration, lazy browser loading, and removal of bundled skills.
+No provider credentials, user settings or stored sessions are touched.
+
+Validation: clean `npm ci`, strict replay of both patches, **86 tests**,
+typecheck, `npm ls --all` and diff checks passed on Node 24.19.0. No final
+check failures remain. Live provider,
+audio/LAN/browser hardware, real account migration and macOS checks remain unrun;
+Bun is unavailable. Runtime smoke checks use Pi's actual loader and disposable storage.
+
 ## Conversion 4.0.7 and companions (2026-10-31)
 
 Fresh registry/artifact discovery verified all 12 used packages. Upgrade conversion
