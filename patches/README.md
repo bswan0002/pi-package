@@ -1,9 +1,53 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-4.0.7, which its exports and our extension loader execute. Upstream `src/` is
+4.0.9, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## Conversion 4.0.9, imagegen 0.0.13 and Notes 0.0.14 (2026-11-06)
+
+Fresh discovery and registry/artifact verification covered all 13 used packages.
+Upgrade conversion **4.0.7 → 4.0.9**, imagegen **0.0.12 → 0.0.13**, Notes
+**0.0.13 → 0.0.14**. Browser **0.0.13**, Web Run **0.0.10**, and all eight Pi
+packages **1.5.0** remain current. Raise only root AI/coding-agent minima to
+**>=1.5.0**, matching conversion's actual requirements. Keep the user's TypeBox
+peer plus pinned dev dependency, TUI peer range, and removed bundled skills.
+No new or unrelated dependencies; only these three resolutions/peer metadata change.
+
+Sources: [conversion](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/5ede06bdc32da2b513f0709966af1f32908f243c/packages/pi-codex-conversion/CHANGELOG.md),
+[imagegen](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/d68e7e0e741c169808e755385c9ee33aca522bdf/packages/pi-codex-imagegen/CHANGELOG.md),
+[Notes](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/115e930bffd294f44b7468341aa774acfab69984/packages/pi-notes-compaction/CHANGELOG.md).
+
+Upstream supplies all three Pi 1.5 TypeBox-import fixes, so remove those obsolete
+patch targets. Rebase the remaining 22 conversion targets with identical custom
+added/removed lines: defaults, compaction, snapshots, fast/footer state, quota
+countdowns and voice controls stay intact across upstream lifecycle changes.
+Notes settings.ts and its inactive-default patch remain byte-identical. Preserve
+legacy migration, existing-settings precedence, and the lazy browser entry.
+
+Conversion preserves declared structured results and native argument preparation
+exactly once. New Notes tests cover completed truncated nested saves, pending/failed
+outcome rejection, same-group rollover readiness and structured results without
+JSON parsing. Older checkpoints may need a new save. Agent references derive from
+Pi session IDs while retaining shared-note paths; default inactivity is unchanged.
+Imagegen retains Codex access by default, with explicit API preferences under
+`/imagegen`; a disposable-config regression verifies persistence and invalid-input
+rejection. No API calls or user configuration changes are made.
+
+Custom voice-helper overrides require rebuilding; bundled helpers update normally.
+Upstream fixes voice task duplication, playback and recovery, uses native Pi
+changelog notices, and removes unsupported Codex reasoning-off options for Terra,
+Sol and Luna. The existing custom voice-control regressions remain applicable.
+
+Validation: clean `npm ci`, strict replay of both patches, **91 tests**, typecheck,
+`npm ls --all` and diff checks passed on Node 24.19.0. Initial old-patch
+application encountered superseded TypeBox hunks; these were removed. The new
+checkpoint fixtures initially lacked session parent links; completing those
+fixtures resolved their failures without changing upstream behavior. No final
+check failures remain. Bun is unavailable; live provider,
+image generation, voice/audio/LAN/browser hardware, custom helper rebuilds, actual
+pruning/history workers, real account migration and macOS checks remain unrun.
 
 ## Pi 1.5.0 (2026-11-02)
 

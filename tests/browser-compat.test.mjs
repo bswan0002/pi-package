@@ -83,3 +83,18 @@ test("foreground capture disables background rendering before activating the tar
   await session.withTab("target1", signal, async () => steps.push(["read"]));
   assert.deepEqual(steps, [["background", true], ["read"]]);
 });
+
+test("Pi-routed nested tools prepare native arguments exactly once", async () => {
+  let preparations = 0;
+  const tool = { name: "fixture", description: "fixture", parameters: { type: "object", properties: { value: { type: "number" } } },
+    prepareArguments: input => { preparations++; return { value: input.value + 1 }; },
+    execute: async (_id, input) => ({ content: [], details: input }),
+  };
+  const nested = adaptToolForCodeMode(tool, { resultValue: result => result.details });
+  const result = await nested.invoke({ value: 1 }, {
+    extensionContext: {},
+    executeTool: async (_name, input) => ({ result: await tool.execute("native", tool.prepareArguments(input)), isError: false }),
+  }, new AbortController().signal);
+  assert.equal(preparations, 1);
+  assert.deepEqual(result, { value: 2 });
+});
