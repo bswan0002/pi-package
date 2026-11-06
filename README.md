@@ -20,15 +20,19 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser`, and `@howaboua/pi-notes-compaction` dependencies through local extension loaders. **Remove separately installed copies of all five from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
-Pi **1.4.0 or newer** is required by this package and its bundled Codex dependencies.
+Pi **1.5.0 or newer** is required by this package and its bundled Codex dependencies.
 The pinned development and compatibility-test baseline is **Pi 1.5.0**; see the
-[release assessment](./patches/README.md#pi-150-2026-11-02).
+[release assessment](./patches/README.md#conversion-409-imagegen-0013-and-notes-0014-2026-11-06).
 
 **Upgrading an existing Code/Notebook session:** install the updated package first, then run `/reload` in that still-running Pi session and complete one turn before restarting Pi. The reload must load conversion 4.0.5 or newer; reloading the old version before installation does not perform this migration. Code mode now always uses the pinned official runtime; `tools.customRustBinariesDir` no longer overrides Code mode (other helper overrides are unchanged).
 
 **Notes migration in 4.0.5:** built-in Notes/history and legacy Remote mode were removed upstream. The bundled Notes extension preserves explicit legacy Notes continuity via `/notes`, importing global and trusted-project preferences on first use. Existing Notes settings win; old conversion configuration is not rewritten. Fresh installs keep Compact V2 and leave Notes inactive (an empty model whitelist). Enable Notes explicitly in `/notes` if desired. Remove any separately enabled Notes extension to avoid duplicates.
 
 **Notes 0.0.13 model roles:** `/roles` is read-only. Configure role IDs, descriptions, providers, models and reasoning in `notes-compaction/model-roles.json` under the Pi agent directory. Defined roles are agent-operated; the former `enabled` flag and accept/dismiss controls no longer apply. `new_context({role})` checkpoints before switching model/reasoning. Notes must be active for the session and target model; fresh installs remain inactive. Omit `role` to retain the current model.
+
+**Notes 0.0.14:** older checkpoints may need a fresh note save before rollover. Built-in Pi codemode now returns Notes results as objects; remove `JSON.parse` around those results. Existing shared-note paths are retained as agent references move to Pi session IDs.
+
+**Voice/imagegen update:** rebuild any custom voice-helper overrides for conversion 4.0.8 or newer; bundled helpers update with the package. Imagegen still defaults to Codex access; `/imagegen` selects explicit OpenAI API access and its model/quality/complexity preferences. Select image references explicitly for edits. Upstream changelog notices now use Pi’s native `collapseChangelog` setting.
 
 Notes history now reads local Pi session files; upstream provides read-only remote-note retrieval and saved Tree-history recovery, not the old encrypted Remote execution mode. No pruning is enabled or run by this update. Existing account/history recovery has not been live-tested. Notes uses native `better-sqlite3`; installation may need a C++ build toolchain and Node headers when a binary is unavailable.
 
@@ -82,7 +86,7 @@ a separate legacy OpenAI Codex login may be needed. Companion failures now give
 concise login guidance and redact raw backend details; provider routing is unchanged.
 
 With Pi 1.0.4, Azure's provider name is `azure`; its Responses API ID remains
-`azure-openai-responses`. Conversion 4.0.7 does not automatically activate for
+`azure-openai-responses`. Conversion 4.0.9 does not automatically activate for
 ordinary Azure GPT model IDs under the renamed provider. If you intentionally
 use conversion with Azure Responses, include `azure` in conversion's
 `scope.additionalProviders`; existing `allProviders` settings and Codex-named

@@ -82,27 +82,6 @@ index c1f8849..66265e5 100644
      ]
          .filter(Boolean)
          .join(" • ");
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.d.ts
-index d141f54..914f7a7 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.d.ts
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.d.ts
-@@ -1,4 +1,4 @@
--import { Type } from "@earendil-works/pi-ai";
-+import { Type } from "typebox";
- import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
- import type { AdapterState } from "./activation/state.ts";
- type Level = ReturnType<ExtensionAPI["getThinkingLevel"]>;
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.js
-index fecbdd7..0149979 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.js
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/auto-reasoning.js
-@@ -1,4 +1,5 @@
--import { StringEnum, Type } from "@earendil-works/pi-ai";
-+import { StringEnum } from "@earendil-works/pi-ai";
-+import { Type } from "typebox";
- import { resolveCodexRuntimePlanForState } from "./activation/runtime-plan.js";
- import { codexReasoningLane } from "./reasoning-updates.js";
- import { auxiliaryToolRenderers, displayRecord } from "../ui/tool-rendering/auxiliary-tool.js";
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
 index 4c1f5e7..8d3e38c 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/apply-patch-display.d.ts
@@ -404,10 +383,10 @@ index ffd1d15..ddd2edd 100644
          daybreak: plan.codexTransport ? config.openai.daybreak : undefined,
          compaction: plan.nativeCompaction,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
-index f670437..fa6c45e 100644
+index 8d39dcc..4461500 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
-@@ -28,6 +28,11 @@ export declare class CodexVoiceController {
+@@ -29,6 +29,11 @@ export declare class CodexVoiceController {
      get status(): string;
      get active(): boolean;
      get activeMode(): CodexVoiceMode | undefined;
@@ -420,10 +399,10 @@ index f670437..fa6c45e 100644
      onInputMuteChange(listener: (muted: boolean) => void): () => void;
      setInputMuted(muted: boolean): boolean;
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
-index d8dbbf4..8d2ff33 100644
+index 2afb6e4..c99d048 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
-@@ -38,6 +38,8 @@ export class CodexVoiceController {
+@@ -37,6 +37,8 @@ export class CodexVoiceController {
              stop: (options) => this.stop(options),
          });
          this.presentation = new ControllerState(this.runtime, this.handoff);
@@ -432,7 +411,7 @@ index d8dbbf4..8d2ff33 100644
          this.agent = new ControllerAgent(pi, this.runtime, () => this.presentation.renderStatus("working"));
          this.messages = this.agent.messages;
          this.contextRefresh = new RealtimeContextRefresh(pi, this.runtime, {
-@@ -96,6 +98,31 @@ export class CodexVoiceController {
+@@ -95,6 +97,31 @@ export class CodexVoiceController {
      get activeMode() {
          return this.presentation.activeMode;
      }
@@ -543,10 +522,10 @@ index 1618709..4be8bd1 100644
                          this.runtime.state.type === "failed")
                          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
-index 77b58e6..40b6447 100644
+index 24802b9..78875d5 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
-@@ -61,6 +61,7 @@ export class ControllerLifecycle {
+@@ -66,6 +66,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -554,7 +533,7 @@ index 77b58e6..40b6447 100644
          try {
              await Promise.all([
                  closePromise,
-@@ -79,6 +80,7 @@ export class ControllerLifecycle {
+@@ -84,6 +85,7 @@ export class ControllerLifecycle {
              this.messages.voiceStopped(endedMode);
      }
      async finishDictation(options) {
@@ -562,7 +541,7 @@ index 77b58e6..40b6447 100644
          this.runtime.startGeneration += 1;
          const session = this.runtime.state.type === "dictation"
              ? this.runtime.state.session
-@@ -91,6 +93,8 @@ export class ControllerLifecycle {
+@@ -96,6 +98,8 @@ export class ControllerLifecycle {
              await this.stop(options);
              return;
          }
@@ -571,7 +550,7 @@ index 77b58e6..40b6447 100644
          await this.ownership.hold(() => session.finish());
          if (currentVoiceSession(this.runtime.state) !== session)
              return;
-@@ -104,6 +108,7 @@ export class ControllerLifecycle {
+@@ -109,6 +113,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -579,7 +558,7 @@ index 77b58e6..40b6447 100644
          this.messages.voiceStopped(endedMode);
      }
      fail(error, failedSession) {
-@@ -134,6 +139,7 @@ export class ControllerLifecycle {
+@@ -139,6 +144,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -718,13 +697,3 @@ index 0000000..450fd5d
 +        requestRender = () => {};
 +    });
 +}
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/realtime-tools.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/voice/realtime-tools.d.ts
-index 2f1ac06..7b4af62 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/realtime-tools.d.ts
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/realtime-tools.d.ts
-@@ -1,4 +1,4 @@
--import { type Static, type TSchema } from "@earendil-works/pi-ai";
-+import { type Static, type TSchema } from "typebox";
- import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
- export type GippityToolResult = null | boolean | number | string | GippityToolResult[] | {
-     [key: string]: GippityToolResult;
