@@ -22,7 +22,7 @@ This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-w
 
 Pi **1.5.0 or newer** is required by this package and its bundled Codex dependencies.
 The pinned development and compatibility-test baseline is **Pi 1.5.0**; see the
-[release assessment](./patches/README.md#conversion-409-imagegen-0013-and-notes-0014-2026-11-06).
+[release assessment](./patches/README.md#notes-0015-2026-11-07).
 
 **Upgrading an existing Code/Notebook session:** install the updated package first, then run `/reload` in that still-running Pi session and complete one turn before restarting Pi. The reload must load conversion 4.0.5 or newer; reloading the old version before installation does not perform this migration. Code mode now always uses the pinned official runtime; `tools.customRustBinariesDir` no longer overrides Code mode (other helper overrides are unchanged).
 
@@ -31,6 +31,8 @@ The pinned development and compatibility-test baseline is **Pi 1.5.0**; see the
 **Notes 0.0.13 model roles:** `/roles` is read-only. Configure role IDs, descriptions, providers, models and reasoning in `notes-compaction/model-roles.json` under the Pi agent directory. Defined roles are agent-operated; the former `enabled` flag and accept/dismiss controls no longer apply. `new_context({role})` checkpoints before switching model/reasoning. Notes must be active for the session and target model; fresh installs remain inactive. Omit `role` to retain the current model.
 
 **Notes 0.0.14:** older checkpoints may need a fresh note save before rollover. Built-in Pi codemode now returns Notes results as objects; remove `JSON.parse` around those results. Existing shared-note paths are retained as agent references move to Pi session IDs.
+
+**Notes 0.0.15:** locally saved shared checkpoints remain readable after workers close, and saved-session reads tolerate concurrent appends. Existing note paths and inactive defaults are retained; no settings migration is needed.
 
 **Voice/imagegen update:** rebuild any custom voice-helper overrides for conversion 4.0.8 or newer; bundled helpers update with the package. Imagegen still defaults to Codex access; `/imagegen` selects explicit OpenAI API access and its model/quality/complexity preferences. Select image references explicitly for edits. Upstream changelog notices now use Pi’s native `collapseChangelog` setting.
 
