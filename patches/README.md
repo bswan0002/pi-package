@@ -5,6 +5,38 @@ The patch targets the shipped **dist JavaScript and declarations** of conversion
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
+## Notes 0.0.15 (2026-11-07)
+
+Update only **pi-notes-compaction 0.0.14 → 0.0.15**. Fresh discovery verified
+all 13 used packages and published artifact integrity. Conversion **4.0.9**,
+imagegen/browser **0.0.13**, Web Run **0.0.10**, and all eight Pi packages
+**1.5.0** remain current. Notes now requires conversion **>=4.0.9**, already
+satisfied. No root peer changes, new dependencies or unrelated lockfile updates.
+
+[Release-pinned changelog](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/56275de34e9094cc5124f4a185a71b46b25a7f17/packages/pi-notes-compaction/CHANGELOG.md).
+
+Upstream reads locally saved family checkpoints after workers close without
+requiring a live parent. The saved-session reader retains an initial byte/leaf
+snapshot during concurrent appends and verifies that the existing prefix did not
+change. Notes/history lookups avoid retaining large irrelevant messages and results.
+Existing shared-note paths and default inactivity remain unchanged; no new settings
+or account migration is needed. The 0.0.14 checkpoint refresh caveat still applies
+when upgrading older checkpoints.
+
+The patched settings.ts is byte-identical between artifacts. Rename its patch
+without changing any bytes. Preserve the conversion patch, Notes migration and
+existing-settings precedence, the user's TypeBox peer/dev setup, lazy browser loader
+and removed bundled skills. New disposable-file regressions cover closed-worker
+local lookup, wrong-family rejection, concurrent append snapshots in Notes/history,
+changed-prefix rejection, and remote-relative lookup/fallback behavior.
+
+Validation: clean `npm ci`, strict replay of both patches, **95 tests**,
+typecheck, `npm ls --all` and diff checks passed on Node 24.19.0. No failures.
+No real saved sessions,
+credentials, user settings or remote services are changed. Bun is unavailable;
+live provider/remote-machine recovery, account migration, actual pruning/history
+workers, voice/browser/LAN hardware and macOS interaction remain unrun.
+
 ## Conversion 4.0.9, imagegen 0.0.13 and Notes 0.0.14 (2026-11-06)
 
 Fresh discovery and registry/artifact verification covered all 13 used packages.
