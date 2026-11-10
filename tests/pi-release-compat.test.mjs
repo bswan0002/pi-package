@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import { AssistantMessageEventStream, createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import { createCodexTransportStream } from "@howaboua/pi-codex-conversion/dist/providers/openai-codex/transport-recovery.js";
 
 const model = { api: "openai-codex-responses", provider: "openai-codex", id: "gpt-6-luna" };
+
+test("Pi uses idle cache warming by default and preserves explicit user modes", () => {
+  assert.equal(SettingsManager.inMemory().getCacheWarmingMode(), "idle");
+  for (const cacheWarming of ["off", "streaming", "idle"]) {
+    assert.equal(SettingsManager.inMemory({ cacheWarming }).getCacheWarmingMode(), cacheWarming);
+  }
+});
 
 // No credentials or network: exercise conversion's actual transport failure path.
 test("conversion transport returns Pi's timed stream for errors and cancellation", async () => {

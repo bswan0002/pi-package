@@ -11,6 +11,15 @@ const validate = (parameters, args) => validateToolArguments(
   { type: "toolCall", id: "fixture", name: "fixture", arguments: args },
 );
 
+test("numeric tool parameters reject non-finite values after coercion", () => {
+  for (const number of [Type.Number(), Type.Integer()]) {
+    const schema = Type.Object({ count: number });
+    for (const count of [NaN, Infinity, -Infinity, "Infinity", "NaN"])
+      assert.throws(() => validate(schema, { count }), /count/);
+    assert.deepEqual(validate(schema, { count: "2" }), { count: 2 });
+  }
+});
+
 test("Pi validates TypeBox and plain JSON tools with the same coercion", () => {
   const typed = Type.Object({ count: Type.Integer(), labels: Type.Array(Type.String()) });
   const plain = JSON.parse(JSON.stringify(typed));
