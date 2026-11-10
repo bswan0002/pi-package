@@ -5,6 +5,42 @@ The patch targets the shipped **dist JavaScript and declarations** of conversion
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 
+## Pi 1.5.2 (2026-11-10)
+
+Update all eight used Pi packages from **1.5.0 to 1.5.2**: AI, coding-agent,
+TUI, agent-core, codemode, MCP, schema and telemetry. Independently checked all
+13 discovered packages against npm metadata and verified published artifact
+SHA-512 integrity. Conversion **4.0.9**, browser/imagegen **0.0.13**, Web Run
+**0.0.10**, and Notes **0.0.15** remain current. Both custom patches apply
+unchanged. Keep existing peer ranges and the user's TypeBox peer/dev setup.
+The lockfile also follows coding-agent's upstream Mermaid dependency replacement.
+
+Release assessment: [coding-agent](https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/CHANGELOG.md),
+[AI](https://github.com/earendil-works/pi/blob/v1.5.2/packages/ai/CHANGELOG.md),
+[schema](https://github.com/earendil-works/pi/blob/v1.5.2/packages/schema/CHANGELOG.md),
+[TUI](https://github.com/earendil-works/pi/blob/v1.5.2/packages/tui/CHANGELOG.md),
+[release](https://github.com/earendil-works/pi/releases/tag/v1.5.2).
+
+- Accept upstream's new **idle** cache-warming default (previously streaming),
+  as requested. Eligible sessions can make billed refreshes for up to 30 minutes
+  after a run. No user configuration is written; explicit `off`, `streaming`
+  or `idle` settings remain effective. Regression coverage checks those modes.
+- Upstream enables Anthropic message threads for its official endpoint, with
+  full-request fallback. Live provider behavior requires account-backed testing.
+- The two labeled breaking changes have no tracked consumers here:
+  `GrepOperations.readFile` is no longer used for context, and OpenAI-compatible
+  requests omit empty tools arrays. Custom proxies that need the old latter
+  behavior can set `compat.requiresToolsWithToolHistory`; no models settings
+  are changed by this package.
+- Schema validation now rejects non-finite numeric arguments; a regression checks
+  this through Pi's actual tool validator and retains finite-string coercion.
+  Existing loader, rendering, voice, snapshots, compaction, defaults, migration,
+  and browser startup regressions cover the preserved integrations.
+
+Validation: clean npm installation with strict replay of both patches, full test
+suite, TypeScript check, dependency-tree check, and whitespace check. Bun and live
+provider/browser/voice hardware sessions are not available in this environment.
+
 ## Notes 0.0.15 (2026-11-07)
 
 Update only **pi-notes-compaction 0.0.14 → 0.0.15**. Fresh discovery verified
