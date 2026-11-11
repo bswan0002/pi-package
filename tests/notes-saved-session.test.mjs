@@ -5,11 +5,11 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { readSavedNotesSession } from "../node_modules/@howaboua/pi-notes-compaction/src/saved-session.mjs";
+import { readSavedNotesSession } from "../node_modules/@howaboua/pi-notes-compaction/src/notes/saved-session.mjs";
 const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
 const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { fsCache: false });
-const { createSavedSessionAccess } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/saved-session-access.ts");
+const { createSavedSessionAccess } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/saved-session-access.ts");
 const timestamp = "2026-11-07T00:00:00.000Z";
 const identity = (threadId, family = "family") => ({ type: "custom", id: "identity", parentId: null, timestamp,
   customType: "codex-context-agent", data: { protocol: 1, sessionId: family, threadId, agentName: `/${threadId}`, storage: "session" } });
@@ -31,7 +31,7 @@ test("closed local workers resolve from saved family identity without a live par
   assert.equal(saved.branch[0].data.revision.text, "saved checkpoint");
   assert.equal(await access.indexed(current, "/missing"), undefined);
   await writeFile(file, snapshot("different-family"));
-  await assert.rejects(access.indexed(current, "/worker"), /different agent family/);
+  await assert.rejects(access.indexed(current, "/worker"), /cannot access the requested saved context/);
 });
 
 test("saved-session reads retain their original snapshot when new entries append", async t => {

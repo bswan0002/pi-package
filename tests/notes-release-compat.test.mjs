@@ -6,12 +6,12 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 initTheme("dark", false);
-import { openDatabase } from "../node_modules/@howaboua/pi-notes-compaction/src/sqlite.mjs";
+import { openDatabase } from "../node_modules/@howaboua/pi-notes-compaction/src/notes/sqlite.mjs";
 const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
 const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { fsCache: false });
-const { NotesStore } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/store.ts");
-const { openSessionPruningSettings } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/session-pruning-screen.ts");
+const { NotesStore } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/store.ts");
+const { openSessionPruningSettings } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/session-pruning-screen.ts");
 
 test("Notes SQLite abstraction persists revisions and policies across reopen on Node", async t => {
   const dir = await mkdtemp(join(tmpdir(), "notes-sqlite-"));

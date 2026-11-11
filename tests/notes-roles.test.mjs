@@ -17,8 +17,8 @@ test("Notes roles respect inactive defaults and reject stale handoffs", async t 
   const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
   const { createJiti } = require("jiti");
   const jiti = createJiti(import.meta.url, { fsCache: false });
-  const { createModelRoles } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/model-roles.ts");
-  const { readSettings } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/settings.ts");
+  const { createModelRoles } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/model-roles.ts");
+  const { loadNotesSettings } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/settings.ts");
   await mkdir(join(dir, "notes-compaction"));
   await writeFile(join(dir, "notes-compaction/model-roles.json"), JSON.stringify({ enabled: false, roles: [
     { id: "review", description: "Review work", provider: "fixture", model: "reviewer", reasoning: "high" },
@@ -28,7 +28,7 @@ test("Notes roles respect inactive defaults and reject stale handoffs", async t 
   const target = { provider: "fixture", id: "reviewer" };
   const pi = { on: (name, fn) => handlers.set(name, fn), getThinkingLevel: () => thinking,
     setThinkingLevel: value => { thinking = value; }, setModel: async model => { changes.push(model); return true; } };
-  const activation = { settings: readSettings(join(dir, "fresh.json")), refreshActivation() {} };
+  const activation = { settings: loadNotesSettings({ cwd: dir, isProjectTrusted: () => false }), refreshActivation() {} };
   const lifecycle = { active: false };
   const roles = createModelRoles(pi, activation, lifecycle);
   const ctx = { model: { provider: "fixture", id: "original" },

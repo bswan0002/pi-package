@@ -22,7 +22,7 @@ This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-w
 
 Pi **1.5.0 or newer** is required by this package and its bundled Codex dependencies.
 The pinned development and compatibility-test baseline is **Pi 1.5.2**; see the
-[release assessment](./patches/README.md#pi-152-2026-11-10).
+[release assessment](./patches/README.md#conversion-4010-imagegen-0014-and-notes-0016-2026-11-11).
 Pi now defaults to idle cache warming, which can make paid refreshes for up to
 30 minutes after a run. Existing explicit cache-warming settings remain effective.
 
@@ -35,6 +35,8 @@ Pi now defaults to idle cache warming, which can make paid refreshes for up to
 **Notes 0.0.14:** older checkpoints may need a fresh note save before rollover. Built-in Pi codemode now returns Notes results as objects; remove `JSON.parse` around those results. Existing shared-note paths are retained as agent references move to Pi session IDs.
 
 **Notes 0.0.15:** locally saved shared checkpoints remain readable after workers close, and saved-session reads tolerate concurrent appends. Existing note paths and inactive defaults are retained; no settings migration is needed.
+
+**Conversion 4.0.10 / Notes 0.0.16:** Code and Notebook add `content()` for ordered mixed text/images; idle agents can wake for uncollected background-shell completions. Notes adds explicit Off and defers inactive startup while retaining saved data and history boundaries. Typed Notes calls accept `content` for `text` and `end_line` for `stop_line`; results omit routine bookkeeping but retain content and recovery warnings. Existing inactive defaults and explicit settings remain intact. Imagegen 0.0.14 and Notes now require conversion 4.0.10; all three use Pi's native schema validation.
 
 **Voice/imagegen update:** rebuild any custom voice-helper overrides for conversion 4.0.8 or newer; bundled helpers update with the package. Imagegen still defaults to Codex access; `/imagegen` selects explicit OpenAI API access and its model/quality/complexity preferences. Select image references explicitly for edits. Upstream changelog notices now use Pi’s native `collapseChangelog` setting.
 
@@ -90,7 +92,7 @@ a separate legacy OpenAI Codex login may be needed. Companion failures now give
 concise login guidance and redact raw backend details; provider routing is unchanged.
 
 With Pi 1.0.4, Azure's provider name is `azure`; its Responses API ID remains
-`azure-openai-responses`. Conversion 4.0.9 does not automatically activate for
+`azure-openai-responses`. Conversion 4.0.10 does not automatically activate for
 ordinary Azure GPT model IDs under the renamed provider. If you intentionally
 use conversion with Azure Responses, include `azure` in conversion's
 `scope.additionalProviders`; existing `allProviders` settings and Codex-named

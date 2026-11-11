@@ -244,11 +244,11 @@ index 0000000..9c202a1
 +    }));
 +}
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
-index 2c4edc2..d69fb9a 100644
+index 7343b84..c5f0fb9 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 @@ -1,4 +1,5 @@
- import { Type } from "typebox";
+ import { obj, str } from "@earendil-works/pi-schema";
 +import { captureDisplayFiles, pairDisplayFiles } from "./display-snapshots.js";
  import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
  import { Container, Text } from "@earendil-works/pi-tui";
@@ -279,7 +279,7 @@ index 2c4edc2..d69fb9a 100644
              catch (error) {
                  if (error instanceof ExecutePatchError) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-index 952de1c..df1ab1d 100644
+index 40a16ce..ab04d69 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 @@ -75,12 +75,8 @@ function createExecTool(runtime, tracker, renderResult, hooks, isGpt) {
