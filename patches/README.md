@@ -1,9 +1,50 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-4.0.9, which its exports and our extension loader execute. Upstream `src/` is
+4.0.10, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## Conversion 4.0.10, imagegen 0.0.14 and Notes 0.0.16 (2026-11-11)
+
+Fresh discovery across manifests, lockfile, loaders/imports, extensions, patches
+and tracking docs found 13 used packages. Independently verified npm metadata,
+published artifact SHA-512 integrity and release-pinned changelogs for all 13.
+Upgrade conversion **4.0.9 → 4.0.10**, imagegen **0.0.13 → 0.0.14**, and Notes
+**0.0.15 → 0.0.16** together: both companions now require conversion **>=4.0.10**.
+Browser **0.0.13**, Web Run **0.0.10**, and all eight Pi packages **1.5.2** are
+current. No root peer changes or unused companion additions. Keep TypeBox for
+the remaining consumers and the user's peer/dev arrangement.
+
+Published-source changelogs at `096dbfca6af374ba23f6a5fe97e7c28566561a6c`:
+[conversion](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/096dbfca6af374ba23f6a5fe97e7c28566561a6c/packages/pi-codex-conversion/CHANGELOG.md),
+[imagegen](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/096dbfca6af374ba23f6a5fe97e7c28566561a6c/packages/pi-codex-imagegen/CHANGELOG.md),
+[Notes](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/096dbfca6af374ba23f6a5fe97e7c28566561a6c/packages/pi-notes-compaction/CHANGELOG.md).
+
+Conversion's native schema migration changes two patched files. Rebase the
+snapshot import against its new schema imports; all custom patch behavior stays
+intact, including Compact V2/Notebook defaults, snapshots, fast state/footer,
+quota countdowns, voice controls and MCP admission. The lockfile includes required
+upstream schema/runtime, OpenAI, Undici, WebSocket and parser dependencies.
+
+Notes moves implementation files into `src/notes/` and makes `readSettings`
+private. Move the two-line inactive-default patch to the new settings path and
+test the public `loadNotesSettings` API instead of re-exporting internals. Cover
+global migration, trusted-project precedence, explicit Off and existing settings.
+New startup coverage verifies inactive sessions defer runtime/storage creation
+and Off preserves saved data. Update moved test imports and expected compact
+result/error contracts; add typed alias/conflict regressions.
+
+Accept upstream behavior changes without new overrides: mixed `content()` output,
+idle background-shell completion wakeups, restored shell inventory after compaction,
+leaner patch/Notes success results, minute-precision displayed dates and revised
+context-recovery guidance. Notes Off does not delete saved data or retirements;
+existing repository inactivity and explicit user settings remain unchanged. Notes
+now requires Node **>=22.19**, already required by Pi. No account migration is run.
+
+Validation passed: clean install, strict replay of both patches, **99 tests**,
+typecheck, dependency-tree and rename-aware whitespace checks on Node 24.19.0. Bun and live account/provider,
+browser, voice hardware and macOS checks remain unrun in this Linux environment.
 
 ## Pi 1.5.2 (2026-11-10)
 

@@ -5,9 +5,19 @@ import { createPiCodeModeBridge } from "@howaboua/pi-codex-conversion/dist/adapt
 const require = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
 const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { fsCache: false });
-const { hasFreshNotes: fresh, hasPrecedingNoteWrite: preceding, NESTED_NOTE_OUTCOME } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/fresh-notes.ts");
-const { NOTE_RECEIPT } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes.ts");
-const { noteResult, NOTES_OUTPUT_SCHEMA } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/note-result.ts");
+const { hasFreshNotes: fresh, hasPrecedingNoteWrite: preceding, NESTED_NOTE_OUTCOME } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/fresh-notes.ts");
+const { NOTE_RECEIPT } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/notes.ts");
+const { noteResult, NOTES_OUTPUT_SCHEMA } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/note-result.ts");
+const { prepareNotesArguments } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/tool-contracts.ts");
+
+test("Notes typed aliases normalize before schema validation and reject conflicting values", () => {
+  assert.deepEqual(prepareNotesArguments({ action: "write", path: "checkpoint", content: "saved" }),
+    { action: "write", path: "checkpoint", text: "saved" });
+  assert.deepEqual(prepareNotesArguments({ action: "read", path: "checkpoint", start_line: 1, end_line: 2 }),
+    { action: "read", path: "checkpoint", start_line: 1, stop_line: 2 });
+  assert.throws(() => prepareNotesArguments({ action: "write", text: "one", content: "two" }), /Conflicting text/);
+  assert.throws(() => prepareNotesArguments({ action: "read", stop_line: 2, end_line: 3 }), /Conflicting stop_line/);
+});
 const link = entries => entries.map((entry, i) => ({ ...entry, id: `entry-${i}`, parentId: i ? `entry-${i - 1}` : null, timestamp: "2026-11-06T00:00:00.000Z" }));
 const hasFreshNotes = (entries, ...args) => fresh(link(entries), ...args);
 const hasPrecedingNoteWrite = (entries, ...args) => preceding(link(entries), ...args);
@@ -60,5 +70,5 @@ test("Notes structured results survive conversion without JSON parsing", async (
   bridge.prepareLoadout({ callable: [definition], declared: [], getExposure: () => "direct", getNamespace: () => undefined });
   assert.deepEqual(await bridge.getTools()[0].invoke({}, {
     executeTool: async () => ({ result, isError: false }),
-  }), payload);
+  }), { file: payload.file, warnings: payload.warnings });
 });
