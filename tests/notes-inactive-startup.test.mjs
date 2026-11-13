@@ -20,7 +20,7 @@ test("inactive Notes defers runtime startup and explicit Off preserves saved dat
   const { createNotesFeature } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/feature.ts");
   const { loadNotesSettings, notesSettingsPath, writeSettings } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/settings.ts");
   const ctx = { cwd: dir, model: { id: "gpt-6.1-sol" }, isProjectTrusted: () => false,
-    sessionManager: { getEntries: () => [] }, ui: { notify: message => assert.fail(message) } };
+    sessionManager: { getEntries: () => [], getSessionFile: () => undefined, getSessionId: () => "fixture", getHeader: () => null }, ui: { notify: message => assert.fail(message) } };
   const start = async () => {
     const handlers = new Map(), commands = new Map();
     const feature = createNotesFeature({ on: (name, fn) => handlers.set(name, fn),
@@ -30,7 +30,7 @@ test("inactive Notes defers runtime startup and explicit Off preserves saved dat
     await handlers.get("model_select")({}, ctx);
     assert.equal(feature.enabled(), false);
     assert.ok(commands.has("notes") && commands.has("roles"));
-    handlers.get("session_shutdown")();
+    await handlers.get("session_shutdown")({ reason: "quit" }, ctx);
   };
   await start();
   assert.deepEqual(await readdir(join(dir, "notes-compaction")), ["settings.json"]);

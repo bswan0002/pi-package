@@ -21,7 +21,8 @@
   "scripts": {
     "postinstall": "patch-package --error-on-fail",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:quickjs": "node scripts/check-quickjs.mjs"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": ">=1.5.0",
@@ -39,7 +40,7 @@
   },
   "dependencies": {
     "@howaboua/pi-browser": "0.0.13",
-    "@howaboua/pi-codex-conversion": "4.0.10",
+    "@howaboua/pi-codex-conversion": "5.0.0",
     "@howaboua/pi-codex-imagegen": "0.0.14",
     "@howaboua/pi-codex-web-run": "0.0.10",
     "@shikijs/cli": "^4.0.2",
@@ -47,6 +48,6 @@
     "glob": "^13.0.6",
     "patch-package": "8.0.1",
     "shiki": "^4.0.2",
-    "@howaboua/pi-notes-compaction": "0.0.16"
+    "@howaboua/pi-notes-compaction": "0.0.17"
   }
 }

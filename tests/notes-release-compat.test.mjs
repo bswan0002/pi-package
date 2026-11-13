@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -12,6 +12,29 @@ const { createJiti } = require("jiti");
 const jiti = createJiti(import.meta.url, { fsCache: false });
 const { NotesStore } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/store.ts");
 const { openSessionPruningSettings } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/session-pruning-screen.ts");
+const { SessionPruning } = await jiti.import("../node_modules/@howaboua/pi-notes-compaction/src/notes/session-pruning.ts");
+
+test("Notes does not schedule physical cleanup on reload or with pruning Off", async t => {
+  const dir = await mkdtemp(join(tmpdir(), "notes-cleanup-off-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  for (const reason of ["reload", "quit"]) {
+    const handlers = new Map();
+    let closed = 0;
+    const store = { path: join(dir, "notes.sqlite"), close: () => closed++,
+      pruningPolicy: () => {
+        assert.equal(reason, "quit", "reload must not inspect or schedule cleanup");
+        return { windows: 0, days: 0 };
+      } };
+    const pruning = new SessionPruning({ on: (name, fn) => handlers.set(name, fn) }, store, {}, () => undefined);
+    pruning.register();
+    await handlers.get("session_shutdown")({ reason }, {
+      sessionManager: { getSessionFile: () => join(dir, "session.jsonl"), getSessionId: () => "fixture" },
+      ui: { notify: message => assert.fail(message) },
+    });
+    assert.equal(closed, reason === "quit" ? 1 : 0);
+    assert.deepEqual(await readdir(dir), [], "no cleanup worker/status/storage is created");
+  }
+});
 
 test("Notes SQLite abstraction persists revisions and policies across reopen on Node", async t => {
   const dir = await mkdtemp(join(tmpdir(), "notes-sqlite-"));
