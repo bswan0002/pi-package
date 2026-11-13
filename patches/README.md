@@ -1,9 +1,50 @@
 # Conversion patch
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-4.0.10, which its exports and our extension loader execute. Upstream `src/` is
+5.0.0, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
+
+## Conversion 5.0.0 and Notes 0.0.17 (2026-11-13)
+
+Update conversion **4.0.10 → 5.0.0** and Notes **0.0.16 → 0.0.17** together;
+Notes requires conversion **>=5.0.0**. Independently verified metadata, artifact
+SHA-512 and release-pinned changelogs for all 13 dynamically discovered packages.
+Imagegen **0.0.14**, browser **0.0.13**, Web Run **0.0.10** and all eight Pi
+packages **1.5.2** remain current. No root peer widening or new unused packages.
+
+Primary release evidence:
+[conversion](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/c3b422c60256907f5a4499cc44e4d055ac3cc28a/packages/pi-codex-conversion/CHANGELOG.md),
+[Notes](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/c3b422c60256907f5a4499cc44e4d055ac3cc28a/packages/pi-notes-compaction/CHANGELOG.md).
+
+The approved breaking migration replaces persistent JS Notebook with QuickJS Code
+for existing `js` settings. Each call gets fresh globals; up to four cells can run
+concurrently. Conversation-local JSON `store`/`load` is not disk persistence.
+Existing saved checkpoint/profile files remain untouched but are not loaded.
+Do not recreate the removed persistence. Ordinary Notebook/TS mode and explicit
+user settings remain available. The QuickJS host requires Node; it resolves exact
+Pi codemode **1.5.2** and **quickjs-wasi 3.6.3** on demand.
+
+Rebase the quota patch's context to upstream's QuickJS Code label. All 22 conversion
+patch targets retain existing custom behavior; the Notes settings patch is unchanged.
+Snapshots still accompany successful patches even though visible acknowledgements
+are now `OK`. Keep Compact V2/Notebook defaults, fast/footer state, voice controls,
+quota countdowns, legacy migration, inactive Notes defaults, lazy browser startup,
+TypeBox peer/dev setup and removed bundled skills.
+
+Notes gains Linux cleanup of retired physical session records after the owning Pi
+process exits when that session's pruning policy is enabled. New sessions remain
+Off; reload does not schedule cleanup. Notes also improves lookup recovery warnings,
+reduces guidance verbosity and opens settings on Enabled. No real user history is
+modified by validation. Regression coverage checks Off/reload cleanup gating and
+the new session-admission fixture API, plus exact patch acknowledgements/snapshots.
+
+Run `npm run test:quickjs` for the explicit runtime smoke check. It may download
+upstream's pinned runtime into a disposable agent directory and checks fresh globals,
+conversation-local JSON and session reset. Standard tests do not require that download.
+Final validation passed: clean installation, strict patch replay, **100 tests**,
+typecheck, pinned QuickJS runtime smoke check and dependency/whitespace checks. Bun, macOS and live account/provider,
+voice hardware and real post-exit history cleanup remain unrun.
 
 ## Conversion 4.0.10, imagegen 0.0.14 and Notes 0.0.16 (2026-11-11)
 

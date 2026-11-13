@@ -45,7 +45,7 @@ index 4190633..c509113 100644
      },
      notebook: {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-index c1f8849..66265e5 100644
+index f140811..f7a0016 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 @@ -8,6 +8,22 @@ function formatStatusText(suffix, theme) {
@@ -70,7 +70,7 @@ index c1f8849..66265e5 100644
 +}
  export function buildStatusText(options, theme) {
      const extras = [
-         options.mode === "js" ? "JS Notebook" : options.mode === "ts" ? "TS mode" : options.mode === "notebook" ? "notebook mode" : options.mode === "code" ? "code mode" : undefined,
+         options.mode === "js" ? "QuickJS Code" : options.mode === "ts" ? "TS mode" : options.mode === "notebook" ? "notebook mode" : options.mode === "code" ? "code mode" : undefined,
 @@ -17,8 +33,8 @@ export function buildStatusText(options, theme) {
          options.fast === "ultrafast" ? "ultrafast" : options.fast ? "fast" : undefined,
          options.baseTierEstimate ? "base cost estimate" : undefined,
@@ -244,7 +244,7 @@ index 0000000..9c202a1
 +    }));
 +}
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
-index 7343b84..c5f0fb9 100644
+index f334c11..8071098 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 @@ -1,4 +1,5 @@

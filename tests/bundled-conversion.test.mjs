@@ -32,6 +32,7 @@ test("Pi's real loader registers bundled conversion once and preserves edit/writ
         loaded.runtime.appendEntry = (customType, data) => entries.push({customType, data});
         const input = '*** Begin Patch\\n*** Delete File: ' + path + '\\n*** End Patch';
         const result = await conversion.tools.get('apply_patch').definition.execute('delete', {input}, undefined, undefined, {cwd: process.env.PI_CODING_AGENT_DIR});
+        assert.equal(result.content[0].text, 'OK', 'exact upstream acknowledgement keeps snapshots in details');
         for (const handler of conversion.handlers.get('tool_result')) {
           await handler({toolName: 'apply_patch', toolCallId: 'delete', input: {input}, ...result, isError: false});
         }
