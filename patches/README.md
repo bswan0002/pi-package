@@ -1,5 +1,15 @@
 # Conversion patch
 
+## Conversion 5.0.1
+
+Rebased all 22 patched files on the published artifact. Kept the package's
+custom defaults, status events, quota countdowns, snapshot display and voice
+controls. The footer continues to own the fast label, while the status bar
+uses upstream's model-aware ultrafast cost-estimate check. The GPT-6.2 test
+checks both entries in the Codex catalog and their Responses Lite eligibility
+without network calls or account credentials.
+
+
 The patch targets the shipped **dist JavaScript and declarations** of conversion
 5.0.0, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
