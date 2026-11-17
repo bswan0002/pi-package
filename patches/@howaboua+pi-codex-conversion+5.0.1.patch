@@ -1,13 +1,13 @@
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-index 5c33763..652486c 100644
+index 32bf8e6..540f0f8 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 @@ -1,3 +1,4 @@
 +import { resolveFastModeServiceTier } from "./fast-mode.js";
  import { getCodeModeExtensionToolSnapshot } from "../../code-mode-extension-tools.js";
  import { renderCodexStatus } from "../../ui/status.js";
- import { ALL_CODEX_ADAPTER_TOOL_NAMES, isAdapterRuntime, resolveCodexRuntimePlanForState } from "./runtime-plan.js";
-@@ -5,6 +6,14 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY, buildExtraToolsOnlyStatusText } from ".
+ import { ALL_CODEX_ADAPTER_TOOL_NAMES, isAdapterRuntime, resolveCodexRuntimePlanForState, } from "./runtime-plan.js";
+@@ -5,6 +6,14 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY, buildExtraToolsOnlyStatusText, } from "
  export function syncAdapter(pi, ctx, state) {
      state.availableToolNames = pi.getAllTools().map((tool) => tool.name);
      const plan = resolveCodexRuntimePlanForState(ctx, state);
@@ -23,10 +23,10 @@ index 5c33763..652486c 100644
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index 4190633..c509113 100644
+index 8d21dbe..08b9d11 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-@@ -55,7 +55,7 @@ export const REALTIME_V3_VOICES = [
+@@ -59,7 +59,7 @@ export const REALTIME_V3_VOICES = [
  export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
  export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
  export const DEFAULT_CODEX_CONVERSION_CONFIG = {
@@ -35,7 +35,7 @@ index 4190633..c509113 100644
      voiceFeaturesOnly: false,
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -78,7 +78,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+@@ -82,7 +82,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
          backgroundShellCloseShortcut: "alt+r",
      },
      compaction: {
@@ -45,7 +45,7 @@ index 4190633..c509113 100644
      },
      notebook: {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-index f140811..f7a0016 100644
+index c6531f3..f8f9af1 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 @@ -8,6 +8,22 @@ function formatStatusText(suffix, theme) {
@@ -70,13 +70,17 @@ index f140811..f7a0016 100644
 +}
  export function buildStatusText(options, theme) {
      const extras = [
-         options.mode === "js" ? "QuickJS Code" : options.mode === "ts" ? "TS mode" : options.mode === "notebook" ? "notebook mode" : options.mode === "code" ? "code mode" : undefined,
-@@ -17,8 +33,8 @@ export function buildStatusText(options, theme) {
-         options.fast === "ultrafast" ? "ultrafast" : options.fast ? "fast" : undefined,
+         options.mode === "vm"
+@@ -31,12 +47,8 @@ export function buildStatusText(options, theme) {
+                 : undefined,
          options.baseTierEstimate ? "base cost estimate" : undefined,
          options.daybreak ? "Daybreak" : undefined,
--        options.usageStatus?.fiveHourUsageLeft === undefined ? undefined : `5h: ${Math.round(options.usageStatus.fiveHourUsageLeft)}% left`,
--        options.usageStatus?.weeklyUsageLeft === undefined ? undefined : `weekly: ${Math.round(options.usageStatus.weeklyUsageLeft)}% left`,
+-        options.usageStatus?.fiveHourUsageLeft === undefined
+-            ? undefined
+-            : `5h: ${Math.round(options.usageStatus.fiveHourUsageLeft)}% left`,
+-        options.usageStatus?.weeklyUsageLeft === undefined
+-            ? undefined
+-            : `weekly: ${Math.round(options.usageStatus.weeklyUsageLeft)}% left`,
 +        quotaStatus("5h", options.usageStatus?.fiveHourUsageLeft, options.usageStatus?.fiveHourResetsAt),
 +        quotaStatus("weekly", options.usageStatus?.weeklyUsageLeft, options.usageStatus?.weeklyResetsAt),
      ]
@@ -114,33 +118,45 @@ index 82571c6..6551645 100644
      weeklyUsageLeft?: number | undefined;
  }
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
-index e3607e4..d17b3b5 100644
+index a2b2379..3d229a1 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
-@@ -53,8 +53,12 @@ function parseWindow(value) {
+@@ -61,16 +61,13 @@ function parseWindow(value) {
          return undefined;
      const usedPercent = numberValue(value["used_percent"]);
      const limitWindowSeconds = numberValue(value["limit_window_seconds"]);
--    const windowMinutes = numberValue(value["window_minutes"]) ?? (limitWindowSeconds === undefined ? undefined : Math.ceil(limitWindowSeconds / 60));
+-    const windowMinutes = numberValue(value["window_minutes"]) ??
+-        (limitWindowSeconds === undefined
+-            ? undefined
+-            : Math.ceil(limitWindowSeconds / 60));
 -    const resetsAt = numberValue(value["resets_at"]) ?? numberValue(value["reset_at"]);
+-    return usedPercent === undefined &&
+-        windowMinutes === undefined &&
+-        resetsAt === undefined
+-        ? undefined
+-        : { usedPercent, windowMinutes, resetsAt };
 +    const windowMinutes = numberValue(value["window_minutes"]) ?? (limitWindowSeconds === undefined ? undefined : limitWindowSeconds / 60);
 +    const resetTimestamp = numberValue(value["resets_at"]) ?? numberValue(value["reset_at"]);
 +    const resetAfter = numberValue(value["reset_after_seconds"]);
 +    const resetsAt = resetTimestamp === undefined
 +        ? (resetAfter === undefined ? undefined : Date.now() / 1000 + Math.max(0, resetAfter))
 +        : (resetTimestamp > 100_000_000_000 ? resetTimestamp / 1000 : resetTimestamp);
-     return usedPercent === undefined && windowMinutes === undefined && resetsAt === undefined ? undefined : { usedPercent, windowMinutes, resetsAt };
++    return usedPercent === undefined && windowMinutes === undefined && resetsAt === undefined ? undefined : { usedPercent, windowMinutes, resetsAt };
  }
  function parseRateLimit(value) {
-@@ -91,13 +95,16 @@ export function parseCodexUsagePayload(payload) {
+     if (!isRecord(value))
+@@ -113,15 +110,16 @@ export function parseCodexUsagePayload(payload) {
  }
  export function codexUsageStatus(snapshot) {
      const limit = snapshot.limits.find(({ limitId }) => limitId === "codex");
 +    const windowFor = (minutes) => [limit?.primary, limit?.secondary].find(({ windowMinutes } = {}) => windowMinutes === minutes);
      const usageLeft = (minutes) => {
 -        const window = [limit?.primary, limit?.secondary].find(({ windowMinutes } = {}) => windowMinutes === minutes);
+-        return window?.usedPercent === undefined
+-            ? undefined
+-            : 100 - Math.max(0, Math.min(100, window.usedPercent));
 +        const window = windowFor(minutes);
-         return window?.usedPercent === undefined ? undefined : 100 - Math.max(0, Math.min(100, window.usedPercent));
++        return window?.usedPercent === undefined ? undefined : 100 - Math.max(0, Math.min(100, window.usedPercent));
      };
      return {
          fiveHourUsageLeft: usageLeft(FIVE_HOUR_WINDOW_MINUTES),
@@ -244,20 +260,27 @@ index 0000000..9c202a1
 +    }));
 +}
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
-index f334c11..8071098 100644
+index f6b2aca..300cdc8 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
-@@ -1,4 +1,5 @@
+@@ -1,5 +1,6 @@
  import { obj, str } from "@earendil-works/pi-schema";
+-import { withFileMutationQueue, } from "@earendil-works/pi-coding-agent";
 +import { captureDisplayFiles, pairDisplayFiles } from "./display-snapshots.js";
- import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
++import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
  import { Container, Text } from "@earendil-works/pi-tui";
  import { parsePatchActions } from "../../patch/parser.js";
-@@ -150,7 +151,23 @@ export function createApplyPatchTool(options = {}) {
+ import { resolvePatchPath } from "../../patch/paths.js";
+@@ -169,12 +170,23 @@ export function createApplyPatchTool(options = {}) {
              setApplyPatchRenderState(toolCallId, typedParams.patchText, ctx.cwd);
              let result;
              try {
--                result = await withTouchedFileMutationQueues(ctx.cwd, typedParams.patchText, () => executePatchWithRust({ cwd: ctx.cwd, patchText: typedParams.patchText, signal, customRustBinariesDir: options.customRustBinariesDir }));
+-                result = await withTouchedFileMutationQueues(ctx.cwd, typedParams.patchText, () => executePatchWithRust({
+-                    cwd: ctx.cwd,
+-                    patchText: typedParams.patchText,
+-                    signal,
+-                    customRustBinariesDir: options.customRustBinariesDir,
+-                }));
 +                result = await withTouchedFileMutationQueues(ctx.cwd, typedParams.patchText, async () => {
 +                    // Capture inside the existing mutation queue, before another nested
 +                    // patch can overwrite this call's result. Tool results stay unchanged.
@@ -279,10 +302,10 @@ index f334c11..8071098 100644
              catch (error) {
                  if (error instanceof ExecutePatchError) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-index 40a16ce..ab04d69 100644
+index 835ce44..36ba39c 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-@@ -75,12 +75,8 @@ function createExecTool(runtime, tracker, renderResult, hooks, isGpt) {
+@@ -91,12 +91,8 @@ function createExecTool(runtime, tracker, renderResult, hooks, isGpt) {
          parameters: EXEC_PARAMETERS,
          constrainedSampling: CODE_MODE_EXEC_CONSTRAINED_SAMPLING,
          prepareLoadout: (loadout) => runtime.prepareLoadout(loadout),
@@ -297,7 +320,7 @@ index 40a16ce..ab04d69 100644
          async execute(id, params, signal, onUpdate, ctx) {
              tracker.start(id);
              const piToolScope = new PiToolCallScope(ctx, signal);
-@@ -115,6 +111,7 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks, isG
+@@ -142,6 +138,7 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks, isG
      const constrainedSampling = getExperimentalToolSampling("wait");
      return {
          name: "wait",
@@ -306,7 +329,7 @@ index 40a16ce..ab04d69 100644
          exposure: "model-only",
          executionMode: "sequential",
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
-index c08f1a2..3999508 100644
+index d16cea2..2978785 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/background-bash-widget.js
 @@ -1,6 +1,12 @@
@@ -322,17 +345,21 @@ index c08f1a2..3999508 100644
  function truncate(text, maxLength) {
      return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
  }
-@@ -70,7 +76,7 @@ export function renderBackgroundBashWidget(ctx, state, sessions, config) {
+@@ -74,10 +80,8 @@ export function renderBackgroundBashWidget(ctx, state, sessions, config) {
          }
          lines.push(`${theme.fg("muted", "│")} ${theme.fg("dim", `session ${active.id} · updated ${ageLabel(active.updatedAt)} ago`)}`);
      }
 -    lines.push(`${theme.fg("muted", "╰─")} ${theme.fg("dim", `${config.backgroundShellPrevShortcut}/${config.backgroundShellNextShortcut} select · ${config.backgroundShellToggleShortcut} fold/open · ${config.backgroundShellCloseShortcut} close`)}`);
+-    ctx.ui.setWidget(BACKGROUND_BASH_WIDGET_ID, lines, {
+-        placement: "aboveEditor",
+-    });
 +    lines.push(`${theme.fg("muted", "╰─")} ${theme.fg("dim", `${shortcutLabel(config.backgroundShellPrevShortcut)}/${shortcutLabel(config.backgroundShellNextShortcut)} select · ${shortcutLabel(config.backgroundShellToggleShortcut)} fold/open · ${shortcutLabel(config.backgroundShellCloseShortcut)} close`)}`);
-     ctx.ui.setWidget(BACKGROUND_BASH_WIDGET_ID, lines, { placement: "aboveEditor" });
++    ctx.ui.setWidget(BACKGROUND_BASH_WIDGET_ID, lines, { placement: "aboveEditor" });
  }
  export function registerBackgroundBashWidgetShortcuts(pi, state, sessions, config, isEnabled) {
+     function rerender(ctx) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-index 2353e22..562baf1 100644
+index c016d7a..b606ad3 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 @@ -1,6 +1,6 @@
@@ -343,7 +370,7 @@ index 2353e22..562baf1 100644
  import { clearFolderCodexConversionConfig, getCodexConversionConfigPath, getProjectCodexConversionConfigPath, hasFolderCodexConversionConfig, materializeFolderCodexConversionConfig, readCodexConversionConfig, readEffectiveCodexConversionConfig, readLayeredCodexConversionConfig, setGlobalCodexLunaCacheKeepalive, setProjectCodexCacheKeepalive, writeCodexConversionConfig, } from "../../adapter/activation/config-store.js";
  import { syncAdapter } from "../../adapter/activation/activation.js";
  import { createCodexVoiceControls } from "../../voice/controls.js";
-@@ -206,6 +206,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
+@@ -247,6 +247,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
          getArgumentCompletions: (prefix) => CODEX_COMMAND_COMPLETIONS.filter((item) => item.startsWith(prefix.trim().toLowerCase())).map((value) => ({ label: value, value })),
          handler: async (args, ctx) => {
              const arg = args.trim().toLowerCase();
@@ -370,18 +397,18 @@ index 2353e22..562baf1 100644
                  const { runLanVoiceCommand } = await import("../../voice/lan/command.js");
                  await runLanVoiceCommand(args.trim().replace(/^voice\s+server\s+/i, ""), ctx, lanVoice, dirname(getCodexConversionConfigPath()));
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-index ffd1d15..ddd2edd 100644
+index 62b62e9..8190c83 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-@@ -14,7 +14,7 @@ export function renderCodexStatus(ctx, state, plan) {
+@@ -17,7 +17,7 @@ export function renderCodexStatus(ctx, state, plan) {
          mode: plan.kind,
          useOnAllModels: config.scope.allProviders === "on",
          additionalProvider: plan.configuredProvider,
 -        fast,
 +        fast: undefined, // displayed by pi-package footer
-         baseTierEstimate: fast === "ultrafast" && ctx.model?.id !== "gpt-6-astra" && ctx.model?.id !== "gpt-6.1-sol",
+         baseTierEstimate: fast === "ultrafast" &&
+             codexUltrafastCostMultiplier(ctx.model?.id) === undefined,
          daybreak: plan.codexTransport ? config.openai.daybreak : undefined,
-         compaction: plan.nativeCompaction,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
 index 8d39dcc..4461500 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
@@ -444,11 +471,11 @@ index 2afb6e4..c99d048 100644
          return this.presentation.inputMuted;
      }
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/connection.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/connection.js
-index 944405d..d798a73 100644
+index 0643a29..84351d5 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/connection.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/connection.js
-@@ -47,6 +47,7 @@ export class ControllerConnection {
-                 onEndCall: (session) => { void this.lifecycle.endCall(session); },
+@@ -49,6 +49,7 @@ export class ControllerConnection {
+                 },
                  onStatus: (status) => this.presentation.renderStatus(status),
              });
 +            this.presentation.renderCurrentStatus();
@@ -522,10 +549,10 @@ index 1618709..4be8bd1 100644
                          this.runtime.state.type === "failed")
                          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
-index 24802b9..78875d5 100644
+index 47a817c..141d442 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
-@@ -66,6 +66,7 @@ export class ControllerLifecycle {
+@@ -67,6 +67,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -533,7 +560,7 @@ index 24802b9..78875d5 100644
          try {
              await Promise.all([
                  closePromise,
-@@ -84,6 +85,7 @@ export class ControllerLifecycle {
+@@ -85,6 +86,7 @@ export class ControllerLifecycle {
              this.messages.voiceStopped(endedMode);
      }
      async finishDictation(options) {
@@ -541,7 +568,7 @@ index 24802b9..78875d5 100644
          this.runtime.startGeneration += 1;
          const session = this.runtime.state.type === "dictation"
              ? this.runtime.state.session
-@@ -96,6 +98,8 @@ export class ControllerLifecycle {
+@@ -97,6 +99,8 @@ export class ControllerLifecycle {
              await this.stop(options);
              return;
          }
@@ -550,7 +577,7 @@ index 24802b9..78875d5 100644
          await this.ownership.hold(() => session.finish());
          if (currentVoiceSession(this.runtime.state) !== session)
              return;
-@@ -109,6 +113,7 @@ export class ControllerLifecycle {
+@@ -110,6 +114,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -558,7 +585,7 @@ index 24802b9..78875d5 100644
          this.messages.voiceStopped(endedMode);
      }
      fail(error, failedSession) {
-@@ -139,6 +144,7 @@ export class ControllerLifecycle {
+@@ -140,6 +145,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -589,7 +616,7 @@ index f697551..e7fd9b6 100644
      }
  }
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
-index 0624662..ebab8fb 100644
+index 5605c5e..677dfee 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
 @@ -4,6 +4,7 @@ import { resolveVoiceHelperBinary } from "./binary.js";
@@ -600,7 +627,7 @@ index 0624662..ebab8fb 100644
  export function createCodexVoiceControls(options) {
      const { pi, state, voice, lanVoice } = options;
      const requestSetup = async (ctx, retryCommand, force, mode) => {
-@@ -62,6 +63,7 @@ export function createCodexVoiceControls(options) {
+@@ -64,6 +65,7 @@ export function createCodexVoiceControls(options) {
          }
          ctx.ui.notify(`Realtime microphone ${muted ? "muted" : "unmuted"}`, "info");
      };
