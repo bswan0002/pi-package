@@ -23,6 +23,7 @@ test("bundled Notes stays inactive by default and migrates explicit continuity w
   const fresh = loadNotesSettings(ctx);
   assert.equal(fresh.active, "whitelist");
   assert.deepEqual(fresh.modelWhitelist, []);
+  assert.equal(fresh.taskCompletionRollover, false);
   for (const continuity of ["notes", "notes-and-compaction"]) {
     const source = JSON.stringify({ compaction: { continuity, idleNotesRollover: 15, shareSubagentContext: true } });
     await writeFile(legacy, source);
@@ -39,9 +40,19 @@ test("bundled Notes stays inactive by default and migrates explicit continuity w
   assert.deepEqual(loadNotesSettings({ ...ctx, isProjectTrusted: () => true }), fresh, "trusted explicit opt-out wins");
   writeSettings(path, fresh);
   assert.deepEqual(loadNotesSettings(ctx), fresh, "saved Notes settings override legacy settings");
-  const off = { ...fresh, active: "off", modelWhitelist: ["retained-model"] };
+  const off = { ...fresh, active: "off", modelWhitelist: ["gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-6.1-sol"] };
   writeSettings(path, off);
   assert.deepEqual(loadNotesSettings(ctx), off, "explicit Off and saved whitelist survive migration");
+  const enabled = { ...off, active: "whitelist", taskCompletionRollover: true };
+  writeSettings(path, enabled);
+  const bytes = await readFile(path, "utf8");
+  assert.deepEqual(loadNotesSettings(ctx), enabled);
+  assert.equal(await readFile(path, "utf8"), bytes, "loading never rewrites explicit preferences");
+  const { modelWhitelist, taskCompletionRollover, ...legacyShape } = enabled;
+  await writeFile(path, JSON.stringify(legacyShape));
+  const defaults = loadNotesSettings(ctx);
+  assert.deepEqual(defaults.modelWhitelist, ["gpt-6.2-astra", "gpt-6.2-sol", "gpt-6-luna"]);
+  assert.equal(defaults.taskCompletionRollover, false);
 });
 
 test("Notes native database can create and read storage", () => {

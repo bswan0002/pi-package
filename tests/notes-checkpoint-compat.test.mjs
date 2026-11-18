@@ -72,3 +72,25 @@ test("Notes structured results survive conversion without JSON parsing", async (
     executeTool: async () => ({ result, isError: false }),
   }), { file: payload.file, warnings: payload.warnings });
 });
+
+test("same-cell rollover requires a completed local ledger and receipt under the original exec ID", () => {
+  const branch = [msg({ role: "assistant", content: [
+    { type: "toolCall", id: "cell", name: "exec", arguments: {} },
+  ], stopReason: "toolUse" }), receipt, { type: "custom", customType: NESTED_NOTE_OUTCOME, data: {
+    protocol: 1, runId: "run", windowId: "window", callId: "save", parentCallId: "cell", pending: false, saved: true,
+  } }];
+  const ready = entries => hasPrecedingNoteWrite(entries, "window", "run", "nested-roll", "cell");
+  assert.equal(ready(branch), true, "awaited save qualifies before parent exec finishes");
+  assert.equal(ready(branch.filter(entry => entry !== receipt)), false);
+  for (const change of [
+    { pending: true, saved: false }, { pending: false, saved: false },
+    { origin: "routed" }, { runId: "old-run" }, { windowId: "old-window" }, { parentCallId: "other-cell" },
+  ]) {
+    const changed = structuredClone(branch);
+    Object.assign(changed[2].data, change);
+    assert.equal(ready(changed), false, JSON.stringify(change));
+  }
+  const routed = structuredClone(branch[2]);
+  Object.assign(routed.data, { callId: "remote-save", origin: "routed", saved: false });
+  assert.equal(ready([...branch, routed]), true, "routed writes do not invalidate an own checkpoint");
+});
