@@ -1,5 +1,40 @@
 # Conversion patch
 
+## Notes 0.0.18, imagegen 0.0.15 and Web Run 0.0.11 (2026-11-18)
+
+Update only those three companions from 0.0.17, 0.0.14 and 0.0.10 respectively.
+Published artifact SHA-512 values match npm metadata; all three identify
+[`debd4aa3139a4fda993f9a5213cfa58eff6f21aa`](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/debd4aa3139a4fda993f9a5213cfa58eff6f21aa/packages)
+as their gitHead. Reviewed artifact diffs and bundled changelogs. Conversion
+5.0.1, browser 0.0.13, all eight Pi 1.5.2 packages and root peer ranges stay
+unchanged. Web Run adds the existing Pi schema dependency and requires Undici
+8.12.4; no unrelated resolutions change. Preserve the root TypeBox setup.
+
+Rename the Notes patch for 0.0.18 without changing its contents: the same two
+lines retain fresh-install inactivity (empty whitelist). Preserve the entire
+conversion patch. Existing saved whitelists, explicit Off, legacy migration and
+user state remain authoritative. Upstream fallback whitelists now use GPT-6.2
+Astra/Sol and GPT-6 Luna; no existing whitelist is rewritten.
+
+Accept upstream task-completion rollover as opt-in, default Off. `resume:false`
+waits for successful settlement without aborting the final reply or triggering a
+successor turn; abort/error cancels it. Default continuation and Pi eligibility
+remain separate. Same-cell rollover accepts only a completed local note-write
+ledger and receipt under the original exec scope. Imagegen's custom renderer
+renders text only, leaving canonical image content for Pi. Web Run's native
+schema retains open fields and enum/numeric validation.
+
+Validation: clean `npm ci` with both strict patches, 113 tests, typecheck,
+`npm ls --all`, and the QuickJS runtime smoke check pass on Node 24.19.0.
+Set `npm_config_cache=/workspace/.npm-cache` in this cloud environment: the first
+QuickJS bootstrap attempt failed because the default npm cache was unavailable;
+it passed with the writable cache. Fixture tests cover settings, rollover
+settlement/cancellation/eligibility/provenance, schema validation and renderer
+ownership. They do not prove live provider behavior or terminal image rendering.
+No credentials or live accounts are used; Bun, macOS, live image/search/voice
+and real-user history cleanup remain untested.
+
+
 ## Conversion 5.0.1
 
 Rebased all 22 patched files on the published artifact. Kept the package's
