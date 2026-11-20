@@ -1,11 +1,12 @@
-// Explicit runtime smoke check; may download upstream's pinned runtime into a temporary directory.
+// Explicit runtime smoke check using Pi's installed QuickJS runtime; no download.
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { findPackageJSON } from 'node:module';
 import { JsCodeClient } from '@howaboua/pi-codex-conversion/dist/tools/js-mode/client.js';
 const dir = await mkdtemp(join(tmpdir(), 'pi-quickjs-'));
-const client = new JsCodeClient({ agentDir: dir, maxHeapMiB: 128 });
+const client = new JsCodeClient({ piPackageDir: dirname(findPackageJSON('@earendil-works/pi-coding-agent', import.meta.url)), maxHeapMiB: 128 });
 let session = 'first';
 const ctx = { cwd: dir, extensionContext: { sessionManager: { getSessionId: () => session, getBranch: () => [] } } };
 const run = async source => {

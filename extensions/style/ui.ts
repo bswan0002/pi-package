@@ -53,16 +53,16 @@ export function patchUserMessageComponent(uiTheme: Theme): void {
 	currentUiTheme = uiTheme;
 
 	const prototype = UserMessageComponent.prototype as {
-		render(width: number): string[];
+		render(width: number): readonly string[];
 	};
-	prototype.render = function (this: UserMessageComponent, width: number): string[] {
+	prototype.render = function (this: UserMessageComponent, width: number): readonly string[] {
 		if (!currentUiTheme) {
 			return originalUserMessageRender.call(this, width);
 		}
 
 		const railWidth = 2;
 		const innerWidth = Math.max(1, width - railWidth);
-		const baseLines = Container.prototype.render.call(this, innerWidth) as string[];
+		const baseLines = Container.prototype.render.call(this, innerWidth);
 		if (baseLines.length === 0) return baseLines;
 
 		const hasLeadingSpacer = baseLines.length > 1 && visibleWidth(baseLines[0] ?? "") === 0;
