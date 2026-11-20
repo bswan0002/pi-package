@@ -39,7 +39,9 @@ test("Notes roles respect inactive defaults and reject stale handoffs", async t 
   lifecycle.active = true;
   await assert.rejects(roles.prepare("review", ctx), /Notes must be active/, "empty whitelist still blocks roles");
   activation.settings = { ...activation.settings, active: "all" };
+  thinking = "xhigh"; // A temporary turn-scoped boost is active at preparation.
   const handoff = await roles.prepare("review", ctx);
+  thinking = "low"; // Expiry must not invalidate the explicitly requested role.
   await assert.rejects(handoff.activate({ ...ctx, sessionManager: { getSessionId: () => "other" } }), /session or model settings changed/);
   assert.deepEqual(changes, []);
   await handoff.activate(ctx);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
 import { UserMessageComponent, getMarkdownTheme, getSelectListTheme, initTheme } from "@earendil-works/pi-coding-agent";
-import { TuiAltScreen, TuiMainScreen, stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
+import { Container, TuiAltScreen, TuiMainScreen, stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 
 const agentEntry = import.meta.resolve("@earendil-works/pi-coding-agent");
 const { createJiti } = createRequire(agentEntry)("jiti");
@@ -175,3 +175,22 @@ for (const Host of [TuiMainScreen, TuiAltScreen]) {
     assert.ok(!term.output.includes("\x1b_pi:/fc\x07"));
   });
 }
+
+
+test("styled messages leave Pi's cached read-only container output untouched", () => {
+  const original = UserMessageComponent.prototype.render;
+  try {
+    patchUserMessageComponent(theme);
+    const message = new UserMessageComponent("Cached message", getMarkdownTheme());
+    const cached = Container.prototype.render.call(message, 38);
+    const before = [...cached];
+    Object.freeze(cached);
+    const first = message.render(40);
+    assert.deepEqual(message.render(40), first);
+    assert.match(bounded(first, 40), /Cached message/);
+    assert.equal(Container.prototype.render.call(message, 38), cached);
+    assert.deepEqual(cached, before);
+  } finally {
+    UserMessageComponent.prototype.render = original;
+  }
+});

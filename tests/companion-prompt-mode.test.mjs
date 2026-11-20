@@ -13,6 +13,7 @@ test("all companions switch compact GPT guidance and restore ordinary contracts 
     import { dirname, join } from 'node:path';
     import { fileURLToPath } from 'node:url';
     import { registerGptPromptModeBroker } from '@howaboua/pi-codex-conversion/prompt-mode';
+    import { getCodeModeExtensionToolSnapshot } from '@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js';
     const sdk = dirname(fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent')));
     const { loadExtensions } = await import(join(sdk, 'core/extensions/loader.js'));
     const { createEventBus } = await import(join(sdk, 'core/event-bus.js'));
@@ -25,19 +26,28 @@ test("all companions switch compact GPT guidance and restore ordinary contracts 
       assert.deepEqual(loaded.errors, []);
       const tools = () => new Map(loaded.extensions.flatMap(e => [...e.tools].map(([name, t]) => [name, t.definition])));
       const ordinary = tools();
-      const before = new Map([...ordinary].map(([name, t]) => [name, {description: t.description, parameters: JSON.stringify(t.parameters)}]));
+      const before = new Map([...ordinary].map(([name, t]) => [name, {description: t.description, parameters: JSON.stringify(t.parameters), guidelines: t.promptGuidelines}]));
       const browserHelp = async () => (await tools().get('browser').execute('help', {command: 'help'}, undefined, undefined, {sessionManager: {getSessionId: () => 'fixture'}})).content;
       const normalHelp = await browserHelp();
+      const usages = () => new Map(getCodeModeExtensionToolSnapshot({events, getAllTools: () => [...tools().values()]}, undefined).tools.map(t => [t.name, t.usage]));
+      const normalUsages = usages();
       active = true;
       broker.prepare({}, {toolSnippets: {}, toolGuidelines: {}});
       for (const name of ['web_run', 'imagegen', 'browser']) {
-        if (name !== 'browser') assert.notEqual(tools().get(name).description, before.get(name).description, name);
+        assert.equal(tools().get(name).description, before.get(name).description, name + ' stable description');
         assert.equal(JSON.stringify(tools().get(name).parameters), before.get(name).parameters, name + ' schema');
+      }
+      assert.notDeepEqual(tools().get('web_run').promptGuidelines, before.get('web_run').guidelines);
+      for (const name of ['web__run', 'image_gen__imagegen']) {
+        assert.ok(normalUsages.get(name), name + ' registered');
+        assert.notEqual(usages().get(name), normalUsages.get(name), name + ' compact usage');
       }
       assert.notDeepEqual(await browserHelp(), normalHelp, 'browser uses compact on-demand help');
       active = false;
       broker.prepare({}, {toolSnippets: {}, toolGuidelines: {}});
       for (const name of ['web_run', 'imagegen', 'browser']) assert.equal(tools().get(name).description, before.get(name).description);
+      assert.deepEqual(tools().get('web_run').promptGuidelines, before.get('web_run').guidelines);
+      assert.deepEqual(usages(), normalUsages);
       assert.deepEqual(await browserHelp(), normalHelp);
       broker.dispose();
     }

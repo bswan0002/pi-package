@@ -1,5 +1,56 @@
 # Conversion patch
 
+## Pi 1.6.0 and companions (2026-11-20)
+
+Update all eight used Pi packages **1.5.2 → 1.6.0**, conversion **5.0.1 →
+5.0.2**, browser **0.0.13 → 0.0.14**, Notes **0.0.18 → 0.0.19**, imagegen
+**0.0.15 → 0.0.16**, and Web Run **0.0.11 → 0.0.12**. The four companion packages
+require conversion >=5.0.2. Independently verified npm metadata and SHA-512
+integrity of both old and new artifacts for all 13 discovered packages.
+The companions identify
+[`19ec6357fa3c4eb0126f8b0d4b6569de1a655ef9`](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/19ec6357fa3c4eb0126f8b0d4b6569de1a655ef9/packages)
+as gitHead. Reviewed published artifact diffs and release-pinned changelogs,
+including [Pi's release](https://github.com/earendil-works/pi/releases/tag/v1.6.0)
+and [TUI contract](https://github.com/earendil-works/pi/blob/v1.6.0/packages/tui/CHANGELOG.md).
+
+Pi's render output is now read-only and Container caches its array. Align the
+styled user-message renderer's types and remove its mutable cast; it already
+builds new framing arrays. A frozen-cache regression verifies repeated rendering
+preserves Pi's output. The remaining renderers do not mutate borrowed arrays.
+No new host API requires raising root peers. Keep the TypeBox peer/dev arrangement.
+Required transitive changes are Pi's OpenAI 7.59.0, Google GenAI 2.32.0 and
+Undici 8.12.4 (deduplicating companion copies); unrelated resolutions stay fixed.
+
+Rebase all 22 conversion patch targets on shipped dist files. The added/removed
+lines are identical to the previous patch; only context, offsets and blob IDs
+change, including the dictation transcribing guard around upstream voice shutdown
+changes. Rename the Notes patch without changing its contents. Preserve Compact
+V2/Notebook defaults, snapshots, fast/footer state, quota countdowns, voice
+controls, inactive Notes defaults, saved settings/migration and lazy browser startup.
+
+QuickJS now resolves Pi's installed codemode 1.6.0 and quickjs-wasi 3.6.2 rather
+than downloading codemode 1.5.2 and quickjs-wasi 3.6.3. Pass the installed Pi package
+directory in the smoke check. Fresh globals, conversation-local JSON and session
+reset still pass. Upstream supports this path under Node with an npm Pi install;
+standalone/Bun runtime behavior is not verified here.
+
+Accept upstream GPT-6.2 provider defaults, provider/request fixes, browser native
+changelog notices, Notes role retention and lookup improvements, image reuse,
+and voice-context continuity. Codex voice login remains the default; GPT Live API
+voice is optional. Upstream voice context now follows the current model. Companion
+compact mode changes guidance/Code usage while keeping descriptions and schemas
+stable; update the regression to check that guidance switches and restores in
+both load orders. Exercise role activation after a temporary reasoning boost
+expires while retaining stale-session rejection.
+
+Validation: clean `npm ci` with strict application of both patches, **114 tests**,
+TypeScript, `npm ls --all`, QuickJS smoke and whitespace checks pass on Node
+24.19.0. Existing tests include real extension loader composition, native/Code
+bridges, patched voice controls, Notes lifecycle and UI rendering. No credentials
+or live accounts are used. Live providers, image/search/browser sessions, voice
+hardware and continuity, terminal image rendering, real-user history cleanup,
+Bun, standalone Pi and macOS remain untested.
+
 ## Notes 0.0.18, imagegen 0.0.15 and Web Run 0.0.11 (2026-11-18)
 
 Update only those three companions from 0.0.17, 0.0.14 and 0.0.10 respectively.
@@ -46,7 +97,7 @@ without network calls or account credentials.
 
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-5.0.0, which its exports and our extension loader execute. Upstream `src/` is
+5.0.2, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 

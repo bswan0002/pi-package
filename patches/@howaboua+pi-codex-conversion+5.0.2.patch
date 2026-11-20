@@ -23,10 +23,10 @@ index 32bf8e6..540f0f8 100644
      const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index 8d21dbe..08b9d11 100644
+index b672268..e5e2026 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-@@ -59,7 +59,7 @@ export const REALTIME_V3_VOICES = [
+@@ -73,7 +73,7 @@ export const REALTIME_V3_VOICES = [
  export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
  export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
  export const DEFAULT_CODEX_CONVERSION_CONFIG = {
@@ -35,7 +35,7 @@ index 8d21dbe..08b9d11 100644
      voiceFeaturesOnly: false,
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -82,7 +82,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+@@ -96,7 +96,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
          backgroundShellCloseShortcut: "alt+r",
      },
      compaction: {
@@ -302,10 +302,10 @@ index f6b2aca..300cdc8 100644
              catch (error) {
                  if (error instanceof ExecutePatchError) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-index 835ce44..36ba39c 100644
+index be0d02a..07ddddc 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-@@ -91,12 +91,8 @@ function createExecTool(runtime, tracker, renderResult, hooks, isGpt) {
+@@ -92,12 +92,8 @@ function createExecTool(runtime, tracker, renderResult, hooks, isGpt) {
          parameters: EXEC_PARAMETERS,
          constrainedSampling: CODE_MODE_EXEC_CONSTRAINED_SAMPLING,
          prepareLoadout: (loadout) => runtime.prepareLoadout(loadout),
@@ -320,7 +320,7 @@ index 835ce44..36ba39c 100644
          async execute(id, params, signal, onUpdate, ctx) {
              tracker.start(id);
              const piToolScope = new PiToolCallScope(ctx, signal);
-@@ -142,6 +138,7 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks, isG
+@@ -143,6 +139,7 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks, isG
      const constrainedSampling = getExperimentalToolSampling("wait");
      return {
          name: "wait",
@@ -410,7 +410,7 @@ index 62b62e9..8190c83 100644
              codexUltrafastCostMultiplier(ctx.model?.id) === undefined,
          daybreak: plan.codexTransport ? config.openai.daybreak : undefined,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
-index 8d39dcc..4461500 100644
+index 67c38c1..ae2563a 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
 @@ -29,6 +29,11 @@ export declare class CodexVoiceController {
@@ -426,7 +426,7 @@ index 8d39dcc..4461500 100644
      onInputMuteChange(listener: (muted: boolean) => void): () => void;
      setInputMuted(muted: boolean): boolean;
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
-index 2afb6e4..c99d048 100644
+index db87fac..e83f489 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
 @@ -37,6 +37,8 @@ export class CodexVoiceController {
@@ -549,10 +549,10 @@ index 1618709..4be8bd1 100644
                          this.runtime.state.type === "failed")
                          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
-index 47a817c..141d442 100644
+index d3ce4db..368594f 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
-@@ -67,6 +67,7 @@ export class ControllerLifecycle {
+@@ -79,6 +79,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -560,15 +560,15 @@ index 47a817c..141d442 100644
          try {
              await Promise.all([
                  closePromise,
-@@ -85,6 +86,7 @@ export class ControllerLifecycle {
-             this.messages.voiceStopped(endedMode);
+@@ -101,6 +102,7 @@ export class ControllerLifecycle {
+         }
      }
      async finishDictation(options) {
 +        if (this.runtime.getDictationState?.() === "transcribing") return;
          this.runtime.startGeneration += 1;
          const session = this.runtime.state.type === "dictation"
              ? this.runtime.state.session
-@@ -97,6 +99,8 @@ export class ControllerLifecycle {
+@@ -113,6 +115,8 @@ export class ControllerLifecycle {
              await this.stop(options);
              return;
          }
@@ -577,7 +577,7 @@ index 47a817c..141d442 100644
          await this.ownership.hold(() => session.finish());
          if (currentVoiceSession(this.runtime.state) !== session)
              return;
-@@ -110,6 +114,7 @@ export class ControllerLifecycle {
+@@ -126,6 +130,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -585,7 +585,7 @@ index 47a817c..141d442 100644
          this.messages.voiceStopped(endedMode);
      }
      fail(error, failedSession) {
-@@ -140,6 +145,7 @@ export class ControllerLifecycle {
+@@ -157,6 +162,7 @@ export class ControllerLifecycle {
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
