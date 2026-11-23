@@ -12,12 +12,12 @@ test("fresh conversion installs default to Notebook and Compact V2", async (t) =
   t.after(() => rm(cwd, { recursive: true, force: true }));
   const configPath = join(cwd, "global.json");
   const config = readCodexConversionConfig(configPath);
-  assert.equal(DEFAULT_CODEX_CONVERSION_CONFIG.executionMode, "notebook");
-  assert.equal(config.executionMode, "notebook");
+  assert.equal(DEFAULT_CODEX_CONVERSION_CONFIG.executionMode, "ts");
+  assert.equal(config.executionMode, "ts");
   assert.equal(config.compaction.method, "v2");
   assert.equal(normalizeCodexConversionConfig({}).compaction.method, "v2");
   const plan = resolveCodexRuntimePlan({ model: { provider: "openai-codex", api: "openai-codex-responses", id: "gpt-6-luna" } }, config);
-  assert.equal(plan.kind, "notebook");
+  assert.equal(plan.kind, "ts");
   assert.equal(plan.nativeCompaction, true);
 
   // Existing explicit preferences stay authoritative; missing keys inherit defaults.
@@ -25,7 +25,7 @@ test("fresh conversion installs default to Notebook and Compact V2", async (t) =
   assert.equal(readCodexConversionConfig(configPath).executionMode, "normal");
   assert.equal(readCodexConversionConfig(configPath).compaction.method, "pi");
   await writeFile(configPath, JSON.stringify({ openai: { fast: true } }));
-  assert.equal(readCodexConversionConfig(configPath).executionMode, "notebook");
+  assert.equal(readCodexConversionConfig(configPath).executionMode, "ts");
   assert.equal(readCodexConversionConfig(configPath).compaction.method, "v2");
   assert.deepEqual(readCodexConversionConfig(configPath).openai.fast, { astra: true, sol: true, terra: true, luna: true, other: true });
 
@@ -34,18 +34,18 @@ test("fresh conversion installs default to Notebook and Compact V2", async (t) =
   const effective = (projectTrusted) => readEffectiveCodexConversionConfig({ cwd, globalConfigPath: configPath, projectTrusted, env: {} });
   assert.equal(effective(true).executionMode, "code");
   assert.equal(effective(true).compaction.method, "both");
-  assert.equal(effective(false).executionMode, "notebook");
+  assert.equal(effective(false).executionMode, "ts");
   assert.equal(effective(false).compaction.method, "v2");
 });
 
 test("Azure provider rename requires explicit conversion scope for ordinary GPT IDs", () => {
   const plan = (provider, config = DEFAULT_CODEX_CONVERSION_CONFIG, id = "gpt-5") =>
     resolveCodexRuntimePlan({ model: { provider, api: "azure-openai-responses", id } }, config);
-  assert.equal(plan("azure-openai-responses").kind, "notebook");
+  assert.equal(plan("azure-openai-responses").kind, "ts");
   assert.equal(plan("azure").kind, "inactive");
   const optedIn = normalizeCodexConversionConfig({ scope: { additionalProviders: ["azure"] } });
-  assert.equal(plan("azure", optedIn).kind, "notebook");
+  assert.equal(plan("azure", optedIn).kind, "ts");
   assert.equal(plan("unrelated-provider", optedIn).kind, "inactive");
-  assert.equal(plan("azure", normalizeCodexConversionConfig({ scope: { allProviders: "on" } })).kind, "notebook");
-  assert.equal(plan("azure", DEFAULT_CODEX_CONVERSION_CONFIG, "gpt-5-codex").kind, "notebook");
+  assert.equal(plan("azure", normalizeCodexConversionConfig({ scope: { allProviders: "on" } })).kind, "ts");
+  assert.equal(plan("azure", DEFAULT_CODEX_CONVERSION_CONFIG, "gpt-5-codex").kind, "ts");
 });

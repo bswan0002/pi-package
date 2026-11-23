@@ -5,14 +5,13 @@ import { DEFAULT_CODEX_CONVERSION_CONFIG } from "@howaboua/pi-codex-conversion/d
 
 test("custom-message and user starts preserve ordinary lifecycle preparation", async () => {
   const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
-  config.voiceFeaturesOnly = true;
   let turns = 0;
   let activations = 0;
   const state = { config, codexTurnState: { beginTurn: () => turns++ }, contextWindows: { currentIdentity: () => "fixture" } };
   let began = 0;
   const pi = { events: { emit() {}, on() {} }, getAllTools: () => [], getActiveTools: () => [], setActiveTools() {} };
   const runtime = { state, autoReasoning: { begin: () => began++ } };
-  const lifecycle = createCodexTurnLifecycle(pi, runtime, {}, {}, {}, { activate: () => activations++ });
+  const lifecycle = createCodexTurnLifecycle(pi, runtime, {}, {}, { beforeTurn() {} }, { activate: () => activations++ });
   const ctx = { hasUI: false };
   await lifecycle.beforeAgentStart({ type: "before_agent_start", messageType: "custom", message: { role: "custom", customType: "fixture", content: "continue", display: false } }, ctx);
   assert.equal(turns, 1);
