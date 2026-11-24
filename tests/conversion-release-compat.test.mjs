@@ -53,7 +53,7 @@ test("empty notebook calls return help without starting the runtime", async () =
   const { registerNotebookTool } = await import("@howaboua/pi-codex-conversion/dist/tools/code-mode/notebook-tool.js");
   let tool;
   registerNotebookTool({ on() {}, events: { on: () => () => {}, emit() {} }, registerTool: value => { tool = value; } }, new Proxy({}, {
-    get(_target, key) { if (key === "executionKind") return () => "notebook"; assert.fail("help must not start the notebook runtime"); },
+    get(_target, key) { if (key === "executionKind") return () => "ts"; assert.fail("help must not start the notebook runtime"); },
   }));
   for (const input of [{}, { input: "help" }]) {
     const result = await tool.execute("help", input);

@@ -21,8 +21,8 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser`, and `@howaboua/pi-notes-compaction` dependencies through local extension loaders. **Remove separately installed copies of all five from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
 Pi **1.5.0 or newer** is required by this package and its bundled Codex dependencies.
-The pinned development and compatibility-test baseline is **Pi 1.5.2**; see the
-[release assessment](./patches/README.md#conversion-500-and-notes-0017-2026-11-13).
+The pinned development and compatibility-test baseline is **Pi 1.6.0**; see the
+[release assessment](./patches/README.md#conversion-510-and-companions-2026-11-23).
 Pi now defaults to idle cache warming, which can make paid refreshes for up to
 30 minutes after a run. Existing explicit cache-warming settings remain effective.
 
@@ -40,9 +40,13 @@ Pi now defaults to idle cache warming, which can make paid refreshes for up to
 
 **Notes 0.0.18 / imagegen 0.0.15 / Web Run 0.0.11:** Notes adds opt-in task-completion rollover: `new_context({resume: false})` lets the reply finish, then opens fresh context without starting another turn. It stays Off by default and still requires a completed note save. Awaited same-cell saves can now precede rollover in Code and Notebook. Existing explicit model whitelists are preserved; upstream fallback whitelists use GPT-6.2 Astra/Sol and GPT-6 Luna, while this package still starts Notes inactive with an empty whitelist. Imagegen leaves image rendering to Pi to avoid duplicate images. Web Run uses Pi-native schemas. All three require conversion 5.0.1, already bundled.
 
-**Conversion 5.0.1:** GPT-6.2 Astra and Sol are available under `openai-codex` with a Codex sign-in, including Responses Lite on Pi 1.5.2. Optional VM Code keeps JavaScript bindings for the current conversation on Node without saving the heap. Existing `js` settings still use QuickJS Code and the package default is still ordinary Notebook. TS mode moves to tsrs 0.25 (TypeScript 7.1 beta).
+**Conversion 5.1.0:** legacy `js` settings now select **VM Code**, retaining JavaScript bindings across cells for the conversation. Only one exec runs at a time. Explicit reset, session changes, termination and runtime failure drop VM bindings; the heap is not saved to disk. Use Code for fresh cells. VM Code runs under Node on Linux, macOS and Windows; Linux/Bun requires a systemd user session and cgroup v2. This package does not bypass those requirements.
 
-**Conversion 5 / Notes 0.0.17:** existing `js` settings now select QuickJS Code: each call starts fresh, with up to four concurrent cells. JS Notebook checkpoints, profiles and project-shared variables are no longer loaded; saved files are left untouched. `store`/`load` retain conversation-local JSON only, without disk persistence. Ordinary Notebook and TS mode remain available; this package's ordinary Notebook default is unchanged. QuickJS Code requires a Node.js Pi host and may download its pinned runtime on first use. Exact patch success acknowledgements now say `OK`.
+The removed Deno Notebook (`notebook`) mode now selects **TS Notebook** (`ts`), also this package's fresh-install default. Old Deno state and profiles are neither imported nor deleted; see the [upstream recovery guide](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/c4f48525475f278d41dc311f2707926216bfa35b/docs/deno-to-ts-notebook.md). TS Notebook requires Node and may install its pinned compiler/runtime on first use. Its Node APIs are upstream TS behavior; VM Code's restricted tool bridge remains separate.
+
+Voice-only mode now follows Provider scope. Extra-tools-only scope becomes Codex plus explicitly configured providers; it does not enable all providers. Standalone `apply_patch`/`view_image` switches are removed; these tools remain adapter tools subject to Pi's tool allowlist. Tool details now selects Minimal, Compact or Preview, heavy prompt overwrite becomes Off/On, and Codex uses the fixed `codex_cli_rs` originator. Global and trusted-project settings migrate once while preserving unrelated fields. Explicit provider scopes, Notes whitelists and existing plain-command-output choices remain effective.
+
+Browser 0.0.15, imagegen 0.0.17 and Web Run 0.0.13 require conversion 5.1.0 and always use compact guidance. Browser/imagegen clarify settings labels; Web Run distinguishes searches, opens, links and finds in activity rows. Notes remains 0.0.19; all eight Pi packages remain 1.6.0.
 
 Notes 0.0.17 requires conversion 5 and adds Linux post-exit cleanup of retired session records for sessions with pruning enabled. It does not enable pruning for new sessions: they still start Off. Existing pruning-enabled sessions gain automatic physical cleanup after quitting Pi; review that retention choice before enabling pruning. No user session data is pruned during this package update.
 
@@ -50,12 +54,12 @@ Notes 0.0.17 requires conversion 5 and adds Linux post-exit cleanup of retired s
 
 Notes history now reads local Pi session files; upstream provides read-only remote-note retrieval and saved Tree-history recovery, not the old encrypted Remote execution mode. No pruning is enabled or run by this update. Existing account/history recovery has not been live-tested. Notes uses native `better-sqlite3`; installation may need a C++ build toolchain and Node headers when a binary is unavailable.
 
-Notebook journals now expire after **seven days without updates** by default. In `/codex`, select **On** for indefinite age retention or **Off & remove** to stop recording and remove saved journals. Saved variables and conversations are separate; optional session-checkpoint cleanup remains **Never** by default.
+The removed Deno Notebook's journal expiry and checkpoint-cleanup controls no longer run. Existing saved files remain available for manual recovery or cleanup; this update does not delete them.
 
 `npm ci` applies the tracked patch in `patches/` via `patch-package`. Install scripts must be enabled. Patch failures fail installation rather than silently dropping the integration. See [patch maintenance](./patches/README.md).
 
-Recommended defaults are **Notebook mode** and **Compact V2** (`executionMode:
-"notebook"`, `compaction.method: "v2"`). New installs need no settings changes.
+Recommended defaults are **TS Notebook mode** and **Compact V2** (`executionMode:
+"ts"`, `compaction.method: "v2"`). New installs need no settings changes.
 Existing explicit global or trusted project preferences still take precedence;
 missing settings inherit these defaults. Change them with `/codex` if desired.
 

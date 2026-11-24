@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-test("all companions switch compact GPT guidance and restore ordinary contracts in both load orders", async (t) => {
+test("all companions keep compact guidance and stable schemas regardless of prompt mode and load order", async (t) => {
   const dir = await mkdtemp(join(tmpdir(), "pi-prompt-mode-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const script = `
@@ -37,12 +37,12 @@ test("all companions switch compact GPT guidance and restore ordinary contracts 
         assert.equal(tools().get(name).description, before.get(name).description, name + ' stable description');
         assert.equal(JSON.stringify(tools().get(name).parameters), before.get(name).parameters, name + ' schema');
       }
-      assert.notDeepEqual(tools().get('web_run').promptGuidelines, before.get('web_run').guidelines);
+      assert.deepEqual(tools().get('web_run').promptGuidelines, before.get('web_run').guidelines);
       for (const name of ['web__run', 'image_gen__imagegen']) {
         assert.ok(normalUsages.get(name), name + ' registered');
-        assert.notEqual(usages().get(name), normalUsages.get(name), name + ' compact usage');
+        assert.equal(usages().get(name), normalUsages.get(name), name + ' compact usage');
       }
-      assert.notDeepEqual(await browserHelp(), normalHelp, 'browser uses compact on-demand help');
+      assert.deepEqual(await browserHelp(), normalHelp, 'browser uses compact on-demand help');
       active = false;
       broker.prepare({}, {toolSnippets: {}, toolGuidelines: {}});
       for (const name of ['web_run', 'imagegen', 'browser']) assert.equal(tools().get(name).description, before.get(name).description);

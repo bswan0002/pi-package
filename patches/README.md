@@ -1,5 +1,61 @@
 # Conversion patch
 
+## Conversion 5.1.0 and companions (2026-11-23)
+
+Update conversion **5.0.2 → 5.1.0**, browser **0.0.14 → 0.0.15**, imagegen
+**0.0.16 → 0.0.17**, and Web Run **0.0.12 → 0.0.13** together; the three
+companions require conversion >=5.1.0. Notes stays **0.0.19** and all eight Pi
+packages stay **1.6.0**. Verified SHA-512 integrity for all eight old/new published
+artifacts. Their new gitHead is
+[`c4f48525475f278d41dc311f2707926216bfa35b`](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/c4f48525475f278d41dc311f2707926216bfa35b/packages).
+Reviewed each package's bundled changelog and artifact changes, rather than relying
+on the umbrella release notes. Required resolutions change only Acorn, OpenAI,
+WebSocket and companion-local Undici; the newly declared HTTPS proxy dependency
+is already satisfied by the lockfile. Root peers and unrelated resolutions stay fixed.
+
+This is an explicitly approved breaking migration. QuickJS becomes persistent VM
+Code; legacy `js` selects `vm`. Legacy Deno `notebook` selects `ts`, with no import
+or deletion of old Deno state/profiles. Preserve our Notebook preference using the
+new **TS Notebook** enum and keep Compact V2. Voice-only follows Provider scope;
+Extra-tools-only maps to Codex/configured providers, not all providers. Standalone
+patch/image switches and the harness identifier option are retired. Tool details
+unifies the old display axes, and heavy prompt overwrite becomes boolean.
+Plain shell output defaults on upstream; saved false remains false. Deno journal
+retention controls are removed, so replace that obsolete test with migration and
+saved-file preservation coverage. See the current README for recovery guidance.
+
+Rebase all 22 conversion patch targets against published dist files. Five existing
+targets changed upstream; preserve custom fast/footer state, quota countdowns,
+snapshot display, voice controls and shortcut labels. The only custom semantic
+change is the default enum `notebook` → `ts`. The Notes patch is byte-identical,
+retaining inactive fresh installs and saved whitelist/Off precedence. Lazy browser
+startup and the user's TypeBox arrangement remain intact.
+
+Companions now use compact guidance even without prompt-mode switching. Browser
+clarifies local/SSH routing labels, imagegen clarifies credential/provider labels,
+and Web Run adds activity-specific rendering. Conversion also adds session HTTP
+fallback for pre-text WebSocket size failures, revised Code/Notebook guidance,
+complete public-tool discovery, shell display improvements and updated helpers.
+No provider, browser or voice account is exercised during validation.
+
+Migration fixtures cover `js`, Deno `notebook`, normal, Code and TS preferences;
+removed scopes/switches; trusted versus untrusted projects; unrelated user fields;
+old saved files; and idempotent upgrades. Explicit host tool allowlists still make
+the adapter inactive if required tools are unavailable. Existing real-loader and
+admission regressions now exercise Code, TS and VM modes. VM smoke checks actual
+cross-cell bindings/store, explicit/session reset, removed-tool handles, denied
+admission and restricted host imports/code generation without changing isolation.
+Run `npm run test:vm`; `npm run test:ts` also checks the new default's typed cells,
+persistence and session separation using a disposable agent directory.
+
+Validation: clean `npm ci` strictly applies both patches; **118 tests**,
+`npm run typecheck`, `npm ls --all`, VM and TS smoke checks and whitespace
+checks pass on Node **24.19.0**, Linux x64. No live accounts, provider requests,
+browser sessions, voice hardware, real-user state recovery/cleanup, macOS,
+Windows, Bun or standalone Pi were tested. VM smoke assertions check specific
+restrictions, not a comprehensive sandbox security audit. TS smoke may fetch
+upstream's pinned compiler/runtime into its disposable agent directory.
+
 ## Pi 1.6.0 and companions (2026-11-20)
 
 Update all eight used Pi packages **1.5.2 → 1.6.0**, conversion **5.0.1 →
@@ -97,7 +153,7 @@ without network calls or account credentials.
 
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-5.0.2, which its exports and our extension loader execute. Upstream `src/` is
+5.1.0, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 

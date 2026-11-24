@@ -74,8 +74,8 @@ test("conversion status keeps usage and mode but no longer duplicates fast", () 
   } }, {
     config: { ui: { statusLine: true }, scope: { allProviders: "off" }, openai: { fast: { astra: true, sol: true, terra: true, luna: true, other: true }, verbosity: "medium" } },
     usageStatus: { fiveHourUsageLeft: 80 },
-  }, { kind: "notebook", effectiveOpenAICodex: true });
-  assert.match(status, /notebook mode/);
+  }, { kind: "ts", effectiveOpenAICodex: true });
+  assert.match(status, /TS mode/);
   assert.match(status, /80% left/);
   assert.doesNotMatch(status, /\bfast\b/);
 });
@@ -90,7 +90,7 @@ test("real adapter synchronization publishes effective fast state across model/c
   const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
   config.openai.fast = { astra: false, sol: false, terra: true, luna: true, other: false };
   config.scope.allProviders = "off";
-  const state = { config, executionMode: "notebook" };
+  const state = { config, executionMode: "ts" };
   const ctx = { model: codexModel, hasUI: false };
   try {
     syncAdapter(pi, ctx, state);
@@ -260,7 +260,7 @@ test("real Code/Notebook runtime imports callable tools without bypassing explic
   const exec = tools.find(tool => tool.name === "exec");
   const callable = tools.filter(tool => ["ordinary_extension", "explicit_fixture"].includes(tool.name));
   const nameOf = tool => tool.topLevelName ?? tool.name;
-  for (const mode of ["code", "notebook"]) {
+  for (const mode of ["code", "ts", "vm"]) {
     state.executionMode = mode;
     for (const model of [
       { provider: "anthropic", api: "anthropic-messages", id: "claude" },
@@ -296,7 +296,7 @@ test("inactive conversion preserves later external tool selections", () => {
   pi.getAllTools = () => [...ALL_CODEX_ADAPTER_TOOL_NAMES, "read", "edit", "write", "bash", "external"].map(name => ({ name }));
   const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
   config.scope.allProviders = "off";
-  const state = { config, executionMode: "notebook" };
+  const state = { config, executionMode: "ts" };
   syncAdapter(pi, { model: codexModel, hasUI: false }, state);
   const inactive = { model: { provider: "anthropic", api: "anthropic-messages", id: "claude" }, hasUI: false };
   syncAdapter(pi, inactive, state);
@@ -313,7 +313,7 @@ test("Ultrafast stays in the custom footer while Daybreak and cost estimates sta
   renderCodexStatus({ hasUI: true, model: codexModel, ui: {
     setStatus: (_key, value) => { status = value; }, theme: { fg: (_role, value) => value },
   } }, { config, usageStatus: { fiveHourUsageLeft: 80 } },
-  { kind: "notebook", effectiveOpenAICodex: true, codexTransport: true });
+  { kind: "ts", effectiveOpenAICodex: true, codexTransport: true });
   assert.match(status, /Daybreak/);
   assert.match(status, /base cost estimate/);
   assert.match(status, /80% left/);

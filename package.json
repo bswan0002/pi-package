@@ -22,7 +22,8 @@
     "postinstall": "patch-package --error-on-fail",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "test:quickjs": "node scripts/check-quickjs.mjs"
+    "test:vm": "node scripts/check-vm.mjs",
+    "test:ts": "node scripts/check-ts.mjs"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": ">=1.5.0",
@@ -39,10 +40,10 @@
     "typebox": "1.3.27"
   },
   "dependencies": {
-    "@howaboua/pi-browser": "0.0.14",
-    "@howaboua/pi-codex-conversion": "5.0.2",
-    "@howaboua/pi-codex-imagegen": "0.0.16",
-    "@howaboua/pi-codex-web-run": "0.0.12",
+    "@howaboua/pi-browser": "0.0.15",
+    "@howaboua/pi-codex-conversion": "5.1.0",
+    "@howaboua/pi-codex-imagegen": "0.0.17",
+    "@howaboua/pi-codex-web-run": "0.0.13",
     "@shikijs/cli": "^4.0.2",
     "diff": "^9.0.0",
     "glob": "^13.0.6",

@@ -1,5 +1,5 @@
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-index 32bf8e6..540f0f8 100644
+index cc3ac36..6756384 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 @@ -1,3 +1,4 @@
@@ -7,7 +7,7 @@ index 32bf8e6..540f0f8 100644
  import { getCodeModeExtensionToolSnapshot } from "../../code-mode-extension-tools.js";
  import { renderCodexStatus } from "../../ui/status.js";
  import { ALL_CODEX_ADAPTER_TOOL_NAMES, isAdapterRuntime, resolveCodexRuntimePlanForState, } from "./runtime-plan.js";
-@@ -5,6 +6,14 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY, buildExtraToolsOnlyStatusText, } from "
+@@ -5,6 +6,14 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY } from "./tool-set.js";
  export function syncAdapter(pi, ctx, state) {
      state.availableToolNames = pi.getAllTools().map((tool) => tool.name);
      const plan = resolveCodexRuntimePlanForState(ctx, state);
@@ -20,10 +20,10 @@ index 32bf8e6..540f0f8 100644
 +        tier,
 +    });
      reconcileExternalToolLoadout(state, pi.getActiveTools());
-     const extensionTools = state.enabled || plan.kind === "extras" || isAdapterRuntime(plan)
+     const extensionTools = state.enabled || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index b672268..e5e2026 100644
+index 3cd2683..1e8b881 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
 @@ -73,7 +73,7 @@ export const REALTIME_V3_VOICES = [
@@ -31,11 +31,11 @@ index b672268..e5e2026 100644
  export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
  export const DEFAULT_CODEX_CONVERSION_CONFIG = {
 -    executionMode: "normal",
-+    executionMode: "notebook",
-     voiceFeaturesOnly: false,
++    executionMode: "ts",
      prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
      scope: { allProviders: "off", additionalProviders: [] },
-@@ -96,7 +96,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
+     tools: {
+@@ -92,7 +92,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
          backgroundShellCloseShortcut: "alt+r",
      },
      compaction: {
@@ -45,12 +45,12 @@ index b672268..e5e2026 100644
      },
      notebook: {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-index c6531f3..f8f9af1 100644
+index a52e622..b86e56f 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-@@ -8,6 +8,22 @@ function formatStatusText(suffix, theme) {
- export function buildExtraToolsOnlyStatusText(tools, theme) {
-     return formatStatusText(` • extra tools${tools.length > 0 ? `: ${tools.join(", ")}` : ""}`, theme);
+@@ -5,6 +5,22 @@ function formatStatusText(suffix, theme) {
+         return `${STATUS_TEXT}${suffix}`;
+     return `${theme.fg("accent", STATUS_TEXT)}${suffix ? theme.fg("dim", suffix) : ""}`;
  }
 +// Compact reset countdowns use the same cached response as the percentages.
 +function quotaStatus(label, left, resetsAt) {
@@ -71,7 +71,7 @@ index c6531f3..f8f9af1 100644
  export function buildStatusText(options, theme) {
      const extras = [
          options.mode === "vm"
-@@ -31,12 +47,8 @@ export function buildStatusText(options, theme) {
+@@ -24,12 +40,8 @@ export function buildStatusText(options, theme) {
                  : undefined,
          options.baseTierEstimate ? "base cost estimate" : undefined,
          options.daybreak ? "Daybreak" : undefined,
@@ -302,10 +302,10 @@ index f6b2aca..300cdc8 100644
              catch (error) {
                  if (error instanceof ExecutePatchError) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-index be0d02a..07ddddc 100644
+index d528cb0..2f69046 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-@@ -92,12 +92,8 @@ function createExecTool(runtime, tracker, renderResult, hooks, isGpt) {
+@@ -81,12 +81,8 @@ function createExecTool(runtime, tracker, renderResult, hooks) {
          parameters: EXEC_PARAMETERS,
          constrainedSampling: CODE_MODE_EXEC_CONSTRAINED_SAMPLING,
          prepareLoadout: (loadout) => runtime.prepareLoadout(loadout),
@@ -320,7 +320,7 @@ index be0d02a..07ddddc 100644
          async execute(id, params, signal, onUpdate, ctx) {
              tracker.start(id);
              const piToolScope = new PiToolCallScope(ctx, signal);
-@@ -143,6 +139,7 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks, isG
+@@ -132,6 +128,7 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks) {
      const constrainedSampling = getExperimentalToolSampling("wait");
      return {
          name: "wait",
@@ -359,7 +359,7 @@ index d16cea2..2978785 100644
  export function registerBackgroundBashWidgetShortcuts(pi, state, sessions, config, isEnabled) {
      function rerender(ctx) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-index c016d7a..b606ad3 100644
+index 40f99f3..6adec40 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 @@ -1,6 +1,6 @@
@@ -370,7 +370,7 @@ index c016d7a..b606ad3 100644
  import { clearFolderCodexConversionConfig, getCodexConversionConfigPath, getProjectCodexConversionConfigPath, hasFolderCodexConversionConfig, materializeFolderCodexConversionConfig, readCodexConversionConfig, readEffectiveCodexConversionConfig, readLayeredCodexConversionConfig, setGlobalCodexLunaCacheKeepalive, setProjectCodexCacheKeepalive, writeCodexConversionConfig, } from "../../adapter/activation/config-store.js";
  import { syncAdapter } from "../../adapter/activation/activation.js";
  import { createCodexVoiceControls } from "../../voice/controls.js";
-@@ -247,6 +247,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
+@@ -225,6 +225,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
          getArgumentCompletions: (prefix) => CODEX_COMMAND_COMPLETIONS.filter((item) => item.startsWith(prefix.trim().toLowerCase())).map((value) => ({ label: value, value })),
          handler: async (args, ctx) => {
              const arg = args.trim().toLowerCase();
