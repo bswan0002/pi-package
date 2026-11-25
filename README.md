@@ -21,8 +21,14 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser`, and `@howaboua/pi-notes-compaction` dependencies through local extension loaders. **Remove separately installed copies of all five from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
 Pi **1.5.0 or newer** is required by this package and its bundled Codex dependencies.
-The pinned development and compatibility-test baseline is **Pi 1.6.0**; see the
-[release assessment](./patches/README.md#conversion-510-and-companions-2026-11-23).
+The pinned development and compatibility-test baseline is **Pi 1.6.1**; see the
+[release assessment](./patches/README.md#pi-161-compatibility-2026-11-25).
+Pi 1.6.1 splits transcript notices into `notices.cacheMisses`, `cacheWarming`,
+`compactionCosts` and `reasoningDrops` under `/settings`. An existing
+`showCacheMissNotices` value seeds all four; explicit per-notice values win.
+This changes notice display, not cache-warming behavior or tool permissions.
+The eight Pi baseline packages resolve to 1.6.1; bundled Howaboua packages retain
+their exact schema 1.6.0 dependency alongside Pi's schema 1.6.1.
 Pi now defaults to idle cache warming, which can make paid refreshes for up to
 30 minutes after a run. Existing explicit cache-warming settings remain effective.
 
@@ -46,7 +52,7 @@ The removed Deno Notebook (`notebook`) mode now selects **TS Notebook** (`ts`), 
 
 Voice-only mode now follows Provider scope. Extra-tools-only scope becomes Codex plus explicitly configured providers; it does not enable all providers. Standalone `apply_patch`/`view_image` switches are removed; these tools remain adapter tools subject to Pi's tool allowlist. Tool details now selects Minimal, Compact or Preview, heavy prompt overwrite becomes Off/On, and Codex uses the fixed `codex_cli_rs` originator. Global and trusted-project settings migrate once while preserving unrelated fields. Explicit provider scopes, Notes whitelists and existing plain-command-output choices remain effective.
 
-Browser 0.0.15, imagegen 0.0.17 and Web Run 0.0.13 require conversion 5.1.0 and always use compact guidance. Browser/imagegen clarify settings labels; Web Run distinguishes searches, opens, links and finds in activity rows. Notes remains 0.0.19; all eight Pi packages remain 1.6.0.
+Browser 0.0.15, imagegen 0.0.17 and Web Run 0.0.13 require conversion 5.1.0 and always use compact guidance. Browser/imagegen clarify settings labels; Web Run distinguishes searches, opens, links and finds in activity rows. Notes remains 0.0.19.
 
 Notes 0.0.17 requires conversion 5 and adds Linux post-exit cleanup of retired session records for sessions with pruning enabled. It does not enable pruning for new sessions: they still start Off. Existing pruning-enabled sessions gain automatic physical cleanup after quitting Pi; review that retention choice before enabling pruning. No user session data is pruned during this package update.
 
