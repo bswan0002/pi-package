@@ -144,3 +144,32 @@ test("bundled companions load and compose in either order across all modes", asy
   });
   assert.equal(child.status, 0, child.error?.message ?? child.stderr + child.stdout);
 });
+
+test("Pi discovers the complete package manifest with its pinned companions", async t => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-package-entry-"));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const script = `
+    import assert from 'node:assert/strict';
+    import { dirname, join } from 'node:path';
+    import { fileURLToPath } from 'node:url';
+    import { readFile } from 'node:fs/promises';
+    const sdk = dirname(fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent')));
+    const { discoverAndLoadExtensions } = await import(join(sdk, 'core/extensions/loader.js'));
+    const manifest = JSON.parse(await readFile('package.json', 'utf8'));
+    const paths = manifest.pi.extensions.map(p => join(process.cwd(), p));
+    const loaded = await discoverAndLoadExtensions(paths, process.env.PI_CODING_AGENT_DIR, process.env.PI_CODING_AGENT_DIR);
+    assert.deepEqual(loaded.errors, []);
+    assert.equal(loaded.extensions.length, 11);
+    const tools = loaded.extensions.flatMap(e => [...e.tools.keys()]);
+    for (const name of ['exec', 'wait', 'notebook', 'apply_patch', 'browser', 'imagegen', 'web_run', 'edit', 'write']) {
+      assert.equal(tools.filter(n => n === name).length, 1, name + ' registers exactly once');
+    }
+    assert.ok(loaded.extensions.some(e => e.commands.has('fast')));
+    assert.ok(loaded.extensions.some(e => e.entryRenderers?.has('pi-package:apply-patch-diff')));
+  `;
+  const child = spawnSync(process.execPath, ["--input-type=module", "-"], {
+    input: script, encoding: "utf8", timeout: 30_000,
+    env: { ...process.env, PI_CODING_AGENT_DIR: cwd },
+  });
+  assert.equal(child.status, 0, child.error?.message ?? child.stderr + child.stdout);
+});

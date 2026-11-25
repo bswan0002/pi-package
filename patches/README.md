@@ -1,5 +1,50 @@
 # Conversion patch
 
+## Pi 1.6.1 compatibility (2026-11-25)
+
+Update the three Pi development pins and their five Pi dependencies from 1.6.0
+to **1.6.1**. Reviewed the [tagged release notes](https://github.com/earendil-works/pi/releases/tag/v1.6.1),
+published manifests and bundled changelogs; verified SHA-512 integrity of all eight
+new Pi artifacts. All five Howaboua releases still match npm latest and remain
+unchanged. Both PR #45 patches are byte-identical; TS Notebook/Compact V2 defaults,
+Notes inactivity and saved whitelists, explicit tool admission, lazy browser
+startup and the TypeBox peer/dev arrangement are preserved.
+
+Pi removes `getShowCacheMissNotices`/`setShowCacheMissNotices` in favor of
+`getNotices`/`setNotice`. Neither repository integrations nor bundled Howaboua
+source/dist use those removed accessors. Pi migrates legacy notice booleans to
+four notice settings, retaining explicit new values. Disposable-file tests cover
+true/false, one-key saves and reload, trusted-project precedence, untrusted
+project exclusion, and preservation of tool/model selections and unrelated data.
+No real user settings are read or migrated by the checks. Conversion and Notes
+keep their separate settings/migration tests and need no integration override.
+
+The upstream additions and fixes (dialog status kind, bash truncated-output
+errors, MCP result helpers, provider retries/response events and rendering) require
+no local API changes. No local or bundled Howaboua handler uses
+`after_provider_response`. Root peer minima stay unchanged because our code does
+not newly require the 1.6.1 APIs.
+
+Required non-Pi dependency changes are Google GenAI **2.32.0 → 3.6.1** and Pi AI's
+explicit AWS credential-provider-node **3.972.82** dependency. Other resolutions
+stay fixed. Howaboua's exact schema **1.6.0** remains at the root; Pi AI/agent-core
+resolve their required schema **1.6.1** in nested entries. Do not override the
+companions' published schema pin just to deduplicate versions.
+
+The new manifest-discovery regression loads the same `pi.extensions` directory
+used by package installation through Pi's actual discovery/loader and checks all
+11 extensions, unique tool registration and the custom diff renderer. Existing
+entry-point tests execute bundled write/edit/apply_patch and render snapshots,
+and compose companions in both load orders. VM and TS smoke checks exercise
+real local runtime execution with disposable state and no provider requests.
+
+Validation: clean `npm ci` with both strict patches, **121 tests**, TypeScript,
+`npm ls --all`, actual VM and TS runtime smokes, Pi CLI `--version` (1.6.1), and
+whitespace checks pass on Node 24.19.0 / Linux x64. No integration patch changes
+were needed. Live provider requests, browser/voice hardware, interactive terminal
+appearance, real-user settings/history migration, Bun, macOS, Windows and
+standalone Pi remain untested. No deployment, publishing or live account actions.
+
 ## Conversion 5.1.0 and companions (2026-11-23)
 
 Update conversion **5.0.2 → 5.1.0**, browser **0.0.14 → 0.0.15**, imagegen
