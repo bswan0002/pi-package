@@ -18,8 +18,8 @@ test("bundled conversion preserves MCP namespace guidance and missing-tool recov
   await assert.rejects(tool.invoke({}, {
     executeTool: async () => ({ isError: true, result: { content: [{ type: "text", text: `Tool ${name} not found` }] } }),
     captureResult: (result) => { captured = result; },
-  }), /MCP namespace "mcp__example".*retry in a new exec cell/);
-  assert.match(captured.content[0].text, /suggest disabling that specific server/);
+  }), /MCP namespace "mcp__example".*Retry in a new exec cell/);
+  assert.match(captured.content[0].text, /suggest disabling that server/);
   const payload = { isError: true, content: [{ type: "text", text: "Server-specific error" }] };
   assert.equal(await tool.invoke({}, {
     executeTool: async () => ({ isError: true, result: { content: payload.content, structuredContent: payload } }),

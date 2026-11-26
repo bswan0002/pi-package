@@ -45,10 +45,17 @@ try {
   ctx.preflight = async () => { throw new Error('fixture denied'); };
   assert.match((await execute('await savedTool({});', [fixture])).errorText, /fixture denied/);
   assert.equal(calls, 1, 'denied tools never execute');
+  const caught = await execute('try { await savedTool({}); } catch (error) { text("handled"); }', [fixture]);
+  assert.deepEqual(caught.nestedFailures, [{name: 'fixture', error: 'fixture denied', count: 1}], 'handled nested failures still reach the outer result');
+  assert.equal(calls, 1);
   delete ctx.preflight;
 
-  await client.reset();
-  assert.equal(await run('text(typeof counter); text(typeof marker); text(load("retained"));'), 'undefined\nundefined\nundefined');
+  const inventory = await client.bindingInventory(ctx);
+  assert.equal(inventory.kind, 'bindings');
+  assert.ok(inventory.names.includes('counter'));
+  assert.equal(await run('text(typeof yield_control);'), 'undefined');
+  await run('// @exec: {"reset":true}');
+  assert.equal(await run('text(typeof counter); text(typeof marker); text(load("retained"));'), 'undefined\nundefined\n{"count":3}');
   await run('let sessionBinding = 7; store("retained", 9);');
   session = 'second';
   assert.equal(await run('text(typeof sessionBinding); text(load("retained"));'), 'undefined\nundefined');

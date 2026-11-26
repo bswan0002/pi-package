@@ -5,51 +5,35 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-test("all companions keep compact guidance and stable schemas regardless of prompt mode and load order", async (t) => {
+test("all companions keep compact guidance and stable schemas without the retired prompt-mode broker in both load orders", async (t) => {
   const dir = await mkdtemp(join(tmpdir(), "pi-prompt-mode-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const script = `
     import assert from 'node:assert/strict';
     import { dirname, join } from 'node:path';
     import { fileURLToPath } from 'node:url';
-    import { registerGptPromptModeBroker } from '@howaboua/pi-codex-conversion/prompt-mode';
     import { getCodeModeExtensionToolSnapshot } from '@howaboua/pi-codex-conversion/dist/code-mode-extension-tools.js';
     const sdk = dirname(fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent')));
     const { loadExtensions } = await import(join(sdk, 'core/extensions/loader.js'));
     const { createEventBus } = await import(join(sdk, 'core/event-bus.js'));
     const paths = ['codex-web-run', 'codex-imagegen', 'browser'].map(p => join(process.cwd(), 'extensions', p, 'index.ts'));
+    let baseline;
     for (const order of [paths, [...paths].reverse()]) {
       const events = createEventBus();
-      let active = false;
-      const broker = registerGptPromptModeBroker({events}, () => active);
       const loaded = await loadExtensions(order, process.env.PI_CODING_AGENT_DIR, events);
       assert.deepEqual(loaded.errors, []);
       const tools = () => new Map(loaded.extensions.flatMap(e => [...e.tools].map(([name, t]) => [name, t.definition])));
-      const ordinary = tools();
-      const before = new Map([...ordinary].map(([name, t]) => [name, {description: t.description, parameters: JSON.stringify(t.parameters), guidelines: t.promptGuidelines}]));
       const browserHelp = async () => (await tools().get('browser').execute('help', {command: 'help'}, undefined, undefined, {sessionManager: {getSessionId: () => 'fixture'}})).content;
       const normalHelp = await browserHelp();
       const usages = () => new Map(getCodeModeExtensionToolSnapshot({events, getAllTools: () => [...tools().values()]}, undefined).tools.map(t => [t.name, t.usage]));
       const normalUsages = usages();
-      active = true;
-      broker.prepare({}, {toolSnippets: {}, toolGuidelines: {}});
-      for (const name of ['web_run', 'imagegen', 'browser']) {
-        assert.equal(tools().get(name).description, before.get(name).description, name + ' stable description');
-        assert.equal(JSON.stringify(tools().get(name).parameters), before.get(name).parameters, name + ' schema');
-      }
-      assert.deepEqual(tools().get('web_run').promptGuidelines, before.get('web_run').guidelines);
-      for (const name of ['web__run', 'image_gen__imagegen']) {
-        assert.ok(normalUsages.get(name), name + ' registered');
-        assert.equal(usages().get(name), normalUsages.get(name), name + ' compact usage');
-      }
-      assert.deepEqual(await browserHelp(), normalHelp, 'browser uses compact on-demand help');
-      active = false;
-      broker.prepare({}, {toolSnippets: {}, toolGuidelines: {}});
-      for (const name of ['web_run', 'imagegen', 'browser']) assert.equal(tools().get(name).description, before.get(name).description);
-      assert.deepEqual(tools().get('web_run').promptGuidelines, before.get('web_run').guidelines);
-      assert.deepEqual(usages(), normalUsages);
-      assert.deepEqual(await browserHelp(), normalHelp);
-      broker.dispose();
+      assert.match(tools().get('web_run').promptGuidelines.join(' '), /cite only Markdown links/);
+      assert.match(normalUsages.get('image_gen__imagegen'), /MUST NOT print/);
+      assert.ok(normalUsages.get('web__run'));
+      const snapshot = [...tools()].map(([name, t]) => ({name, description: t.description, parameters: t.parameters})).sort((a, b) => a.name.localeCompare(b.name));
+      const current = { snapshot, help: normalHelp, usages: [...normalUsages].sort() };
+      if (baseline) assert.deepEqual(current, baseline);
+      baseline = current;
     }
   `;
   const child = spawnSync(process.execPath, ["--input-type=module", "-"], {

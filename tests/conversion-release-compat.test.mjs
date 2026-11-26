@@ -39,7 +39,7 @@ for (const companion of ["pi-codex-imagegen", "pi-codex-web-run"]) {
       ["429 quota", /quota or rate limit/],
       ["503 server", /service failed/],
       ["socket", /connection failed/],
-      ["invalid token", /authentication unavailable/],
+      ["invalid token", /auth unavailable/],
       ["unexpected", /request failed/],
     ]) {
       const error = codexProviderFailure(new Error(`${failure}: https://private.example/path raw-secret-value`), false);
@@ -50,7 +50,7 @@ for (const companion of ["pi-codex-imagegen", "pi-codex-web-run"]) {
 }
 
 test("empty notebook calls return help without starting the runtime", async () => {
-  const { registerNotebookTool } = await import("@howaboua/pi-codex-conversion/dist/tools/code-mode/notebook-tool.js");
+  const { registerNotebookTool } = await import("@howaboua/pi-codex-conversion/dist/tools/ts-mode/notebook-tool.js");
   let tool;
   registerNotebookTool({ on() {}, events: { on: () => () => {}, emit() {} }, registerTool: value => { tool = value; } }, new Proxy({}, {
     get(_target, key) { if (key === "executionKind") return () => "ts"; assert.fail("help must not start the notebook runtime"); },

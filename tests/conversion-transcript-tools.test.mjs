@@ -31,3 +31,20 @@ for (const change of ["removal", "redefinition"]) {
     });
   }
 }
+
+test("native compaction serialization omits hidden declarations without altering history", async () => {
+  const { serializeMessagesToResponsesInput } = await import("@howaboua/pi-codex-conversion/dist/adapter/compaction/serializer.js");
+  const model = { api: "openai-codex-responses", provider: "openai-codex", id: "gpt-6-luna", reasoning: true, input: ["text"],
+    compat: { supportsMidConvoSystemMessages: true, supportsAdditionalTools: true } };
+  const messages = [system({ content: "Fixture", toolsAdded: [tool("exec")] }), user,
+    system({ toolsAdded: [tool("hidden_native"), tool("visible")] }), user];
+  const original = structuredClone(messages);
+  const expected = structuredClone(messages);
+  expected[2].toolsAdded = [tool("visible")];
+  const filtered = serializeMessagesToResponsesInput(model, messages, { hiddenToolNames: ["hidden_native"] });
+  assert.deepEqual(filtered, serializeMessagesToResponsesInput(model, expected));
+  assert.match(JSON.stringify(filtered), /visible/);
+  assert.doesNotMatch(JSON.stringify(filtered), /hidden_native/);
+  assert.match(JSON.stringify(serializeMessagesToResponsesInput(model, messages)), /hidden_native/);
+  assert.deepEqual(messages, original);
+});

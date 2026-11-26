@@ -50,7 +50,7 @@ test("real conversion status renders countdowns and ANSI together while respecti
     config: { ui: { statusLine: true }, scope: { allProviders: "off" }, openai: { fast: true } },
     usageStatus: { weeklyUsageLeft: 32, weeklyResetsAt: 1_800_151_200 },
   };
-  const plan = { kind: "notebook", effectiveOpenAICodex: true };
+  const plan = { kind: "notebook", codexOrConfiguredResponses: true };
   renderCodexStatus(ctx, state, plan);
   assert.match(rendered, /weekly: 32% left · 1d18h ↺/);
   assert.match(rendered, /\x1b\[2m/);

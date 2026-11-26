@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { TsCodeModeClient } from '@howaboua/pi-codex-conversion/dist/tools/ts-mode/client.js';
+import { TsNotebookClient } from '@howaboua/pi-codex-conversion/dist/tools/ts-mode/client.js';
 const dir = await mkdtemp(join(tmpdir(), 'pi-ts-'));
-const client = new TsCodeModeClient({ agentDir: dir, maxHeapMiB: 512, prepareToolInput: (_tool, input) => input });
+const client = new TsNotebookClient({ agentDir: dir, maxHeapMiB: 512, prepareToolInput: (_tool, input) => input });
 let session = 'first';
 const ctx = { cwd: dir, extensionContext: { sessionManager: { getSessionId: () => session, getBranch: () => [] } } };
 const run = async source => {
