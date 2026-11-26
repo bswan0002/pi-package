@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { readEffectiveCodexConversionConfig } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config-store.js";
-import { resolveCodexRuntimePlanForState } from "@howaboua/pi-codex-conversion/dist/adapter/activation/runtime-plan.js";
+import { resolveAdapterRuntimePlanForState } from "@howaboua/pi-codex-conversion/dist/adapter/activation/runtime-plan.js";
 
 for (const [legacy, expected] of [["js", "vm"], ["notebook", "ts"], ["normal", "normal"], ["code", "code"], ["ts", "ts"]]) {
   test(`5.1 migration preserves user fields and safely maps ${legacy} to ${expected}`, async t => {
@@ -51,9 +51,9 @@ for (const [legacy, expected] of [["js", "vm"], ["notebook", "ts"], ["normal", "
     assert.equal(await readFile(globalConfigPath, "utf8"), once, "migration is idempotent");
 
     const unrelatedModel = { model: { provider: "unrelated", api: "openai-responses", id: "fixture" } };
-    assert.equal(resolveCodexRuntimePlanForState(unrelatedModel, { config }).kind, "inactive");
+    assert.equal(resolveAdapterRuntimePlanForState(unrelatedModel, { config }).kind, "inactive");
     const codex = { model: { provider: "openai-codex", api: "openai-codex-responses", id: "gpt-6-luna" } };
-    const blocked = resolveCodexRuntimePlanForState(codex, { config, availableToolNames: [] });
+    const blocked = resolveAdapterRuntimePlanForState(codex, { config, availableToolNames: [] });
     assert.equal(blocked.kind, "inactive");
     assert.deepEqual(blocked.toolNames, []);
     assert.ok(blocked.missingToolNames.length, "migration cannot bypass host tool allowlists");

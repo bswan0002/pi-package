@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { DEFAULT_CODEX_CONVERSION_CONFIG, normalizeCodexConversionConfig } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config.js";
 import { readCodexConversionConfig, readEffectiveCodexConversionConfig } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config-store.js";
-import { resolveCodexRuntimePlan } from "@howaboua/pi-codex-conversion/dist/adapter/activation/runtime-plan.js";
+import { resolveAdapterRuntimePlan } from "@howaboua/pi-codex-conversion/dist/adapter/activation/runtime-plan.js";
 
 test("fresh conversion installs default to Notebook and Compact V2", async (t) => {
   const cwd = await mkdtemp(join(tmpdir(), "pi-conversion-defaults-"));
@@ -16,7 +16,7 @@ test("fresh conversion installs default to Notebook and Compact V2", async (t) =
   assert.equal(config.executionMode, "ts");
   assert.equal(config.compaction.method, "v2");
   assert.equal(normalizeCodexConversionConfig({}).compaction.method, "v2");
-  const plan = resolveCodexRuntimePlan({ model: { provider: "openai-codex", api: "openai-codex-responses", id: "gpt-6-luna" } }, config);
+  const plan = resolveAdapterRuntimePlan({ model: { provider: "openai-codex", api: "openai-codex-responses", id: "gpt-6-luna" } }, config);
   assert.equal(plan.kind, "ts");
   assert.equal(plan.nativeCompaction, true);
 
@@ -40,7 +40,7 @@ test("fresh conversion installs default to Notebook and Compact V2", async (t) =
 
 test("Azure provider rename requires explicit conversion scope for ordinary GPT IDs", () => {
   const plan = (provider, config = DEFAULT_CODEX_CONVERSION_CONFIG, id = "gpt-5") =>
-    resolveCodexRuntimePlan({ model: { provider, api: "azure-openai-responses", id } }, config);
+    resolveAdapterRuntimePlan({ model: { provider, api: "azure-openai-responses", id } }, config);
   assert.equal(plan("azure-openai-responses").kind, "ts");
   assert.equal(plan("azure").kind, "inactive");
   const optedIn = normalizeCodexConversionConfig({ scope: { additionalProviders: ["azure"] } });

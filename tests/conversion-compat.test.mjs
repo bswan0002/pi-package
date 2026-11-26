@@ -74,8 +74,8 @@ test("conversion status keeps usage and mode but no longer duplicates fast", () 
   } }, {
     config: { ui: { statusLine: true }, scope: { allProviders: "off" }, openai: { fast: { astra: true, sol: true, terra: true, luna: true, other: true }, verbosity: "medium" } },
     usageStatus: { fiveHourUsageLeft: 80 },
-  }, { kind: "ts", effectiveOpenAICodex: true });
-  assert.match(status, /TS mode/);
+  }, { kind: "ts", codexOrConfiguredResponses: true });
+  assert.match(status, /TS Notebook/);
   assert.match(status, /80% left/);
   assert.doesNotMatch(status, /\bfast\b/);
 });
@@ -313,9 +313,36 @@ test("Ultrafast stays in the custom footer while Daybreak and cost estimates sta
   renderCodexStatus({ hasUI: true, model: codexModel, ui: {
     setStatus: (_key, value) => { status = value; }, theme: { fg: (_role, value) => value },
   } }, { config, usageStatus: { fiveHourUsageLeft: 80 } },
-  { kind: "ts", effectiveOpenAICodex: true, codexTransport: true });
+  { kind: "ts", codexOrConfiguredResponses: true, codexTransport: true });
   assert.match(status, /Daybreak/);
   assert.match(status, /base cost estimate/);
   assert.match(status, /80% left/);
   assert.doesNotMatch(status, /\b(?:ultrafast|fast)\b/);
+});
+
+test("disabled Pi file and shell tools stay disabled across model switches and reload", () => {
+  const { pi } = harness();
+  let active = ["read", "bash", "edit", "write"];
+  pi.getActiveTools = () => active;
+  pi.setActiveTools = names => { active = names; };
+  pi.getAllTools = () => [...ALL_CODEX_ADAPTER_TOOL_NAMES, "read", "bash", "edit", "write"].map(name => ({ name }));
+  const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
+  let state = { config };
+  const codex = { model: codexModel, hasUI: false };
+  const other = { model: { provider: "anthropic", api: "anthropic-messages", id: "claude" }, hasUI: false };
+  for (const mode of ["normal", "code", "ts", "vm"]) {
+    state.executionMode = mode;
+    syncAdapter(pi, codex, state);
+    assert.ok(active.includes("read"), "persist admitted native tools; hide declarations at request time");
+    active = active.filter(name => !["bash", "edit", "write"].includes(name));
+    syncAdapter(pi, codex, state);
+    syncAdapter(pi, other, state);
+    assert.deepEqual(active, ["read"]);
+    syncAdapter(pi, codex, state);
+    // Reload reconstructs state from Pi's persisted admitted selection.
+    state = { config, executionMode: mode };
+    syncAdapter(pi, codex, state);
+    syncAdapter(pi, other, state);
+    assert.deepEqual(active, ["read"]);
+  }
 });

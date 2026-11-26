@@ -1,21 +1,21 @@
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-index cc3ac36..6756384 100644
+index 826377b..32a0777 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 @@ -1,3 +1,4 @@
 +import { resolveFastModeServiceTier } from "./fast-mode.js";
  import { getCodeModeExtensionToolSnapshot } from "../../code-mode-extension-tools.js";
  import { renderCodexStatus } from "../../ui/status.js";
- import { ALL_CODEX_ADAPTER_TOOL_NAMES, isAdapterRuntime, resolveCodexRuntimePlanForState, } from "./runtime-plan.js";
-@@ -5,6 +6,14 @@ import { DEFAULT_TOOL_NAMES, STATUS_KEY } from "./tool-set.js";
+ import { ALL_CODEX_ADAPTER_TOOL_NAMES, isAdapterRuntime, resolveAdapterRuntimePlanForState, } from "./runtime-plan.js";
+@@ -5,6 +6,14 @@ import { REPLACED_PI_TOOL_NAMES, STATUS_KEY } from "./tool-set.js";
  export function syncAdapter(pi, ctx, state) {
      state.availableToolNames = pi.getAllTools().map((tool) => tool.name);
-     const plan = resolveCodexRuntimePlanForState(ctx, state);
+     const plan = resolveAdapterRuntimePlanForState(ctx, state);
 +    // pi-package's custom model footer owns only the fast indicator.
 +    // Publish resolved runtime state (including env/config overrides), not a toggle.
 +    const tier = resolveFastModeServiceTier(state.config.openai.fast, ctx.model?.id);
 +    pi.events.emit("pi-package:codex-fast-state", {
-+        active: isAdapterRuntime(plan) && Boolean(plan.effectiveOpenAICodex),
++        active: isAdapterRuntime(plan) && Boolean(plan.codexOrConfiguredResponses),
 +        fast: Boolean(tier),
 +        tier,
 +    });
@@ -45,10 +45,10 @@ index 3cd2683..1e8b881 100644
      },
      notebook: {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-index a52e622..b86e56f 100644
+index d85b8b2..440de44 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-@@ -5,6 +5,22 @@ function formatStatusText(suffix, theme) {
+@@ -6,6 +6,22 @@ function formatStatusText(suffix, theme) {
          return `${STATUS_TEXT}${suffix}`;
      return `${theme.fg("accent", STATUS_TEXT)}${suffix ? theme.fg("dim", suffix) : ""}`;
  }
@@ -70,8 +70,8 @@ index a52e622..b86e56f 100644
 +}
  export function buildStatusText(options, theme) {
      const extras = [
-         options.mode === "vm"
-@@ -24,12 +40,8 @@ export function buildStatusText(options, theme) {
+         options.executionMode && options.executionMode !== "normal"
+@@ -21,12 +37,8 @@ export function buildStatusText(options, theme) {
                  : undefined,
          options.baseTierEstimate ? "base cost estimate" : undefined,
          options.daybreak ? "Daybreak" : undefined,
@@ -260,7 +260,7 @@ index 0000000..9c202a1
 +    }));
 +}
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
-index f6b2aca..300cdc8 100644
+index 35b21ae..1163a92 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 @@ -1,5 +1,6 @@
@@ -271,7 +271,7 @@ index f6b2aca..300cdc8 100644
  import { Container, Text } from "@earendil-works/pi-tui";
  import { parsePatchActions } from "../../patch/parser.js";
  import { resolvePatchPath } from "../../patch/paths.js";
-@@ -169,12 +170,23 @@ export function createApplyPatchTool(options = {}) {
+@@ -168,12 +169,23 @@ export function createApplyPatchTool(options = {}) {
              setApplyPatchRenderState(toolCallId, typedParams.patchText, ctx.cwd);
              let result;
              try {
@@ -302,7 +302,7 @@ index f6b2aca..300cdc8 100644
              catch (error) {
                  if (error instanceof ExecutePatchError) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-index d528cb0..2f69046 100644
+index d1d3642..516593c 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 @@ -81,12 +81,8 @@ function createExecTool(runtime, tracker, renderResult, hooks) {
@@ -359,7 +359,7 @@ index d16cea2..2978785 100644
  export function registerBackgroundBashWidgetShortcuts(pi, state, sessions, config, isEnabled) {
      function rerender(ctx) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-index 40f99f3..6adec40 100644
+index 04fcc1e..d5422e4 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 @@ -1,6 +1,6 @@
@@ -397,11 +397,11 @@ index 40f99f3..6adec40 100644
                  const { runLanVoiceCommand } = await import("../../voice/lan/command.js");
                  await runLanVoiceCommand(args.trim().replace(/^voice\s+server\s+/i, ""), ctx, lanVoice, dirname(getCodexConversionConfigPath()));
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-index 62b62e9..8190c83 100644
+index 3677ecb..54cb813 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
 @@ -17,7 +17,7 @@ export function renderCodexStatus(ctx, state, plan) {
-         mode: plan.kind,
+         executionMode: plan.kind,
          useOnAllModels: config.scope.allProviders === "on",
          additionalProvider: plan.configuredProvider,
 -        fast,
@@ -410,7 +410,7 @@ index 62b62e9..8190c83 100644
              codexUltrafastCostMultiplier(ctx.model?.id) === undefined,
          daybreak: plan.codexTransport ? config.openai.daybreak : undefined,
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
-index 67c38c1..ae2563a 100644
+index b8c8314..74c8560 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
 @@ -29,6 +29,11 @@ export declare class CodexVoiceController {
@@ -483,7 +483,7 @@ index 0643a29..84351d5 100644
              if (session && activePrompt)
                  session.announcePrompt(activePrompt);
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/handoff.js b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/handoff.js
-index 1618709..4be8bd1 100644
+index 856813a..49cc702 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/handoff.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/handoff.js
 @@ -25,11 +25,13 @@ export class ControllerHandoff {

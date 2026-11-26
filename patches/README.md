@@ -1,5 +1,47 @@
 # Conversion patch
 
+## Conversion 5.1.2 and companions (2026-11-26)
+
+Update conversion **5.1.0 → 5.1.2**, browser **0.0.15 → 0.0.16**, imagegen
+**0.0.17 → 0.0.18**, and Web Run **0.0.13 → 0.0.14**. Pi stays **1.6.1** and
+Notes stays **0.0.19**. Raise the three Pi peer minima to **>=1.6.1** to match
+the new published requirements. The four updated packages pin schema 1.6.1;
+Notes still resolves schema 1.6.0. No other package versions change.
+
+Reviewed the tagged conversion changelogs for
+[5.1.1](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/2ac3b73f99ec61f4223638e49f8fdee118569df0/packages/pi-codex-conversion/CHANGELOG.md)
+and [5.1.2](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/5b641f0a7c7c93c53f9e9cda6abef498fc1441ef/packages/pi-codex-conversion/CHANGELOG.md),
+companion changelogs, manifests and published artifact diffs. Verified SHA-512
+integrity for all nine old/intermediate/new artifacts used in the comparison.
+
+5.1.1 removes the public prompt-mode broker and VM/TS `yield_control`, adds VM
+binding inventory and idle memory reset, preserves disabled native tool choices,
+updates TS compiler bootstrap, and improves reasoning replay, notices and native
+compaction replay. Notes' optional broker import catches the removed export and
+keeps ordinary guidance. 5.1.2 improves shell completion guidance and lexical
+binding guidance. Companion errors become shorter and redact provider/auth
+internals. These changes require no new permissions or runtime isolation bypass.
+
+Rebase all 22 patch targets on shipped dist files. The custom fast-status hook
+now reads the renamed `codexOrConfiguredResponses` route field. All other custom
+patch additions/removals retain their semantics; the Notes patch is unchanged.
+TS Notebook/Compact V2 defaults, inactive Notes, saved whitelists, explicit tool
+admission, lazy browser startup, voice controls and snapshot display remain.
+
+Update tests for renamed runtime-plan APIs, TS Notebook client/label and upstream
+error text. Add regressions for disabled tools across model changes/reload and
+hidden declarations in native compaction replay. VM smoke checks retained
+bindings, manual reset retaining store, session reset clearing store, removed
+yield helper, authorization failures and host isolation. TS smoke uses the
+current notebook client. The manifest-loader test exercises all bundled extension
+entrypoints, and existing migration/default/Notes rollover coverage remains.
+Validation: clean `npm ci` applies both patches with `--error-on-fail`; all 123
+tests pass, along with `npm run typecheck`, `npm ls --all`, `npm run test:vm`
+and `npm run test:ts` on Node 24.19.0. TS bootstrap uses a writable workspace
+npm cache (`npm_config_cache=/workspace/.npm-cache`).
+No live account, provider, browser, image generation or Web Run actions are run;
+Windows/Bun and memory-pressure reset are not exercised in this Linux/Node check.
+
 ## Pi 1.6.1 compatibility (2026-11-25)
 
 Update the three Pi development pins and their five Pi dependencies from 1.6.0
@@ -198,7 +240,7 @@ without network calls or account credentials.
 
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-5.1.0, which its exports and our extension loader execute. Upstream `src/` is
+5.1.2, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 

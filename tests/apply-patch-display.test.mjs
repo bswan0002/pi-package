@@ -161,7 +161,7 @@ test("native execution snapshots survive subsequent nested calls, deletion, move
   assert.equal(last.isError, true);
   assert.equal(last.files.find((f) => f.path.endsWith("applied.ts")).after, "const ok = true;\n");
   assert.equal(last.files.find((f) => f.path.endsWith("missing.ts")).after, null);
-  assert.match(last.content, /Recovery:/);
+  assert.match(last.content, /MUST read failed files before retrying/);
   // Persisted data must render without reading those files again.
   await rm(join(cwd, "renamed.ts"));
   await renderer.prepareHighlighting();
