@@ -21,14 +21,18 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser`, and `@howaboua/pi-notes-compaction` dependencies through local extension loaders. **Remove separately installed copies of all five from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
 Pi **1.6.1 or newer** is required by this package and its bundled Codex dependencies.
-The pinned development and compatibility-test baseline is **Pi 1.6.1**; see the
-[release assessment](./patches/README.md#pi-161-compatibility-2026-11-25).
+The pinned development and compatibility-test baseline is **Pi 1.7.0**; see the
+[release assessment](./patches/README.md#pi-170-compatibility-2026-11-27).
 Pi 1.6.1 splits transcript notices into `notices.cacheMisses`, `cacheWarming`,
 `compactionCosts` and `reasoningDrops` under `/settings`. An existing
 `showCacheMissNotices` value seeds all four; explicit per-notice values win.
 This changes notice display, not cache-warming behavior or tool permissions.
-The eight Pi baseline packages resolve to 1.6.1. Notes retains its exact schema
+The eight Pi baseline packages resolve to 1.7.0. Notes retains its exact schema
 1.6.0 dependency; conversion and its three companions now use schema 1.6.1.
+Pi 1.7.0 removes install telemetry and its setting. Compatible terminals can
+resume sessions with the original profile, tool restrictions and instructions;
+resume is suppressed when relative resource flags would resolve in another directory.
+Shell output excluded with `!!` no longer counts toward compaction estimates.
 Pi now defaults to idle cache warming, which can make paid refreshes for up to
 30 minutes after a run. Existing explicit cache-warming settings remain effective.
 
