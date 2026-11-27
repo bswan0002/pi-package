@@ -1,5 +1,45 @@
 # Conversion patch
 
+## Pi 1.7.0 compatibility (2026-11-27)
+
+Update the three development pins and five existing Pi dependencies to **1.7.0**.
+Reviewed all eight tagged per-package changelogs and published manifests, and
+verified SHA-512 integrity for all eight npm artifacts. The
+[release tag](https://github.com/earendil-works/pi/releases/tag/v1.7.0) resolves to
+`fb0fe823539f6d04850f6e34748c01f01f212e1f`. Manifest changes are only existing
+Pi-to-Pi version links; no packages are added or removed. All five Howaboua pins,
+both custom patches and Pi peer minima **>=1.6.1** stay unchanged. Howaboua's
+published schema pins remain 1.6.0 (Notes) and 1.6.1 (the other four); Pi AI and
+agent-core use schema 1.7.0. The `@howaboua/pi` voice namespace is not a dependency.
+
+The [coding-agent changelog](https://github.com/earendil-works/pi/blob/v1.7.0/packages/coding-agent/CHANGELOG.md)
+removes install reporting, `enableInstallTelemetry`, its getter/setter and
+`PI_TELEMETRY`. Repository integrations and bundled Howaboua code have no callers,
+so no compatibility shim or settings rewrite is needed. Terminal resume preserves
+profile and restriction/resource flags and consumes its token before launching
+children. New tests exercise the actual argument parser and resume command with
+restricted tools, extension/resource choices and a separate disposable profile;
+they verify no API key is included and refuse changed-cwd or unpersisted sessions.
+A regression checks that excluded `!!` output contributes neither LLM messages
+nor compaction estimates. No runtime permissions or trust settings are changed.
+
+[AI](https://github.com/earendil-works/pi/blob/v1.7.0/packages/ai/CHANGELOG.md)
+adds image options, Radius image support and image-output pricing, and fixes
+provider reasoning/cache behavior. [TUI](https://github.com/earendil-works/pi/blob/v1.7.0/packages/tui/CHANGELOG.md)
+adds resume helpers and fixes key hints and Kitty rendering. The five other
+package changelogs have empty 1.7.0 sections. No local API adaptation is required;
+custom defaults, Notes inactivity/whitelists, explicit tool admission and
+compaction integration remain covered by the existing suite.
+
+Validation uses Node 24.19.0: clean `npm ci` with strict patch application,
+`npm test` (126 tests), `npm run typecheck`, `npm ls --all`, `npm run test:vm`
+and `npm run test:ts`. The suite discovers all 11 extensions through Pi's actual
+manifest loader and exercises bundled editing/composition and patch regressions.
+Runtime smoke checks cover VM/TS persistence, session/reset behavior and VM
+tool revocation/preflight denial/host isolation. TS bootstrap uses the writable
+workspace npm cache. Live providers/accounts, actual terminal restart/rendering,
+Windows/Bun and memory-pressure reset are not exercised.
+
 ## Conversion 5.1.2 and companions (2026-11-26)
 
 Update conversion **5.1.0 → 5.1.2**, browser **0.0.15 → 0.0.16**, imagegen
