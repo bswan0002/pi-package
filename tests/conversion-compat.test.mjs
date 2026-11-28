@@ -72,7 +72,7 @@ test("conversion status keeps usage and mode but no longer duplicates fast", () 
   renderCodexStatus({ hasUI: true, model: codexModel, ui: {
     setStatus: (_key, value) => { status = value; }, theme: { fg: (_role, value) => value },
   } }, {
-    config: { ui: { statusLine: true }, scope: { allProviders: "off" }, openai: { fast: { astra: true, sol: true, terra: true, luna: true, other: true }, verbosity: "medium" } },
+    config: { ui: { statusLine: true }, scope: { mode: "automatic" }, openai: { fast: { astra: true, sol: true, terra: true, luna: true, other: true }, verbosity: "medium" } },
     usageStatus: { fiveHourUsageLeft: 80 },
   }, { kind: "ts", codexOrConfiguredResponses: true });
   assert.match(status, /TS Notebook/);
@@ -89,7 +89,7 @@ test("real adapter synchronization publishes effective fast state across model/c
   pi.getAllTools = () => [...ALL_CODEX_ADAPTER_TOOL_NAMES, "read", "edit", "write", "bash"].map((name) => ({ name }));
   const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
   config.openai.fast = { astra: false, sol: false, terra: true, luna: true, other: false };
-  config.scope.allProviders = "off";
+  config.scope.mode = "automatic";
   const state = { config, executionMode: "ts" };
   const ctx = { model: codexModel, hasUI: false };
   try {
@@ -252,7 +252,7 @@ test("real Code/Notebook runtime imports callable tools without bypassing explic
   pi.getActiveTools = () => active;
   pi.setActiveTools = names => { active = names; };
   const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
-  config.scope.allProviders = "on";
+  config.scope.mode = "all";
   config.tools.autoReasoning = false;
   const state = { config };
   const runtime = await registerCodexCodeMode(pi, { state, tracker: {}, sessions: new Map() });
@@ -295,7 +295,7 @@ test("inactive conversion preserves later external tool selections", () => {
   pi.setActiveTools = names => { active = names; };
   pi.getAllTools = () => [...ALL_CODEX_ADAPTER_TOOL_NAMES, "read", "edit", "write", "bash", "external"].map(name => ({ name }));
   const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
-  config.scope.allProviders = "off";
+  config.scope.mode = "automatic";
   const state = { config, executionMode: "ts" };
   syncAdapter(pi, { model: codexModel, hasUI: false }, state);
   const inactive = { model: { provider: "anthropic", api: "anthropic-messages", id: "claude" }, hasUI: false };
@@ -330,7 +330,7 @@ test("disabled Pi file and shell tools stay disabled across model switches and r
   let state = { config };
   const codex = { model: codexModel, hasUI: false };
   const other = { model: { provider: "anthropic", api: "anthropic-messages", id: "claude" }, hasUI: false };
-  for (const mode of ["normal", "code", "ts", "vm"]) {
+  for (const mode of ["code", "ts", "vm"]) {
     state.executionMode = mode;
     syncAdapter(pi, codex, state);
     assert.ok(active.includes("read"), "persist admitted native tools; hide declarations at request time");
@@ -344,5 +344,31 @@ test("disabled Pi file and shell tools stay disabled across model switches and r
     syncAdapter(pi, codex, state);
     syncAdapter(pi, other, state);
     assert.deepEqual(active, ["read"]);
+  }
+});
+
+test("recorded nested selections survive reload and model Off without re-admitting omitted adapter tools", () => {
+  const { pi } = harness();
+  const available = [...ALL_CODEX_ADAPTER_TOOL_NAMES, "read"];
+  let active = ["exec", "wait", "read"];
+  pi.getAllTools = () => available.map(name => ({ name }));
+  pi.getActiveTools = () => active;
+  pi.setActiveTools = names => { active = names; };
+  const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
+  const ctx = { model: codexModel, hasUI: false, sessionManager: { getBranch: () => [
+    { type: "custom", customType: "pi-codex-conversion-native-nested-selection" },
+  ] } };
+  for (const executionMode of ["vm", "code", "ts"]) {
+    const state = { config, executionMode };
+    syncAdapter(pi, ctx, state);
+    for (const name of ["exec_command", "write_stdin", "apply_patch", "view_image", "change_reasoning"]) {
+      assert.ok(!active.includes(name), name + " remains excluded");
+    }
+    config.scope.modelOverrides = { [codexModel.provider]: { [codexModel.id]: false } };
+    syncAdapter(pi, ctx, state);
+    assert.deepEqual(active, ["read"]);
+    config.scope.modelOverrides = {};
+    syncAdapter(pi, ctx, state);
+    assert.ok(!active.includes("exec_command"), "reactivation retains the suspended selection");
   }
 });

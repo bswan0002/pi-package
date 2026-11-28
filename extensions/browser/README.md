@@ -9,6 +9,11 @@ enabled at `chrome://inspect/#remote-debugging`. On macOS, start the browser
 normally and enable remote debugging there; bundling does not change browser
 settings or launch a browser.
 
+On Linux, an explicit `start` uses the graphical desktop's configured default
+browser. `CDP_BROWSER` overrides that executable. Unsupported desktop entries or
+missing desktop information produce an error with recovery guidance rather than
+falling back to Chromium; CDP support and a systemd user session are still required.
+
 The tool discovers CDP through `CDP_PORT`, port 9222, or `DevToolsActivePort`.
 Set `CDP_PORT_FILE` for a non-standard port file. Use `/browser` to configure
 optional SSH hosts; local browser use does not require SSH setup.

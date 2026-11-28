@@ -1,5 +1,61 @@
 # Conversion patch
 
+## Conversion 5.1.3 and Browser 0.0.17 (2026-11-28)
+
+Update these two packages together. Browser requires conversion >=5.1.3, and
+conversion pins Browser 0.0.17; both now require Pi >=1.7.0 and schema 1.7.0.
+Raise the three Pi peer minima accordingly. All eight Pi baselines remain 1.7.0;
+imagegen, Web Run and Notes stay pinned. No unrelated dependency versions change.
+Verified npm artifact SHA-512 integrity and byte-identical tagged changelogs at
+`abba1eec9c96608463f595ea5e1301d14a4fbab2`:
+[Conversion](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/abba1eec9c96608463f595ea5e1301d14a4fbab2/packages/pi-codex-conversion/CHANGELOG.md),
+[Browser](https://github.com/IgorWarzocha/howaboua-pi-stuff/blob/abba1eec9c96608463f595ea5e1301d14a4fbab2/packages/pi-browser/CHANGELOG.md).
+
+The approved breaking migration removes Structured mode and maps saved `normal`
+to VM Code. Remove both local config-contract overrides: fresh execution follows
+upstream **VM Code**, and compaction follows upstream **Pi** rather than Compact
+V2. The package loader is a thin delegate and the shared package-config overlay
+has no Conversion fields to override. Explicit supported saved modes and
+compaction choices remain intact, as do trusted-project precedence and unrelated
+settings. Installation itself does not migrate user settings. The distinct Notes
+inactivity/empty-whitelist patch remains as an activation safeguard; this paired
+update does not enable Notes or broaden its scope.
+
+Rebase the 21 remaining dist patch targets. The fast-status suppression hunk
+follows upstream's renamed model-scope fields; quota countdowns, snapshot diff
+display, fast events/command lifecycle, Mac shortcut labels and voice controls
+retain their behavior. No custom tool permission or runtime isolation is relaxed.
+
+Upstream model scopes now support exact provider/model Default/On/Off rules and
+Selected scope. Legacy provider opt-ins seed compatible models on activation;
+explicit rules, Selected scope and trusted-project shadowing constrain migration.
+Nested adapter tools now use Pi's native execution pipeline and preserve recorded
+selections. Older sessions without nested-selection records regain upstream
+optional tool defaults, subject to Pi's callable tools, allowlists and guards.
+The release also fixes shell-completion delivery, partial-patch recovery,
+headless cache diagnostics, VM closing-brace guidance and stream verbosity.
+Browser uses the Linux graphical desktop's default application while preserving
+CDP_BROWSER override and refusing unsafe/unsupported desktop Exec commands.
+
+Regression coverage checks fresh/global/project defaults, supported saved settings,
+idempotent normal-to-VM migration, model-specific opt-in/Off/Selected rules,
+legacy provider seeding, project trust, and retained nested selections. Owned
+nested calls run through Pi's actual validation/guard pipeline; missing admission,
+blocked/invalid calls, closed scopes and missing dispatchers cannot fall back to
+direct execution. Scope close drains in-flight native calls before outer yield.
+Browser tests exercise the shipped start entrypoint with only process/CDP
+boundaries stubbed, real disposable desktop entries and both default/override
+selection; no actual browser or systemd unit is started.
+
+Validation on Node 24.19.0: strict clean `npm ci`, all **131 tests** passing
+(including all 11 extension loader entrypoints), `npm run typecheck`,
+`npm ls --all`, `npm run test:vm` and `npm run test:ts`. The
+smokes cover cross-cell persistence, reset/session boundaries, revoked tools,
+preflight denial and VM host isolation. Live accounts/providers, actual graphical
+browser startup, real shell completion wake-up, Windows/Bun and memory-pressure
+reset are not exercised. All filesystem fixtures are disposable; no user-machine
+configuration is read or changed.
+
 ## Pi 1.7.0 compatibility (2026-11-27)
 
 Update the three development pins and five existing Pi dependencies to **1.7.0**.
@@ -280,7 +336,7 @@ without network calls or account credentials.
 
 
 The patch targets the shipped **dist JavaScript and declarations** of conversion
-5.1.2, which its exports and our extension loader execute. Upstream `src/` is
+5.1.3, which its exports and our extension loader execute. Upstream `src/` is
 not rebuilt at installation. Updating conversion requires reviewing and
 regenerating this patch, not merely changing the version pin.
 

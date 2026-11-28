@@ -105,9 +105,9 @@ test("bundled companions load and compose in either order across all modes", asy
       // must reserve their names even when their explicit integration is inactive.
       bridge.prepareLoadout({ declared: [], getExposure: () => "direct", callable: [...tools, { name: 'ordinary_extension', description: 'Auto imported', parameters: { type: 'object' } }], getNamespace: () => undefined });
       const config = structuredClone(DEFAULT_CODEX_CONVERSION_CONFIG);
-      config.scope.allProviders = 'on';
+      config.scope.mode = 'all';
       const state = { config };
-      for (const mode of ['normal', 'code', 'notebook']) {
+      for (const mode of ['vm', 'code', 'ts']) {
         state.executionMode = mode;
         for (const model of [
           {provider: 'anthropic', api: 'anthropic-messages', id: 'claude'},
