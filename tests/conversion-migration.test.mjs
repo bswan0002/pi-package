@@ -6,7 +6,7 @@ import test from "node:test";
 import { readEffectiveCodexConversionConfig } from "@howaboua/pi-codex-conversion/dist/adapter/activation/config-store.js";
 import { resolveAdapterRuntimePlanForState } from "@howaboua/pi-codex-conversion/dist/adapter/activation/runtime-plan.js";
 
-for (const [legacy, expected] of [["js", "vm"], ["notebook", "ts"], ["normal", "normal"], ["code", "code"], ["ts", "ts"]]) {
+for (const [legacy, expected] of [["js", "vm"], ["notebook", "ts"], ["normal", "vm"], ["code", "code"], ["ts", "ts"]]) {
   test(`5.1 migration preserves user fields and safely maps ${legacy} to ${expected}`, async t => {
     const cwd = await mkdtemp(join(tmpdir(), "pi-migration-"));
     t.after(() => rm(cwd, { recursive: true, force: true }));
@@ -29,8 +29,8 @@ for (const [legacy, expected] of [["js", "vm"], ["notebook", "ts"], ["normal", "
     const config = read(false);
     assert.equal(config.executionMode, expected);
     assert.equal(config.compaction.method, "pi");
-    assert.equal(config.scope.allProviders, "off", "removed extras scope must not enable all providers");
-    assert.deepEqual(config.scope.additionalProviders, ["fixture"]);
+    assert.equal(config.scope.mode, "automatic", "removed extras scope must not enable all providers");
+    assert.deepEqual(config.scope.modelOverrides, {}, "legacy providers are seeded only on activation");
     assert.equal(config.ui.toolDetails, "preview");
     assert.equal(config.prompt.heavySystemPromptOverwrite, true);
     assert.equal(config.notebook.plainCommandOutput, false);
@@ -67,8 +67,42 @@ for (const [legacy, expected] of [["js", "vm"], ["notebook", "ts"], ["normal", "
     const trusted = read(true);
     assert.equal(trusted.executionMode, "vm");
     assert.equal(trusted.compaction.method, "both");
-    assert.deepEqual(trusted.scope.additionalProviders, ["project-only"]);
-    assert.equal(trusted.scope.allProviders, "off");
+    assert.deepEqual(JSON.parse(await readFile(projectPath, "utf8")).scope.additionalProviders, ["project-only"]);
+    assert.equal(trusted.scope.mode, "automatic");
     assert.deepEqual(JSON.parse(await readFile(projectPath, "utf8")).unrelated, { keep: true });
   });
 }
+
+test("legacy provider opt-in seeds only the activating model and respects explicit rules and project trust", async t => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-model-scope-"));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const globalConfigPath = join(cwd, "global.json");
+  await mkdir(join(cwd, ".pi"));
+  const projectPath = join(cwd, ".pi/pi-codex-conversion.json");
+  const model = { provider: "fixture", api: "openai-responses", id: "gpt-5" };
+  const read = projectTrusted => readEffectiveCodexConversionConfig({ cwd, globalConfigPath, projectTrusted, activatingModel: model, upgradeSettings: true, env: {} });
+  const original = { settingsVersion: 1, executionMode: "normal", compaction: { method: "v2" },
+    scope: { allProviders: "off", additionalProviders: ["fixture"] }, unrelated: "preserved" };
+  await writeFile(globalConfigPath, JSON.stringify(original));
+  const config = read(false);
+  assert.equal(config.executionMode, "vm");
+  assert.equal(config.compaction.method, "v2");
+  assert.deepEqual(config.scope.modelOverrides, { fixture: { "gpt-5": true } });
+  assert.equal(resolveAdapterRuntimePlanForState({ model }, { config }).kind, "vm");
+  assert.equal(resolveAdapterRuntimePlanForState({ model: { ...model, id: "other" } }, { config }).kind, "inactive");
+  const saved = await readFile(globalConfigPath, "utf8");
+  assert.equal(JSON.parse(saved).unrelated, "preserved");
+  read(false);
+  assert.equal(await readFile(globalConfigPath, "utf8"), saved);
+  for (const rule of [false, null]) {
+    await writeFile(globalConfigPath, JSON.stringify({ ...original, scope: { ...original.scope, modelOverrides: { fixture: { "gpt-5": rule } } } }));
+    assert.equal(read(false).scope.modelOverrides.fixture["gpt-5"], rule);
+    assert.equal(resolveAdapterRuntimePlanForState({ model }, { config: read(false) }).kind, "inactive");
+  }
+  await writeFile(globalConfigPath, JSON.stringify({ ...original, scope: { ...original.scope, mode: "selected" } }));
+  assert.deepEqual(read(false).scope.modelOverrides, {}, "selected mode cannot seed a legacy provider opt-in");
+  await writeFile(globalConfigPath, JSON.stringify(original));
+  await writeFile(projectPath, JSON.stringify({ scope: { additionalProviders: [] } }));
+  assert.deepEqual(read(true).scope.modelOverrides, {}, "trusted empty project list shadows global legacy list");
+  assert.deepEqual(read(false).scope.modelOverrides, { fixture: { "gpt-5": true } }, "untrusted project cannot change global scope");
+});

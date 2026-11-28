@@ -1,5 +1,5 @@
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
-index 826377b..32a0777 100644
+index dc5fb3a..8d7ae63 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/activation.js
 @@ -1,3 +1,4 @@
@@ -7,7 +7,7 @@ index 826377b..32a0777 100644
  import { getCodeModeExtensionToolSnapshot } from "../../code-mode-extension-tools.js";
  import { renderCodexStatus } from "../../ui/status.js";
  import { ALL_CODEX_ADAPTER_TOOL_NAMES, isAdapterRuntime, resolveAdapterRuntimePlanForState, } from "./runtime-plan.js";
-@@ -5,6 +6,14 @@ import { REPLACED_PI_TOOL_NAMES, STATUS_KEY } from "./tool-set.js";
+@@ -6,6 +7,14 @@
  export function syncAdapter(pi, ctx, state) {
      state.availableToolNames = pi.getAllTools().map((tool) => tool.name);
      const plan = resolveAdapterRuntimePlanForState(ctx, state);
@@ -22,36 +22,15 @@ index 826377b..32a0777 100644
      reconcileExternalToolLoadout(state, pi.getActiveTools());
      const extensionTools = state.enabled || isAdapterRuntime(plan)
          ? getCodeModeExtensionToolSnapshot(pi, ctx, { refreshGates: true })
-diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-index 3cd2683..1e8b881 100644
---- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-+++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/config-contract.js
-@@ -73,7 +73,7 @@ export const REALTIME_V3_VOICES = [
- export const V2_USER_MESSAGE_RETENTION_OPTIONS = [16, 32, 64];
- export const LUNA_CACHE_KEEPALIVE_MINUTES_OPTIONS = [0, 5, 10, 15];
- export const DEFAULT_CODEX_CONVERSION_CONFIG = {
--    executionMode: "normal",
-+    executionMode: "ts",
-     prompt: { heavySystemPromptOverwrite: false, currentTimeReminderMinutes: 0 },
-     scope: { allProviders: "off", additionalProviders: [] },
-     tools: {
-@@ -92,7 +92,7 @@ export const DEFAULT_CODEX_CONVERSION_CONFIG = {
-         backgroundShellCloseShortcut: "alt+r",
-     },
-     compaction: {
--        method: "pi",
-+        method: "v2",
-         v2UserMessageRetention: 64,
-     },
-     notebook: {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-index d85b8b2..440de44 100644
+index 735bb49..d8c52d1 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/adapter/activation/tool-set.js
-@@ -6,6 +6,22 @@ function formatStatusText(suffix, theme) {
+@@ -5,6 +5,22 @@
+     if (!theme)
          return `${STATUS_TEXT}${suffix}`;
      return `${theme.fg("accent", STATUS_TEXT)}${suffix ? theme.fg("dim", suffix) : ""}`;
- }
++}
 +// Compact reset countdowns use the same cached response as the percentages.
 +function quotaStatus(label, left, resetsAt) {
 +    if (left === undefined) return undefined;
@@ -67,11 +46,10 @@ index d85b8b2..440de44 100644
 +        reset = ` · ${countdown} ↺`;
 +    }
 +    return `${label}: ${Math.round(left)}% left${reset}`;
-+}
+ }
  export function buildStatusText(options, theme) {
      const extras = [
-         options.executionMode && options.executionMode !== "normal"
-@@ -21,12 +37,8 @@ export function buildStatusText(options, theme) {
+@@ -21,12 +37,8 @@
                  : undefined,
          options.baseTierEstimate ? "base cost estimate" : undefined,
          options.daybreak ? "Daybreak" : undefined,
@@ -108,7 +86,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload
 index 82571c6..6551645 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.d.ts
-@@ -18,6 +18,8 @@ export interface CodexUsageSnapshot {
+@@ -18,6 +18,8 @@
      raw: unknown;
  }
  export interface CodexUsageStatus {
@@ -121,7 +99,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload
 index a2b2379..3d229a1 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/codex-usage/payload.js
-@@ -61,16 +61,13 @@ function parseWindow(value) {
+@@ -61,16 +61,13 @@
          return undefined;
      const usedPercent = numberValue(value["used_percent"]);
      const limitWindowSeconds = numberValue(value["limit_window_seconds"]);
@@ -145,7 +123,7 @@ index a2b2379..3d229a1 100644
  }
  function parseRateLimit(value) {
      if (!isRecord(value))
-@@ -113,15 +110,16 @@ export function parseCodexUsagePayload(payload) {
+@@ -113,15 +110,16 @@
  }
  export function codexUsageStatus(snapshot) {
      const limit = snapshot.limits.find(({ limitId }) => limitId === "codex");
@@ -188,7 +166,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/d
 index ed72cc2..2dd9726 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/display-broker.js
-@@ -145,6 +145,7 @@ function collectApplyPatchDisplayData(event, captured) {
+@@ -145,6 +145,7 @@
              {
                  toolCallId: event.toolCallId,
                  input,
@@ -196,7 +174,7 @@ index ed72cc2..2dd9726 100644
                  ...(isApplyPatchToolDetails(event.details)
                      ? { details: event.details }
                      : {}),
-@@ -183,6 +184,7 @@ function collectApplyPatchDisplayData(event, captured) {
+@@ -183,6 +184,7 @@
              {
                  toolCallId: trace.id,
                  input,
@@ -260,7 +238,7 @@ index 0000000..9c202a1
 +    }));
 +}
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
-index 35b21ae..1163a92 100644
+index a861c93..9f02349 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/apply-patch/tool.js
 @@ -1,5 +1,6 @@
@@ -271,7 +249,7 @@ index 35b21ae..1163a92 100644
  import { Container, Text } from "@earendil-works/pi-tui";
  import { parsePatchActions } from "../../patch/parser.js";
  import { resolvePatchPath } from "../../patch/paths.js";
-@@ -168,12 +169,23 @@ export function createApplyPatchTool(options = {}) {
+@@ -164,12 +165,23 @@
              setApplyPatchRenderState(toolCallId, typedParams.patchText, ctx.cwd);
              let result;
              try {
@@ -305,7 +283,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/pub
 index d1d3642..516593c 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/tools/code-mode/public-tools.js
-@@ -81,12 +81,8 @@ function createExecTool(runtime, tracker, renderResult, hooks) {
+@@ -81,12 +81,8 @@
          parameters: EXEC_PARAMETERS,
          constrainedSampling: CODE_MODE_EXEC_CONSTRAINED_SAMPLING,
          prepareLoadout: (loadout) => runtime.prepareLoadout(loadout),
@@ -320,7 +298,7 @@ index d1d3642..516593c 100644
          async execute(id, params, signal, onUpdate, ctx) {
              tracker.start(id);
              const piToolScope = new PiToolCallScope(ctx, signal);
-@@ -132,6 +128,7 @@ function createWaitTool(runtime, tracker, renderResult, waitAttempts, hooks) {
+@@ -132,6 +128,7 @@
      const constrainedSampling = getExperimentalToolSampling("wait");
      return {
          name: "wait",
@@ -345,7 +323,7 @@ index d16cea2..2978785 100644
  function truncate(text, maxLength) {
      return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
  }
-@@ -74,10 +80,8 @@ export function renderBackgroundBashWidget(ctx, state, sessions, config) {
+@@ -74,10 +80,8 @@
          }
          lines.push(`${theme.fg("muted", "│")} ${theme.fg("dim", `session ${active.id} · updated ${ageLabel(active.updatedAt)} ago`)}`);
      }
@@ -359,7 +337,7 @@ index d16cea2..2978785 100644
  export function registerBackgroundBashWidgetShortcuts(pi, state, sessions, config, isEnabled) {
      function rerender(ctx) {
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
-index 04fcc1e..d5422e4 100644
+index 25225e1..a0d9e17 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/settings/command.js
 @@ -1,6 +1,6 @@
@@ -369,8 +347,8 @@ index 04fcc1e..d5422e4 100644
 +import { allModelsFastModeState, resolveFastModeServiceTier, resolveCodexModelFamily } from "../../adapter/activation/fast-mode.js";
  import { clearFolderCodexConversionConfig, getCodexConversionConfigPath, getProjectCodexConversionConfigPath, hasFolderCodexConversionConfig, materializeFolderCodexConversionConfig, readCodexConversionConfig, readEffectiveCodexConversionConfig, readLayeredCodexConversionConfig, setGlobalCodexLunaCacheKeepalive, setProjectCodexCacheKeepalive, writeCodexConversionConfig, } from "../../adapter/activation/config-store.js";
  import { syncAdapter } from "../../adapter/activation/activation.js";
- import { createCodexVoiceControls } from "../../voice/controls.js";
-@@ -225,6 +225,25 @@ export function registerCodexCommand(pi, state, voice, lanVoice, onConfigApplied
+ import { getModelScopeOverride, withModelScopeOverride, } from "../../adapter/activation/model-scope.js";
+@@ -244,6 +244,25 @@
          getArgumentCompletions: (prefix) => CODEX_COMMAND_COMPLETIONS.filter((item) => item.startsWith(prefix.trim().toLowerCase())).map((value) => ({ label: value, value })),
          handler: async (args, ctx) => {
              const arg = args.trim().toLowerCase();
@@ -397,13 +375,13 @@ index 04fcc1e..d5422e4 100644
                  const { runLanVoiceCommand } = await import("../../voice/lan/command.js");
                  await runLanVoiceCommand(args.trim().replace(/^voice\s+server\s+/i, ""), ctx, lanVoice, dirname(getCodexConversionConfigPath()));
 diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-index 3677ecb..54cb813 100644
+index a8d2275..e16b21c 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/ui/status.js
-@@ -17,7 +17,7 @@ export function renderCodexStatus(ctx, state, plan) {
+@@ -17,7 +17,7 @@
          executionMode: plan.kind,
-         useOnAllModels: config.scope.allProviders === "on",
-         additionalProvider: plan.configuredProvider,
+         useOnAllModels: config.scope.mode === "all",
+         configuredResponsesModel: plan.configuredResponsesModel,
 -        fast,
 +        fast: undefined, // displayed by pi-package footer
          baseTierEstimate: fast === "ultrafast" &&
@@ -413,7 +391,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.
 index b8c8314..74c8560 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.d.ts
-@@ -29,6 +29,11 @@ export declare class CodexVoiceController {
+@@ -29,6 +29,11 @@
      get status(): string;
      get active(): boolean;
      get activeMode(): CodexVoiceMode | undefined;
@@ -429,7 +407,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
 index db87fac..e83f489 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller.js
-@@ -37,6 +37,8 @@ export class CodexVoiceController {
+@@ -37,6 +37,8 @@
              stop: (options) => this.stop(options),
          });
          this.presentation = new ControllerState(this.runtime, this.handoff);
@@ -438,7 +416,7 @@ index db87fac..e83f489 100644
          this.agent = new ControllerAgent(pi, this.runtime, () => this.presentation.renderStatus("working"));
          this.messages = this.agent.messages;
          this.contextRefresh = new RealtimeContextRefresh(pi, this.runtime, {
-@@ -95,6 +97,31 @@ export class CodexVoiceController {
+@@ -95,6 +97,31 @@
      get activeMode() {
          return this.presentation.activeMode;
      }
@@ -474,7 +452,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/co
 index 0643a29..84351d5 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/connection.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/connection.js
-@@ -49,6 +49,7 @@ export class ControllerConnection {
+@@ -49,6 +49,7 @@
                  },
                  onStatus: (status) => this.presentation.renderStatus(status),
              });
@@ -486,7 +464,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/ha
 index 856813a..49cc702 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/handoff.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/handoff.js
-@@ -25,11 +25,13 @@ export class ControllerHandoff {
+@@ -25,11 +25,13 @@
      cancelReservation() {
          this.handoffReservation?.abort();
          this.handoffReservation = undefined;
@@ -500,7 +478,7 @@ index 856813a..49cc702 100644
      }
      reserveHandoffArrival() {
          this.ownership.assertAvailable();
-@@ -38,11 +40,14 @@ export class ControllerHandoff {
+@@ -38,11 +40,14 @@
              throw new Error("The target already has an active or preparing voice call");
          const reservation = new AbortController();
          this.handoffReservation = reservation;
@@ -516,7 +494,7 @@ index 856813a..49cc702 100644
              },
          };
      }
-@@ -61,6 +66,7 @@ export class ControllerHandoff {
+@@ -61,6 +66,7 @@
              if (this.forwardedAudio !== controls) {
                  this.removeForwardedEvents?.();
                  this.forwardedAudio = controls;
@@ -524,7 +502,7 @@ index 856813a..49cc702 100644
                  this.removeForwardedEvents = controls.onSessionEvent((event, value) => {
                      if (this.runtime.state.type !== "idle" &&
                          this.runtime.state.type !== "failed")
-@@ -85,6 +91,7 @@ export class ControllerHandoff {
+@@ -85,6 +91,7 @@
                      throw new Error("Source voice changed before transfer");
                  transferredControls?.setInputMuted(this.callbacks.inputMuted());
                  this.departingSession = session;
@@ -532,7 +510,7 @@ index 856813a..49cc702 100644
                  session.setInputMuted(true);
                  await session.waitForPlaybackEnd(signal);
                  signal.throwIfAborted();
-@@ -111,6 +118,7 @@ export class ControllerHandoff {
+@@ -111,6 +118,7 @@
              finished: (peer, error) => {
                  if (this.departingSession === session) {
                      this.departingSession = undefined;
@@ -540,7 +518,7 @@ index 856813a..49cc702 100644
                      if (!released && this.callbacks.currentSession() === session)
                          this.callbacks.setInputMuted(transferredControls?.inputMuted ?? inputMuted);
                  }
-@@ -119,6 +127,7 @@ export class ControllerHandoff {
+@@ -119,6 +127,7 @@
                      this.removeForwardedEvents?.();
                      this.removeForwardedEvents = undefined;
                      this.forwardedAudio = undefined;
@@ -552,7 +530,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/li
 index d3ce4db..368594f 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controller/lifecycle.js
-@@ -79,6 +79,7 @@ export class ControllerLifecycle {
+@@ -79,6 +79,7 @@
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -560,7 +538,7 @@ index d3ce4db..368594f 100644
          try {
              await Promise.all([
                  closePromise,
-@@ -101,6 +102,7 @@ export class ControllerLifecycle {
+@@ -101,6 +102,7 @@
          }
      }
      async finishDictation(options) {
@@ -568,7 +546,7 @@ index d3ce4db..368594f 100644
          this.runtime.startGeneration += 1;
          const session = this.runtime.state.type === "dictation"
              ? this.runtime.state.session
-@@ -113,6 +115,8 @@ export class ControllerLifecycle {
+@@ -113,6 +115,8 @@
              await this.stop(options);
              return;
          }
@@ -577,7 +555,7 @@ index d3ce4db..368594f 100644
          await this.ownership.hold(() => session.finish());
          if (currentVoiceSession(this.runtime.state) !== session)
              return;
-@@ -126,6 +130,7 @@ export class ControllerLifecycle {
+@@ -126,6 +130,7 @@
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -585,7 +563,7 @@ index d3ce4db..368594f 100644
          this.messages.voiceStopped(endedMode);
      }
      fail(error, failedSession) {
-@@ -157,6 +162,7 @@ export class ControllerLifecycle {
+@@ -157,6 +162,7 @@
          this.runtime.voiceStatus = "";
          this.runtime.inputTooQuiet = false;
          this.runtime.context?.ui.setStatus(VOICE_STATUS_KEY, undefined);
@@ -603,7 +581,7 @@ index f697551..e7fd9b6 100644
  /** Owns observable controller presentation: mute subscriptions, level hint and active prompts. */
  export class ControllerState {
      runtime;
-@@ -92,6 +92,11 @@ export class ControllerState {
+@@ -92,6 +92,11 @@
          this.renderCurrentStatus();
      }
      renderCurrentStatus() {
@@ -619,7 +597,7 @@ diff --git a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js b
 index 5605c5e..677dfee 100644
 --- a/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
 +++ b/node_modules/@howaboua/pi-codex-conversion/dist/voice/controls.js
-@@ -4,6 +4,7 @@ import { resolveVoiceHelperBinary } from "./binary.js";
+@@ -4,6 +4,7 @@
  import { buildVoiceSetupInstructions } from "./setup.js";
  import { registerCodexVoiceShortcuts } from "./shortcuts.js";
  import { codexVoiceSetupMessage } from "./ui.js";
@@ -627,7 +605,7 @@ index 5605c5e..677dfee 100644
  export function createCodexVoiceControls(options) {
      const { pi, state, voice, lanVoice } = options;
      const requestSetup = async (ctx, retryCommand, force, mode) => {
-@@ -64,6 +65,7 @@ export function createCodexVoiceControls(options) {
+@@ -64,6 +65,7 @@
          }
          ctx.ui.notify(`Realtime microphone ${muted ? "muted" : "unmuted"}`, "info");
      };

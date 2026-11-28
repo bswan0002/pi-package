@@ -20,7 +20,7 @@ Personal [pi](https://pi.dev) package for my macOS workflow. Some extensions may
 
 This package loads pinned `@howaboua/pi-codex-conversion`, `@howaboua/pi-codex-web-run`, `@howaboua/pi-codex-imagegen`, and `@howaboua/pi-browser`, and `@howaboua/pi-notes-compaction` dependencies through local extension loaders. **Remove separately installed copies of all five from Pi's enabled packages/extensions** before restarting; loading both copies creates competing providers/tools. Also disable the legacy `browser.toml` custom tool if enabled. Global copies in an already-running Pi process are not changed by `npm ci` here.
 
-Pi **1.6.1 or newer** is required by this package and its bundled Codex dependencies.
+Pi **1.7.0 or newer** is required by this package and its bundled Codex dependencies.
 The pinned development and compatibility-test baseline is **Pi 1.7.0**; see the
 [release assessment](./patches/README.md#pi-170-compatibility-2026-11-27).
 Pi 1.6.1 splits transcript notices into `notices.cacheMisses`, `cacheWarming`,
@@ -28,7 +28,8 @@ Pi 1.6.1 splits transcript notices into `notices.cacheMisses`, `cacheWarming`,
 `showCacheMissNotices` value seeds all four; explicit per-notice values win.
 This changes notice display, not cache-warming behavior or tool permissions.
 The eight Pi baseline packages resolve to 1.7.0. Notes retains its exact schema
-1.6.0 dependency; conversion and its three companions now use schema 1.6.1.
+1.6.0 dependency; imagegen and Web Run use schema 1.6.1, while conversion and
+browser use schema 1.7.0.
 Pi 1.7.0 removes install telemetry and its setting. Compatible terminals can
 resume sessions with the original profile, tool restrictions and instructions;
 resume is suppressed when relative resource flags would resolve in another directory.
@@ -38,7 +39,7 @@ Pi now defaults to idle cache warming, which can make paid refreshes for up to
 
 **Upgrading an existing Code/Notebook session:** install the updated package first, then run `/reload` in that still-running Pi session and complete one turn before restarting Pi. The reload must load conversion 4.0.5 or newer; reloading the old version before installation does not perform this migration. Code mode now always uses the pinned official runtime; `tools.customRustBinariesDir` no longer overrides Code mode (other helper overrides are unchanged).
 
-**Notes migration in 4.0.5:** built-in Notes/history and legacy Remote mode were removed upstream. The bundled Notes extension preserves explicit legacy Notes continuity via `/notes`, importing global and trusted-project preferences on first use. Existing Notes settings win; old conversion configuration is not rewritten. Fresh installs keep Compact V2 and leave Notes inactive (an empty model whitelist). Enable Notes explicitly in `/notes` if desired. Remove any separately enabled Notes extension to avoid duplicates.
+**Notes migration in 4.0.5:** built-in Notes/history and legacy Remote mode were removed upstream. The bundled Notes extension preserves explicit legacy Notes continuity via `/notes`, importing global and trusted-project preferences on first use. Existing Notes settings win; old conversion configuration is not rewritten. Fresh installs use Pi compaction and leave Notes inactive (an empty model whitelist). Enable Notes explicitly in `/notes` if desired. Remove any separately enabled Notes extension to avoid duplicates.
 
 **Notes 0.0.13 model roles:** `/roles` is read-only. Configure role IDs, descriptions, providers, models and reasoning in `notes-compaction/model-roles.json` under the Pi agent directory. Defined roles are agent-operated; the former `enabled` flag and accept/dismiss controls no longer apply. `new_context({role})` checkpoints before switching model/reasoning. Notes must be active for the session and target model; fresh installs remain inactive. Omit `role` to retain the current model.
 
@@ -70,10 +71,23 @@ The removed Deno Notebook's journal expiry and checkpoint-cleanup controls no lo
 
 `npm ci` applies the tracked patch in `patches/` via `patch-package`. Install scripts must be enabled. Patch failures fail installation rather than silently dropping the integration. See [patch maintenance](./patches/README.md).
 
-Recommended defaults are **TS Notebook mode** and **Compact V2** (`executionMode:
-"ts"`, `compaction.method: "v2"`). New installs need no settings changes.
-Existing explicit global or trusted project preferences still take precedence;
-missing settings inherit these defaults. Change them with `/codex` if desired.
+Conversion now follows upstream built-in defaults: **VM Code** and **Pi compaction**
+(`executionMode: "vm"`, `compaction.method: "pi"`). The former local TS Notebook
+and Compact V2 defaults are removed. Explicit saved TS/Code and compaction choices
+remain authoritative; removed Structured (`normal`) settings migrate to VM Code.
+Global and trusted-project settings retain their precedence; untrusted project
+settings are ignored. No user configuration is rewritten by package installation.
+
+**Conversion 5.1.3 / Browser 0.0.17:** `/codex` now offers per-model Default/On/Off
+and a Selected-model scope keyed by provider and model. Legacy opted-in Responses
+providers seed compatible models on activation, except in Selected mode; explicit
+rules win. Nested tools dispatch through Pi's selection, validation and guard
+pipeline. Recorded nested selections survive reload; older sessions without such
+records regain upstream defaults, still subject to Pi's allowlists and guards.
+Background shell completions resume active or idle agents; partial patch failures
+identify changed paths and unfinished edits. Linux browser `start` selects the
+graphical desktop's default browser; `CDP_BROWSER` remains an explicit override.
+The separate Notes inactivity/empty-whitelist safeguard is unchanged.
 
 - Conversion owns the Codex provider and connection lifecycle. The `/fast` extension only dispatches commands; it never installs a transport or injects request options.
 - The tiny provider-neutral `/fast` extension toggles conversion's fast setting for the current model family on conversion-owned routes, without opening settings or maintaining a second preference. The patch routes this through conversion's save/apply lifecycle: trusted folder scope is preserved and busy runs apply when idle. A valid `PI_CODEX_FAST` environment override pins the setting; unset it and restart to use the toggle. Unsupported integrations warn without changing settings.
